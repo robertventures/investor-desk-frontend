@@ -1,0 +1,59 @@
+.actionCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.actionCard:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+}
+
+.actionCard.alert {
+  border-left: 3px solid #ef4444;
+}
+
+.actionCard.warning {
+  border-left: 3px solid #f59e0b;
+}
+
+.actionCard.info {
+  border-left: 3px solid #6b7280;
+}
+
+.actionValue {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.actionLabel {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 480px) {
+  .actionCard {
+    padding: 16px;
+  }
+
+  .actionValue {
+    font-size: 22px;
+  }
+
+  .actionLabel {
+    font-size: 12px;
+  }
+}
+

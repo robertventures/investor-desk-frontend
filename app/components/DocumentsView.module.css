@@ -1,0 +1,294 @@
+.documentsContainer {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.documentsList {
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 40px;
+  text-align: left;
+}
+
+.sectionTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 24px 0;
+}
+
+.documentsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.yearSection {
+  grid-column: 1 / -1;
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 20px;
+}
+
+.yearTitle {
+  grid-column: 1 / -1;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.documentCard {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.documentCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.documentIcon {
+  font-size: 32px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.documentInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.documentTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.documentDetails {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.documentDetails p {
+  margin: 0;
+}
+
+.documentActions {
+  display: flex;
+  align-items: flex-start;
+}
+
+.downloadButton {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.downloadButton:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.loading {
+  font-size: 16px;
+  color: #6b7280;
+  padding: 40px;
+}
+
+.emptyState {
+  margin-bottom: 40px;
+  max-width: 500px;
+}
+
+.emptyIcon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  opacity: 0.6;
+}
+
+.emptyTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px 0;
+}
+
+.emptyDescription {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.documentTypes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  text-align: left;
+}
+
+.documentTypes li {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #374151;
+  position: relative;
+  padding-left: 32px;
+}
+
+.documentTypes li::before {
+  content: "✓";
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.uploadButton,
+.requestButton {
+  background: #1e40af;
+  color: #ffffff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.uploadButton:hover,
+.requestButton:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(30, 64, 175, 0.3);
+}
+
+.requestButton {
+  background: #6b7280;
+}
+
+.requestButton:hover {
+  background: #4b5563;
+}
+
+@media (max-width: 768px) {
+  .documentsContainer {
+    padding: 20px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .emptyIcon {
+    font-size: 48px;
+  }
+
+  .emptyTitle {
+    font-size: 20px;
+  }
+
+  .documentTypes {
+    grid-template-columns: 1fr;
+  }
+
+  .documentCard {
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .documentIcon {
+    align-self: flex-start;
+  }
+
+  .documentDetails {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .documentActions {
+    margin-top: 12px;
+    justify-content: flex-end;
+  }
+
+  .actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .uploadButton,
+  .requestButton {
+    width: 100%;
+    justify-content: center;
+  }
+}

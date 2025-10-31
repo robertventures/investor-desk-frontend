@@ -1,0 +1,78 @@
+.wrapper {
+  padding: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.card {
+  border: 2px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 14px 12px;
+  text-align: center;
+  font-weight: 600;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.card:hover {
+  border-color: #1a1a1a;
+}
+
+.selected {
+  border-color: #1a1a1a;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+}
+
+.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #9ca3af;
+}
+
+.card:focus,
+.card:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.actions {
+  margin-top: 16px;
+}
+
+.primaryButton {
+  width: 100%;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primaryButton:hover {
+  background: #374151;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+

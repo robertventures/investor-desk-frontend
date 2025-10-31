@@ -1,0 +1,70 @@
+.main {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding-bottom: 64px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.headerSection {
+  padding: 24px 0;
+  margin-bottom: 16px;
+}
+
+.backButton {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 0;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+
+.backButton:hover {
+  color: #111827;
+}
+
+.titleSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon {
+  font-size: 28px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  color: #111827;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .headerSection {
+    padding: 16px 0;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .icon {
+    font-size: 24px;
+  }
+}

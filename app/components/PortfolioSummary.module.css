@@ -1,0 +1,370 @@
+.portfolioSection { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+.welcomeSection {
+  margin-bottom: 32px;
+}
+
+.welcomeText { font-size: var(--text-sm); color: var(--color-muted); margin-bottom: var(--space-1); font-weight: 400; }
+
+.portfolioTitle { font-size: 28px; font-weight: 700; color: #1a1a1a; margin: 0; }
+
+.content { display: flex; flex-direction: column; gap: var(--space-6); }
+
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metricLabel { font-size: var(--text-xs); color: var(--color-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.metricValue { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+
+.chartSection { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-5); }
+
+.chartHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
+
+.chartTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dollarIcon {
+  font-size: 20px;
+  color: #1a1a1a;
+}
+
+.chartTitleText { font-size: var(--text-md); font-weight: 600; color: #1a1a1a; text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 4px; }
+
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendItem { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--color-muted); }
+
+.legendColor {
+  width: 12px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 2px;
+}
+
+.chartPlaceholder {
+  height: 300px;
+  position: relative;
+}
+
+.chartGrid {
+  height: 100%;
+  display: flex;
+  position: relative;
+}
+
+.yAxisLabel {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 12px;
+  color: #6b7280;
+  margin-right: 12px;
+  padding-top: 20px;
+}
+
+.chartArea { flex: 1; background: #f8fafc; border: 1px solid var(--color-border); border-radius: 4px; position: relative; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: var(--text-sm); }
+
+.loading {
+  text-align: center;
+  padding: 64px;
+  color: #6b7280;
+}
+
+/* Investments Section Styles */
+.investmentsSection {
+  margin-top: var(--space-6);
+}
+
+.investmentsTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: var(--space-6) 0 var(--space-4) 0;
+}
+.transactionsWrapper {
+  margin-top: var(--space-6);
+}
+
+.investmentsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.investmentCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100px;
+}
+
+.investmentCard:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.cardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.amountLabel {
+  font-size: 12px;
+  color: var(--color-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.investmentAmount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.investmentType {
+  font-size: 14px;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.cardBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.compactMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  flex: 1;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.compactLabel {
+  font-size: 12px;
+  color: var(--color-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compactValue {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Right-aligned action area (e.g., Resume / Delete) */
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.deleteDraft {
+  color: #b91c1c;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.deleteDraft:hover {
+  text-decoration: underline;
+}
+
+.investmentBadge {
+  display: inline-block;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusBadge {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.statusBadge.locked {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge.available {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Withdrawn status badge (blue) */
+.statusBadge.withdrawn {
+  background: #e0f2fe;
+  color: #0c4a6e;
+}
+
+/* Draft status badge (yellow like locked) */
+.statusBadge.draft {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.viewDetails {
+  font-size: 14px;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .investmentMetrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .portfolioSection {
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .portfolioTitle {
+    font-size: 22px;
+  }
+  .metricValue {
+    font-size: 20px;
+  }
+  
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+  
+  .investmentCard {
+    padding: 16px 20px;
+    gap: 10px;
+  }
+  
+  .cardRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    text-align: center;
+  }
+  
+  .currentMetric, .earningsMetric {
+    display: inline-flex;
+    margin: 0 12px;
+  }
+  
+  .cardActions {
+    align-items: center;
+  }
+  
+  /* Improve mobile layout for investment card bottom row */
+  .cardBottom {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .cardBottom .compactMetric {
+    flex: 1 1 100%;
+  }
+  /* Make Investment ID span full width */
+  .cardBottom .compactMetric:first-child {
+    flex-basis: 100%;
+  }
+  /* Ensure long IDs wrap nicely on small screens */
+  .cardBottom .compactMetric:first-child .compactValue {
+    word-break: break-all;
+  }
+  /* Move View Details to its own line and align right */
+  .viewDetails {
+    width: 100%;
+    text-align: right;
+  }
+  /* Keep header row so status badge stays on the right */
+  .cardTop {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .statusBadge {
+    align-self: auto;
+    margin-top: 2px;
+  }
+  /* Actions area on mobile */
+  .cardActions {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+  .cardActions .viewDetails {
+    width: auto;
+    text-align: right;
+  }
+  
+  .chartHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .chartTitleText {
+    font-size: 15px;
+  }
+  .chartPlaceholder {
+    height: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+}

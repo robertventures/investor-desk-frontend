@@ -1,0 +1,206 @@
+.transactionsSection { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--space-5); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.titleSection {
+  flex: 1;
+}
+
+.title { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: var(--space-1); }
+
+.subtitle { color: var(--color-muted); font-size: var(--text-sm); margin: 0; }
+
+.downloadButton { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+
+.downloadButton:hover {
+  background: #e5e7eb;
+}
+
+.tabs { display: flex; border-bottom: 2px solid var(--color-border); margin-bottom: var(--space-5); }
+
+.tab { background: none; border: none; padding: var(--space-2) var(--space-4); font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px; }
+
+.tab:hover { color: #1a1a1a; }
+
+.tab.active { color: #1a1a1a; border-bottom-color: var(--color-accent); }
+
+.tableContainer {
+  overflow-x: auto;
+  margin-bottom: 24px;
+}
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
+
+.table th { background: #f8fafc; color: #374151; font-weight: 600; padding: var(--space-2) var(--space-2); text-align: left; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+
+.table td { padding: var(--space-2) var(--space-2); border-bottom: 1px solid #f3f4f6; color: #1a1a1a; }
+
+.table tr:hover {
+  background: #f9fafb;
+}
+
+.detailsLink {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+}
+
+.detailsLink:hover {
+  text-decoration: underline;
+}
+
+.status { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; text-transform: uppercase; }
+
+.status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.amount {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.agreementActions {
+  display: flex;
+  gap: 4px;
+}
+
+.actionButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.actionButton:hover {
+  background: #f3f4f6;
+}
+
+.noData {
+  text-align: center;
+  color: #6b7280;
+  padding: 48px;
+  font-style: italic;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.paginationInfo {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.paginationControls {
+  display: flex;
+  gap: 4px;
+}
+
+.paginationButton {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.paginationButton.active {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.loading {
+  text-align: center;
+  padding: 64px;
+  color: #6b7280;
+}
+
+.emptyEarningsState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.emptyEarningsIcon {
+  width: 80px;
+  height: 80px;
+  background: #dbeafe;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin-bottom: 24px;
+}
+
+.emptyEarningsText {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .transactionsSection {
+    padding: 14px;
+  }
+  
+  .table {
+    font-size: 10px;
+  }
+  
+  .table th,
+  .table td {
+    padding: 8px 4px;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: 16px;
+  }
+}

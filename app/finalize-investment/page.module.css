@@ -1,0 +1,559 @@
+.main { min-height: 100vh; background: #f8fafc; }
+.container { max-width: 900px; margin: 0 auto; padding: 24px 16px 100px; }
+.card { background: linear-gradient(145deg,#fff 0%,#f8fafc 100%); border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 8px 12px -2px rgba(0,0,0,.05), 0 4px 6px -2px rgba(0,0,0,.03); padding: 24px; }
+.title { font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 0 0 8px 0; letter-spacing: -0.02em; }
+.subtitle { color: #6b7280; margin: 0 0 16px 0; }
+.sections { display: flex; flex-direction: column; gap: 24px; }
+.section { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+.sectionTitle { margin: 0; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+.rows { padding: 12px 16px; display: grid; grid-template-columns: 1fr; gap: 8px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
+.row:last-child { border-bottom: none; }
+.rowLabel { color: #6b7280; font-size: 14px; font-weight: 500; }
+.rowValue { color: #1a1a1a; font-weight: 600; }
+.loading { text-align: center; color: #6b7280; padding: 64px; }
+.radioGroup { display: grid; gap: 12px; }
+.radioOption { 
+  display: flex; 
+  flex-direction: column;
+  gap: 12px; 
+  align-items: flex-start; 
+  padding: 16px; 
+  border: 2px solid #e2e8f0; 
+  border-radius: 8px; 
+  background: #fff; 
+  cursor: pointer; 
+  transition: all 0.2s ease;
+  position: relative;
+}
+.radioOption:hover { 
+  border-color: #d1d5db; 
+  background: #f9fafb; 
+}
+.radioOption label {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  cursor: pointer;
+}
+.radioOption input[type="radio"]:checked + span {
+  color: #1a1a1a;
+  font-weight: 500;
+}
+.radioOption:has(input[type="radio"]:checked) {
+  border-color: #1a1a1a;
+  background: #f8fafc;
+  box-shadow: 0 0 0 1px #1a1a1a;
+}
+.radioOption input { accent-color: #1a1a1a; }
+.subOptions {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+.subOption {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.subOption:hover {
+  border-color: #d1d5db;
+  background: #f1f5f9;
+}
+.subOption:has(input[type="radio"]:checked) {
+  border-color: #1a1a1a;
+  background: #f0f9ff;
+}
+.subOption input {
+  accent-color: #1a1a1a;
+}
+.subSection { padding: 12px 16px; border-top: 1px solid #f3f4f6; }
+.groupTitle { font-weight: 600; margin-bottom: 8px; color: #1a1a1a; }
+.bankBox, .wireBox { margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: linear-gradient(145deg,#fff 0%,#f8fafc 100%); }
+.bankBox { margin-left: 0; }
+.wireRow { margin: 4px 0; }
+.actions { margin-top: 16px; }
+.primaryButton { width: 100%; background: #1a1a1a; color: #fff; border: none; padding: 14px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.primaryButton:hover { background: #374151; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+.secondaryButton { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 10px 16px; font-weight: 600; }
+.note { 
+  color: #6b7280; 
+  margin: 16px 0 0 0; 
+  padding: 12px 16px; 
+  background: #f0f9ff; 
+  border: 1px solid #bae6fd; 
+  border-radius: 6px; 
+  font-size: 14px; 
+}
+
+.confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #1a1a1a;
+  margin: 16px 0 0 0;
+  padding: 12px 16px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.confirm input { accent-color: #1a1a1a; margin-top: 2px; }
+
+.submitError {
+  margin-top: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+}
+
+.submitErrorText {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.warning {
+  margin-top: 12px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+.warningTitle { font-weight: 600; margin-bottom: 6px; }
+.warningList { margin: 0; padding-left: 18px; }
+
+.signatureInput {
+  width: 100%;
+  padding: 16px 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+}
+
+.signatureInput:focus {
+  outline: none;
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
+}
+
+.signatureInput::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.downloadButton {
+  width: 100%;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 14px 20px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #1a1a1a;
+}
+
+.downloadButton:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lockedButton {
+  width: 100%;
+  background: #6b7280;
+  color: #fff;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* Bank Connection Styles */
+.bankConnectionSection {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.connectBankButton {
+  width: 100%;
+  background: #ffffff;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.connectBankButton:hover {
+  border-color: #1a1a1a;
+  background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.connectIcon {
+  font-size: 20px;
+}
+
+.connectedBankCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #16a34a;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.connectedBankLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.connectedBankLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.connectedBankDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connectedBankName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.connectedBankAccount {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.changeButton {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.changeButton:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  color: #1a1a1a;
+}
+
+/* Saved Bank Account Cards */
+.savedBanksGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.savedBankCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.savedBankCard:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.selectedBankCard {
+  border-color: #16a34a !important;
+  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  box-shadow: 0 0 0 1px #16a34a;
+}
+
+.savedBankLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.savedBankLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.savedBankDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.savedBankName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.savedBankAccount {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.selectedCheck {
+  width: 28px;
+  height: 28px;
+  background: #16a34a;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.bankActionButtons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.viewAllBanksButton {
+  flex: 1;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viewAllBanksButton:hover {
+  border-color: #1a1a1a;
+  background: #f9fafb;
+  color: #1a1a1a;
+}
+
+.addNewBankButton {
+  flex: 1;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.addNewBankButton:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  color: #1a1a1a;
+}
+
+/* View All Banks Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+}
+
+.modalContent {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modalTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.modalCloseButton {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.modalCloseButton:hover {
+  color: #1a1a1a;
+}
+
+.modalBody {
+  padding: 16px 24px 24px;
+  overflow-y: auto;
+}
+
+.allBanksList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modalBankCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modalBankCard:hover {
+  border-color: #cbd5e1;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modalBankCardSelected {
+  border-color: #16a34a !important;
+  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important;
+  box-shadow: 0 0 0 1px #16a34a !important;
+}
+
+.modalBankLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.modalBankLogo {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.modalBankDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modalBankName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.modalBankAccount {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.modalSelectedCheck {
+  width: 32px;
+  height: 32px;
+  background: #16a34a;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+

@@ -1,0 +1,872 @@
+.dashboardTab {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.primaryMetricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.twoColumnLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  width: 100%;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.overviewItem {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.overviewLabel {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.overviewValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-accent);
+  word-break: break-word;
+}
+
+.distributionGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.distributionCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 0;
+}
+
+.distributionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.distributionList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.distributionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.distributionRow span {
+  color: #6b7280;
+}
+
+.distributionRow strong {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.activityCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 0;
+}
+
+.activityCardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.activityItem {
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activityItem:hover {
+  border-color: var(--color-info);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.activityItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.activityItemTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.activityStatus {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  border: 1px solid;
+}
+
+.status-pending {
+  background: #fefce8;
+  color: #a16207;
+  border-color: #fde047;
+}
+
+.status-active {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.status-approved {
+  background: #eff6ff;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+
+.status-rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.activityItemDetails {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.activityItemAmount {
+  font-size: 13px;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 32px;
+  color: #9ca3af;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Pending Payouts Styles */
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sectionDescription {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}
+
+.refreshButton {
+  padding: 8px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: #6b7280;
+  color: white;
+}
+
+.refreshButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alertBox {
+  margin-bottom: 16px;
+  padding: 16px;
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+}
+
+.alertBox strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #92400e;
+}
+
+.alertBox p {
+  margin: 0;
+  font-size: 14px;
+  color: #78350f;
+}
+
+.tableContainer {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead {
+  background: #f9fafb;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.failedRow {
+  background-color: #fee !important;
+}
+
+.pendingRow {
+  background-color: #fffbeb !important;
+}
+
+.selectedRow {
+  background-color: #e0f2fe !important;
+  border-left: 3px solid #0284c7;
+}
+
+.checkboxCell {
+  width: 40px;
+  text-align: center;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.userCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.userName {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.userEmail {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.monospaceCell {
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.dateCell {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.bankCell {
+  font-size: 0.85rem;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reasonCell {
+  font-size: 0.85rem;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulkActionsBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #e0f2fe;
+  border: 1px solid #0284c7;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.bulkActionsLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selectionCount {
+  font-weight: 600;
+  color: #0c4a6e;
+  font-size: 0.9rem;
+}
+
+.clearSelectionButton {
+  padding: 0.4rem 0.75rem;
+  background: white;
+  border: 1px solid #0284c7;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: #0284c7;
+  transition: all 0.2s ease;
+}
+
+.clearSelectionButton:hover {
+  background: #f0f9ff;
+}
+
+.bulkActionsRight {
+  display: flex;
+  gap: 8px;
+}
+
+.bulkCompleteButton,
+.bulkFailButton {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bulkCompleteButton {
+  background-color: #10b981;
+  color: white;
+}
+
+.bulkCompleteButton:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.bulkCompleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bulkFailButton {
+  background-color: #ef4444;
+  color: white;
+}
+
+.bulkFailButton:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.bulkFailButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.badge.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge.failed {
+  background-color: #fecaca;
+  color: #991b1b;
+}
+
+.actionButtonGroup {
+  display: flex;
+  flex-direction: row;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.actionButtonGroup button {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.retryButton {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.retryButton:hover {
+  background-color: #bfdbfe;
+}
+
+.completeButton {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.completeButton:hover {
+  background-color: #a7f3d0;
+}
+
+.failButton {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.failButton:hover {
+  background-color: #fecaca;
+}
+
+/* Pending Approvals List */
+.pendingList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pendingItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.pendingItem:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pendingItemMain {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pendingItemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.pendingItemHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pendingItemId {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 2px 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+}
+
+.pendingItemName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.pendingItemName:hover {
+  color: var(--color-info);
+}
+
+.pendingItemDetails {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.pendingItemEmail {
+  color: #6b7280;
+}
+
+.pendingItemDivider {
+  color: #d1d5db;
+}
+
+.pendingItemAccountType {
+  font-weight: 500;
+  color: #374151;
+}
+
+.pendingItemLockup {
+  color: #6b7280;
+}
+
+.pendingItemPaymentMethod {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.wirePayment {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.achPayment {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.pendingItemAmount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-accent);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.pendingItemActions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.approveButton {
+  padding: 6px 12px;
+  border: 1px solid var(--color-success);
+  background: var(--color-success);
+  color: white;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.approveButton:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+}
+
+.approveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rejectButton {
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.rejectButton:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: #fef2f2;
+}
+
+.rejectButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .primaryMetricsGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .actionGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .twoColumnLayout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .overviewGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .overviewItem {
+    padding: 14px;
+  }
+
+  .overviewLabel {
+    font-size: 11px;
+  }
+
+  .overviewValue {
+    font-size: 20px;
+  }
+
+  .distributionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .activityCard {
+    padding: 16px;
+  }
+
+  .activityList {
+    max-height: 300px;
+  }
+
+  .activityItemHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .dashboardTab {
+    gap: 24px;
+  }
+
+  .pendingItem {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pendingItemMain {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pendingItemAmount {
+    font-size: 16px;
+    margin-left: 0;
+  }
+
+  .pendingItemActions {
+    width: 100%;
+  }
+
+  .approveButton,
+  .rejectButton {
+    flex: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .primaryMetricsGrid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .overviewGrid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .overviewItem {
+    padding: 12px;
+  }
+
+  .overviewLabel {
+    font-size: 11px;
+  }
+
+  .overviewValue {
+    font-size: 20px;
+  }
+
+  .actionGrid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .dashboardTab {
+    gap: 16px;
+  }
+
+  .twoColumnLayout {
+    gap: 16px;
+  }
+
+  .distributionGrid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .distributionCard {
+    padding: 12px;
+  }
+
+  .distributionTitle {
+    font-size: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .distributionRow {
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .activityCard {
+    padding: 12px;
+  }
+
+  .activityCardTitle {
+    font-size: 14px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+
+  .activityList {
+    max-height: 250px;
+    gap: 8px;
+  }
+
+  .activityItem {
+    padding: 10px;
+  }
+
+  .activityItemTitle {
+    font-size: 13px;
+  }
+
+  .activityItemDetails {
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .pendingItem {
+    padding: 10px;
+  }
+
+  .pendingItemName {
+    font-size: 13px;
+  }
+
+  .pendingItemDetails {
+    font-size: 11px;
+  }
+
+  .pendingItemAmount {
+    font-size: 14px;
+  }
+
+  .approveButton,
+  .rejectButton {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+

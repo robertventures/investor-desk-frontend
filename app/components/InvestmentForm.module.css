@@ -1,0 +1,375 @@
+.investmentForm {
+  padding: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.formContainer {
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  position: relative;
+  overflow: visible;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.02em;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Investment Amount Section */
+.amountSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inputGroup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.currencyInput {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.currencyPrefix {
+  position: static;
+  color: #6b7280;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  line-height: 1;
+  user-select: none;
+}
+
+.amountInput {
+  width: 100%;
+  padding: 16px 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #1a1a1a;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+.amountInput:focus {
+  outline: none;
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
+}
+
+/* Hide number input spinners */
+.amountInput::-webkit-outer-spin-button,
+.amountInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.amountInput[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.bondsSuffix {
+  position: absolute;
+  right: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Payment Frequency Section */
+
+.radioGroup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.radioOption {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.radioOption.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.radioOption:hover {
+  border-color: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.radioOptionSelected {
+  border-color: #1a1a1a;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.radioOption:focus-within {
+  outline: none;
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
+}
+
+.radioInput {
+  margin-right: 16px;
+  transform: scale(1.2);
+  accent-color: #1a1a1a;
+  cursor: pointer;
+}
+
+.radioContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.radioLabel {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: 'Inter', sans-serif;
+}
+
+.radioDescription {
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Inter', sans-serif;
+  margin-top: 8px;
+}
+
+/* Investment Cards */
+.investmentCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.investmentCard {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.investmentCard:hover {
+  border-color: #1a1a1a;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.investmentCard.selected {
+  border-color: #1a1a1a;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  flex: 1;
+}
+
+.cardYield {
+  font-size: 18px;
+  font-weight: 700;
+  color: #059669;
+  font-family: 'Inter', sans-serif;
+  margin-top: 0;
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.cardEarnings {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 20px;
+  font-family: 'Inter', sans-serif;
+}
+
+.earningsAmount {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-family: 'Inter', sans-serif;
+}
+
+.investButton {
+  width: 100%;
+  padding: 14px 24px;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.investButton:hover {
+  background: #374151;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(26, 26, 26, 0.15);
+}
+
+.errorMessage {
+  display: block;
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 8px;
+  font-family: 'Inter', sans-serif;
+}
+.currencyInputWrapper {
+  width: 100%;
+  text-align: right;
+}
+.amountError {
+  display: inline-block;
+}
+
+.wireTransferNotice {
+  display: block;
+  color: #374151;
+  font-size: 13px;
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  text-align: left;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.actionsRow {
+  margin-top: 16px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .formContainer {
+    padding: 0;
+  }
+  
+  .sectionTitle {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .inputGroup {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .amountInput {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .radioGroup {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .investmentCards {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .investmentCard {
+    padding: 20px;
+  }
+  
+  .cardHeader {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .cardTitle {
+    font-size: 16px;
+  }
+  
+  .cardYield {
+    font-size: 18px;
+  }
+  
+  .cardEarnings {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  
+  .earningsAmount {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .formContainer {
+    padding: 0;
+  }
+  
+  .section {
+    margin-bottom: 32px;
+  }
+  
+  .amountInput {
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+  
+  .investmentCard {
+    padding: 16px;
+  }
+}

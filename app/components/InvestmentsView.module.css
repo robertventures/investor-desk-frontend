@@ -1,0 +1,258 @@
+.investmentsView {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.investmentsContainer {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.header {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.investmentsSection {
+  margin-top: 0;
+}
+
+.investmentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.investmentCard {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+  min-height: 120px;
+}
+
+.investmentCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+}
+
+.cardLeft {
+  flex: 0 0 auto;
+  min-width: 200px;
+}
+
+.amountLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.investmentAmount {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.investmentType {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.statusBadge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statusBadge.locked {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge.available {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.statusBadge.withdrawn {
+  background-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.statusBadge.draft {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.cardBottom {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  align-items: center;
+  flex: 1;
+  padding-left: 24px;
+  border-left: 1px solid #f3f4f6;
+}
+
+.compactMetric {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.compactLabel {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.compactValue {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 600;
+}
+
+.investmentBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+
+.cardActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  margin-left: auto;
+}
+
+.viewDetails {
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.viewDetails:hover {
+  color: #1d4ed8;
+}
+
+.deleteDraft {
+  background: none;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteDraft:hover {
+  background: #ef4444;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .investmentsView {
+    padding: 24px 16px;
+  }
+
+  .investmentsContainer {
+    padding: 20px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+  }
+
+  .investmentCard {
+    flex-direction: column;
+    padding: 20px;
+    align-items: flex-start;
+  }
+
+  .cardBottom {
+    flex-direction: column;
+    gap: 12px;
+    padding-left: 0;
+    padding-top: 16px;
+    border-left: none;
+    border-top: 1px solid #f3f4f6;
+    width: 100%;
+  }
+
+  .compactMetric {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .cardActions {
+    align-items: stretch;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .viewDetails {
+    text-align: center;
+  }
+
+  .investmentAmount {
+    font-size: 24px;
+  }
+}
+

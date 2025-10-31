@@ -1,0 +1,21 @@
+.main {
+  min-height: 100vh;
+  background: var(--color-app-bg);
+  padding-bottom: 80px; /* Space for fixed button */
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: var(--space-2);
+  }
+  
+  .main {
+    padding-bottom: 84px; /* Slightly reduced */
+  }
+}
