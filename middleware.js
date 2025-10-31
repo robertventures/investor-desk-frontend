@@ -5,8 +5,8 @@
  * - HTTPS enforcement (redirect HTTP to HTTPS in production)
  * - Security headers (HSTS, CSP, etc.)
  *
- * Note: API routes have been moved to Python backend.
- * This middleware now only handles frontend page security.
+ * Note: API routes are handled by the external backend.
+ * This middleware only applies security for frontend pages.
  */
 
 import { NextResponse } from 'next/server'
@@ -53,26 +53,33 @@ export function middleware(request) {
   // Content Security Policy (CSP) - balanced security with Next.js compatibility
   // Build CSP with dynamic API backend URL
   // Note: 'unsafe-inline' and 'unsafe-hashes' are required for Next.js error pages and development
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
+  const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || ''
   
   // Build connect-src directive to allow connections to backend
   let connectSrc = `'self'`
   if (apiUrl) connectSrc += ` ${apiUrl}`
   
-  response.headers.set(
-    'Content-Security-Policy',
-    "default-src 'self'; " +
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline'; " +
-    "style-src 'self' 'unsafe-inline' 'unsafe-hashes' https://fonts.googleapis.com; " +
-    "style-src-attr 'self' 'unsafe-inline' 'unsafe-hashes'; " +
-    "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "img-src 'self' data: https:; " +
-    "font-src 'self' data: https://fonts.gstatic.com; " +
-    `connect-src ${connectSrc}; ` +
-    "frame-ancestors 'self'; " +
-    "base-uri 'self'; " +
-    "form-action 'self'"
-  )
+  {
+    const isProd = process.env.NODE_ENV === 'production'
+    const scriptSrc = isProd
+      ? "script-src 'self'; "
+      : "script-src 'self' 'unsafe-eval' 'unsafe-inline'; "
+
+    response.headers.set(
+      'Content-Security-Policy',
+      "default-src 'self'; " +
+      scriptSrc +
+      "style-src 'self' 'unsafe-inline' 'unsafe-hashes' https://fonts.googleapis.com; " +
+      "style-src-attr 'self' 'unsafe-inline' 'unsafe-hashes'; " +
+      "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "img-src 'self' data: https:; " +
+      "font-src 'self' data: https://fonts.gstatic.com; " +
+      `connect-src ${connectSrc}; ` +
+      "frame-ancestors 'self'; " +
+      "base-uri 'self'; " +
+      "form-action 'self'"
+    )
+  }
 
   // Permissions Policy (disable unnecessary browser features)
   response.headers.set(

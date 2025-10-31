@@ -74,9 +74,12 @@ export default function AccountCreationForm() {
       const data = await apiClient.registerPending(form.email, form.password)
 
       if (data && data.success) {
-        // Store email for confirmation page
+        // Store email and user ID for confirmation page
         localStorage.setItem('signupEmail', form.email)
         localStorage.setItem('pendingRegistration', 'true')
+        if (data.user && data.user.id) {
+          localStorage.setItem('pendingUserId', data.user.id)
+        }
         // Redirect to confirmation page
         router.push(`/confirmation?email=${encodeURIComponent(form.email)}`)
         return

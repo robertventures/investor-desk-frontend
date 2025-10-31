@@ -39,14 +39,14 @@ npm install
 Copy the example environment file and update the values:
 
 ```bash
-cp .env.local.example .env.local
+cp env.example .env.local
 ```
 
 Edit `.env.local` and set the following variables:
 
 ```env
 # Backend API URL
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=https://your-backend.example.com
 
 # App URLs
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -65,9 +65,7 @@ The application will be available at [http://localhost:3000](http://localhost:30
 
 ### Required
 
-- `NEXT_PUBLIC_API_URL` - The URL of your backend API server
-  - Development: `http://localhost:8000` (or your backend dev URL)
-  - Production: Your production backend API URL
+- `NEXT_PUBLIC_API_URL` - The base URL of your backend API server (set per environment)
 
 ### Optional
 
@@ -106,51 +104,32 @@ investor-desk-frontend/
 
 ## Backend API Integration
 
-This frontend requires a backend API to function. The backend should implement the following endpoints:
+This frontend connects to the Robert Ventures backend API at:
+**https://api.dev.robertventures.barva.dev**
 
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/register-pending` - Register pending user
-- `POST /api/auth/verify-and-create` - Verify and create user
-- `POST /api/auth/request-reset` - Request password reset
-- `POST /api/auth/reset-password` - Reset password
-- `GET /api/auth/me` - Get current user
+### API Documentation
 
-### Users
-- `GET /api/users` - Get all users (admin)
-- `GET /api/users/:userId` - Get user by ID
-- `PUT /api/users/:userId` - Update user
-- `DELETE /api/users/:userId` - Delete user
-- `GET /api/users/profile` - Get current user profile
-- `PUT /api/users/profile` - Update current user profile
+- **OpenAPI Spec**: Stored in `docs/openapi.json`
+- **Live Swagger UI**: https://api.dev.robertventures.barva.dev/docs
+- **TypeScript Types**: Auto-generated in `lib/apiTypes.ts`
 
-### Investments
-- `GET /api/users/:userId/investments` - Get user's investments
-- `POST /api/users/:userId/investments` - Create investment
-- `PATCH /api/users/:userId/investments` - Update investment
-- `DELETE /api/users/:userId/investments` - Delete investment
+### Staying in Sync
 
-### Transactions
-- `GET /api/users/:userId/transactions` - Get user's transactions
+To update with the latest backend changes:
 
-### Withdrawals
-- `GET /api/users/:userId/withdrawals` - Get user's withdrawals
-- `POST /api/withdrawals` - Create withdrawal
+```bash
+npm run update-api
+```
 
-### Admin
-- `GET /api/admin/time-machine` - Get app time
-- `POST /api/admin/time-machine` - Set app time
-- `DELETE /api/admin/time-machine` - Reset app time
-- `GET /api/admin/withdrawals` - Get all withdrawals
-- `GET /api/admin/pending-payouts` - Get pending payouts
+This command:
+1. Fetches the latest OpenAPI spec from the backend
+2. Generates TypeScript types automatically
+3. Updates `docs/openapi.json` and `lib/apiTypes.ts`
 
-### Documents
-- `POST /api/v1/documents/generate-bond-agreement` - Generate bond agreement
-- `GET /api/v1/documents/bond-agreement/:investmentId` - Get bond agreement
-- `GET /api/v1/documents/bond-agreement/:investmentId/download` - Download bond agreement
-
-For detailed API specifications, see `docs/API-INTEGRATION.md`
+Run this when:
+- Starting new features
+- Backend team notifies you of API changes
+- TypeScript shows type errors (might indicate API changes)
 
 ## Authentication Flow
 

@@ -13,9 +13,9 @@ function eventMeta(ev) {
     case 'investment':
       return { icon: '🧾', iconClass: styles.created, title: 'Investment' }
     case 'investment_created':
-      return { icon: '🧾', iconClass: styles.created, title: 'Investment Created' }
+      return { icon: '⏳', iconClass: styles.pending, title: 'Investment Pending' }
     case 'investment_submitted':
-      return { icon: '📋', iconClass: styles.created, title: 'Investment Submitted' }
+      return { icon: '⏳', iconClass: styles.pending, title: 'Investment Pending' }
     case 'investment_confirmed':
       return { icon: '✅', iconClass: styles.confirmed, title: 'Investment Confirmed' }
     case 'investment_rejected':
@@ -142,8 +142,9 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
           const amountClass = isWithdrawal ? styles.negative : styles.positive
           const isExpanded = expandable && expandedId === ev.id
           // Only show amount for events that have a monetary value
-          // Exclude only account_created and investment_created as they don't represent transactions
-          const shouldShowAmount = ev.type !== 'account_created' && ev.type !== 'investment_created'
+          // Exclude only account_created as it doesn't represent a transaction
+          // Investment created should show the amount since it represents a pending investment
+          const shouldShowAmount = ev.type !== 'account_created'
           return (
             <div className={styles.event} key={ev.id} onClick={() => { if (expandable) setExpandedId(prev => prev === ev.id ? null : ev.id) }} style={{ cursor: expandable ? 'pointer' : 'default' }}>
               <div className={`${styles.icon} ${meta.iconClass}`}>{meta.icon}</div>

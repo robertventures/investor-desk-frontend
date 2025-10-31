@@ -17,6 +17,7 @@ export function useAdminData() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState(null)
   const [users, setUsers] = useState([])
+  const [investments, setInvestments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [withdrawals, setWithdrawals] = useState([])
   const [isLoadingWithdrawals, setIsLoadingWithdrawals] = useState(false)
@@ -125,25 +126,79 @@ export function useAdminData() {
         const cached = getCachedData(CACHE_KEY_USERS)
         if (cached) {
           logger.log('📦 Using cached user data')
-          setUsers(cached)
+          setUsers(cached.users || [])
+          setInvestments(cached.investments || [])
           return
         }
       }
       
-      // Clear cache if forcing refresh (but don't run migration - that's separate)
+      // Clear cache if forcing refresh
       if (forceRefresh) {
         clearCache(CACHE_KEY_USERS)
       }
       
-      // Load users with all their activity events
-      const data = await apiClient.getAllUsers()
-      if (data && data.success) {
-        setUsers(data.users || [])
-        setCachedData(CACHE_KEY_USERS, data.users || [])
-        logger.log('✓ User data loaded and cached')
+      // Load users and investments in parallel
+      const [usersData, investmentsData] = await Promise.all([
+        apiClient.getAllUsers(),
+        apiClient.getAdminInvestments()
+      ])
+      
+      logger.log('[useAdminData] Users response:', usersData)
+      logger.log('[useAdminData] Investments response:', investmentsData)
+      
+      if (usersData && usersData.success) {
+        const usersList = usersData.users || []
+        const investmentsList = investmentsData && investmentsData.success 
+          ? (investmentsData.investments || []) 
+          : []
+        
+        logger.log(`✓ Loaded ${usersList.length} users and ${investmentsList.length} investments`)
+        logger.log('[useAdminData] Sample user:', usersList[0])
+        logger.log('[useAdminData] Sample investment:', investmentsList[0])
+        
+        // Group investments by userId
+        const investmentsByUser = {}
+        investmentsList.forEach(inv => {
+          const userId = inv.userId.toString()
+          if (!investmentsByUser[userId]) {
+            investmentsByUser[userId] = []
+          }
+          investmentsByUser[userId].push(inv)
+        })
+        
+        // Attach investments to users
+        // Handle both numeric IDs and string IDs with prefix (e.g., "USR-1025")
+        const usersWithInvestments = usersList.map(user => {
+          let userIdStr = user.id.toString()
+          // Extract numeric part if user ID has a prefix (e.g., "USR-1025" -> "1025")
+          const numericMatch = userIdStr.match(/\d+$/)
+          const numericId = numericMatch ? numericMatch[0] : userIdStr
+          
+          const userInvestments = investmentsByUser[numericId] || investmentsByUser[userIdStr] || []
+          
+          return {
+            ...user,
+            investments: userInvestments
+          }
+        })
+        
+        // Log how many users have investments attached
+        const usersWithInvCount = usersWithInvestments.filter(u => u.investments.length > 0).length
+        logger.log(`✓ ${usersWithInvCount} users have investments attached`)
+        
+        setUsers(usersWithInvestments)
+        setInvestments(investmentsList)
+        
+        // Cache combined data
+        setCachedData(CACHE_KEY_USERS, {
+          users: usersWithInvestments,
+          investments: investmentsList
+        })
+        
+        logger.log('✓ User and investment data loaded and cached')
       }
     } catch (e) {
-      logger.error('Failed to load users', e)
+      logger.error('Failed to load users and investments', e)
     }
   }
 

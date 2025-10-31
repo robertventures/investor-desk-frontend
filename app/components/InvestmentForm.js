@@ -121,11 +121,13 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
       if (!investmentId) return
 
       try {
-        const res = await apiClient.getUser(userId)
-        const data = await res.json()
-        if (data.success && data.user) {
-          const investment = data.user.investments?.find(inv => inv.id === investmentId)
-          if (investment && investment.status === 'draft') {
+        // Fetch the specific investment from the investments endpoint
+        const data = await apiClient.getInvestment(investmentId)
+        if (data.success && data.investment) {
+          const investment = data.investment
+          // Only load if it's a draft
+          if (investment.status === 'draft') {
+            console.log('Loading draft investment data into form:', investment)
             // Load saved draft values
             if (investment.amount) {
               setFormData(prev => ({ ...prev, investmentAmount: investment.amount }))
@@ -137,10 +139,16 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             if (investment.lockupPeriod) {
               setSelectedLockup(investment.lockupPeriod)
             }
+          } else {
+            // Investment is no longer a draft - clear it
+            console.log('Investment is no longer a draft, clearing from localStorage')
+            localStorage.removeItem('currentInvestmentId')
           }
         }
       } catch (error) {
         console.error('Failed to load draft investment:', error)
+        // Clear stale investment ID on error
+        localStorage.removeItem('currentInvestmentId')
       }
     }
 
@@ -245,15 +253,29 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
       const existingInvestmentId = localStorage.getItem('currentInvestmentId')
       
       if (existingInvestmentId) {
-        // Update existing draft investment
-        const data = await apiClient.updateInvestment(userId, existingInvestmentId, investmentPayload)
+        // Update existing draft investment (paymentMethod not required for updates)
+        let data = await apiClient.updateInvestment(userId, existingInvestmentId, investmentPayload)
         if (!data.success) {
           // If investment not found, clear stale ID and create new one
           if (data.error && data.error.includes('not found')) {
             console.log('Investment not found, clearing stale ID and creating new investment')
             localStorage.removeItem('currentInvestmentId')
-            // Retry as new investment by calling handleSave again
-            return handleSave(investmentPayload, accountType)
+            // Create new investment with payment method
+            const createPayload = { ...investmentPayload, paymentMethod: 'ach' }
+            data = await apiClient.createInvestment(userId, createPayload)
+            if (!data.success) {
+              alert(data.error || 'Failed to start investment')
+              return
+            }
+            // Save new investment id
+            if (data.investment?.id) {
+              localStorage.setItem('currentInvestmentId', data.investment.id)
+              if (accountType) {
+                await apiClient.updateInvestment(userId, data.investment.id, { accountType })
+              }
+            }
+            notifyCompletion(data.investment?.id, lockupPeriod)
+            return
           }
           alert(data.error || 'Failed to update investment')
           return
@@ -266,8 +288,9 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         
         notifyCompletion(existingInvestmentId, lockupPeriod)
       } else {
-        // Create new draft investment
-        const data = await apiClient.createInvestment(userId, investmentPayload)
+        // Create new draft investment (API requires paymentMethod, use 'ach' as default)
+        const createPayload = { ...investmentPayload, paymentMethod: 'ach' }
+        const data = await apiClient.createInvestment(userId, createPayload)
         if (!data.success) {
           alert(data.error || 'Failed to start investment')
           return

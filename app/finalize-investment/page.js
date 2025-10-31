@@ -51,18 +51,62 @@ function ClientContent() {
     const load = async () => {
       const userId = localStorage.getItem('currentUserId')
       const investmentId = localStorage.getItem('currentInvestmentId')
+      console.log('[FinalizeInvestment] Loading page - userId:', userId, 'investmentId:', investmentId)
+      
       if (!userId) {
+        console.log('[FinalizeInvestment] No userId found, redirecting to home')
         window.location.href = '/'
         return
       }
+      
+      console.log('[FinalizeInvestment] Fetching user data...')
       const data = await apiClient.getUser(userId)
+      console.log('[FinalizeInvestment] User data:', data)
+      
       if (data.success && data.user) {
         setUser(data.user)
-        const inv = (data.user.investments || []).find(i => i.id === investmentId) || null
+        
+        // Fetch investments separately (API doesn't return them in profile)
+        console.log('[FinalizeInvestment] Fetching investments...')
+        const investmentsData = await apiClient.getInvestments(userId)
+        console.log('[FinalizeInvestment] Investments data:', investmentsData)
+        
+        const investments = investmentsData?.investments || []
+        console.log('[FinalizeInvestment] User investments:', investments)
+        console.log('[FinalizeInvestment] Investment IDs and statuses:', investments.map(i => ({ id: i.id, status: i.status })))
+        console.log('[FinalizeInvestment] Looking for investmentId:', investmentId)
+        
+        let inv = investments.find(i => i.id.toString() === investmentId?.toString()) || null
+        console.log('[FinalizeInvestment] Found investment:', inv)
+        
+        // If no specific investment ID, try to find the most recent draft
+        if (!inv && investments.length > 0) {
+          const draftInvestments = investments.filter(i => i.status === 'draft')
+          console.log('[FinalizeInvestment] Draft investments found:', draftInvestments.length)
+          if (draftInvestments.length > 0) {
+            const mostRecentDraft = draftInvestments[0] // Assuming API returns most recent first
+            console.log('[FinalizeInvestment] Using most recent draft:', mostRecentDraft.id)
+            // Update localStorage with this ID for future use
+            localStorage.setItem('currentInvestmentId', mostRecentDraft.id)
+            // Use this investment directly instead of reloading
+            inv = mostRecentDraft
+            console.log('[FinalizeInvestment] Using draft investment:', inv)
+          }
+        }
         
         // SECURITY: Only allow finalization of draft investments
         // If no draft investment exists, redirect to dashboard
-        if (!inv || inv.status !== 'draft') {
+        if (!inv) {
+          console.error('[FinalizeInvestment] No investment found with ID:', investmentId)
+          try {
+            localStorage.removeItem('currentInvestmentId')
+          } catch {}
+          window.location.href = '/dashboard'
+          return
+        }
+        
+        if (inv.status !== 'draft') {
+          console.error('[FinalizeInvestment] Investment is not in draft status:', inv.status)
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
@@ -605,9 +649,16 @@ function ClientContent() {
               const earningsMethod = investment.paymentFrequency === 'monthly' ? payoutMethod : 'compounding'
               console.log('Investment details:', { userId, investmentId, paymentMethod: fundingMethod, earningsMethod })
 
-              // Fetch current app time (Time Machine) from server
-              const timeData = await apiClient.getAppTime()
-              const appTime = timeData?.success ? timeData.appTime : new Date().toISOString()
+              // Fetch current app time (Time Machine) from server - only if user is admin
+              let appTime = new Date().toISOString()
+              if (user?.isAdmin) {
+                try {
+                  const timeData = await apiClient.getAppTime()
+                  appTime = timeData?.success ? timeData.appTime : appTime
+                } catch (err) {
+                  console.warn('Failed to get app time, using system time:', err)
+                }
+              }
               console.log('Using app time for timestamps:', appTime)
 
               // Determine bank account to use for funding and payout
@@ -633,130 +684,75 @@ function ClientContent() {
               // 'wire-transfer' → 'wire'
               const paymentMethod = fundingMethod === 'bank-transfer' ? 'ach' : 'wire'
               
-              // Update the draft investment to pending status with compliance and banking data
-              console.log('Making API call to update investment status...')
-              const investmentUpdateData = await apiClient.updateUser(userId, {
-                _action: 'updateInvestment',
+              // Log finalization data for debugging
+              console.log('Finalizing investment with data:', {
                 investmentId,
-                fields: {
-                    // Set payment method for backend auto-approval logic
-                    paymentMethod,
-                    // For individual/IRA accounts, snapshot personalInfo and address at submission time
-                    ...(investment.accountType === 'individual' || investment.accountType === 'ira' ? {
-                      personalInfo: {
-                        firstName: user.firstName,
-                        lastName: user.lastName,
-                        dob: user.dob,
-                        ssn: user.ssn
-                      },
-                      address: user.address
-                    } : {}),
-                    compliance: {
-                      accredited,
-                      accreditedType: accredited === 'accredited' ? accreditedType : null,
-                      tenPercentLimitConfirmed: accredited === 'not_accredited' ? tenPercentConfirmed : null
-                    },
-                    banking: {
-                      fundingMethod,
-                      earningsMethod,
-                      fundingBank: fundingBankToUse ? { id: fundingBankToUse.id, nickname: fundingBankToUse.nickname, type: fundingBankToUse.type } : null,
-                      payoutBank: payoutBankToUse ? { id: payoutBankToUse.id, nickname: payoutBankToUse.nickname, type: payoutBankToUse.type } : null
-                    },
-                    documents: {
-                      agreementVersion: 'v1',
-                      summary: {
-                        investorName: [user.firstName, user.lastName].filter(Boolean).join(' '),
-                        accountType: investment.accountType || null,
-                        amount: investment.amount || null,
-                        paymentFrequency: investment.paymentFrequency || null,
-                        lockupPeriod: investment.lockupPeriod || null,
-                        address: user.address || null,
-                        entity: user.entity || null,
-                        jointHolder: user.jointHolder || null
-                      },
-                      consent: {
-                        accepted: true,
-                        acceptedAt: appTime
-                      },
-                      signature: {
-                        name: [user.firstName, user.lastName].filter(Boolean).join(' '),
-                        signedAt: appTime
-                      },
-                      agreement: {
-                        agreementDate: appTime,
-                        investor: {
-                          accountType: investment.accountType,
-                          firstName: user.firstName,
-                          lastName: user.lastName,
-                          email: user.email,
-                          address: user.address
-                        },
-                        investment: {
-                          id: investment.id,
-                          amount: investment.amount,
-                          bonds: investment.bonds,
-                          paymentFrequency: investment.paymentFrequency,
-                          lockupPeriod: investment.lockupPeriod,
-                          accountType: investment.accountType,
-                          status: investment.status,
-                          createdAt: investment.createdAt,
-                          updatedAt: investment.updatedAt
-                        },
-                        ...(investment.accountType === 'entity' && (user.entity || user.entityName) ? {
-                          entity: {
-                            name: user.entity?.name || user.entityName,
-                            taxId: user.entity?.taxId,
-                            registrationDate: user.entity?.registrationDate,
-                            address: user.entity?.address
-                          }
-                        } : {}),
-                        ...(investment.accountType === 'joint' && user.jointHolder ? {
-                          jointHolder: {
-                            firstName: user.jointHolder.firstName,
-                            lastName: user.jointHolder.lastName,
-                            email: user.jointHolder.email,
-                            address: user.jointHolder.address,
-                            holdingType: user.jointHoldingType
-                          }
-                        } : {})
-                      }
-                    },
-                    status: 'pending',
-                    submittedAt: appTime
-                  }
+                paymentMethod,
+                fundingMethod,
+                earningsMethod,
+                accredited,
+                accreditedType,
+                tenPercentConfirmed,
+                fundingBank: fundingBankToUse?.nickname,
+                payoutBank: payoutBankToUse?.nickname
+              })
+              
+              // Update the investment's payment method using the investments endpoint
+              console.log('Updating investment payment method...')
+              const investmentUpdateData = await apiClient.updateInvestment(userId, investmentId, {
+                paymentMethod
               })
 
-              console.log('Investment update API response received')
-              console.log('Investment update result:', investmentUpdateData)
+              console.log('Investment update API response:', investmentUpdateData)
               if (!investmentUpdateData.success) {
                 console.error('Investment update failed:', investmentUpdateData.error)
                 setSubmitError(`Failed to submit investment: ${investmentUpdateData.error || 'Unknown error'}. Please try again.`)
                 return
               }
-              console.log('Investment updated successfully, proceeding to banking update...')
+              console.log('Investment updated successfully!')
               
-              // Store banking details and update lastUsedAt for selected banks
-              const nextBankAccounts = availableBanks.map(bank => {
-                if ((fundingBankToUse && bank.id === fundingBankToUse.id) || 
-                    (payoutBankToUse && bank.id === payoutBankToUse.id)) {
-                  return { ...bank, lastUsedAt: appTime }
-                }
-                return bank
-              })
-
-              const bankingUpdateData = await apiClient.updateUser(userId, {
-                banking: { 
-                  fundingMethod, 
-                  earningsMethod, 
-                  payoutMethod,
-                  ...(fundingBankToUse ? { defaultBankAccountId: fundingBankToUse.id } : {})
+              // Submit the investment to move it from DRAFT to PENDING status
+              console.log('Submitting investment...')
+              const submitResponse = await apiClient.submitInvestment(investmentId)
+              console.log('Investment submit API response:', submitResponse)
+              
+              if (!submitResponse.success) {
+                console.error('Investment submission failed:', submitResponse.error)
+                setSubmitError(`Failed to submit investment: ${submitResponse.error || 'Unknown error'}. Please try again.`)
+                return
+              }
+              console.log('Investment submitted successfully! Status changed to PENDING.')
+              
+              // Store finalization data in localStorage for future reference
+              // Note: The API doesn't support storing compliance, banking, and document data yet
+              // so we store it client-side for now
+              const finalizationData = {
+                investmentId,
+                timestamp: appTime,
+                compliance: {
+                  accredited,
+                  accreditedType: accredited === 'accredited' ? accreditedType : null,
+                  tenPercentConfirmed: accredited === 'not_accredited' ? tenPercentConfirmed : null
                 },
-                bankAccounts: nextBankAccounts
-              })
-              console.log('Banking update result:', bankingUpdateData)
-              if (!bankingUpdateData.success) {
-                console.warn('Banking details update failed:', bankingUpdateData.error)
-                // Don't block redirect for banking update failure since investment was submitted successfully
+                banking: {
+                  fundingMethod,
+                  earningsMethod,
+                  payoutMethod,
+                  fundingBank: fundingBankToUse ? { id: fundingBankToUse.id, nickname: fundingBankToUse.nickname } : null,
+                  payoutBank: payoutBankToUse ? { id: payoutBankToUse.id, nickname: payoutBankToUse.nickname } : null
+                },
+                documents: {
+                  agreementAccepted: true,
+                  acceptedAt: appTime,
+                  signature: [user.firstName, user.lastName].filter(Boolean).join(' ')
+                }
+              }
+              
+              try {
+                localStorage.setItem(`investment_${investmentId}_finalization`, JSON.stringify(finalizationData))
+                console.log('Finalization data stored in localStorage')
+              } catch (err) {
+                console.warn('Failed to store finalization data in localStorage:', err)
               }
               
               // Small delay to ensure UI doesn't flash before redirect

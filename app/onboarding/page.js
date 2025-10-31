@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { fetchWithCsrf } from '../../lib/csrfClient'
+import { apiClient } from '../../lib/apiClient'
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
 import styles from './page.module.css'
@@ -59,27 +60,36 @@ function OnboardingContent() {
       if (data.success && data.user) {
         setUserData(data.user)
         
+        // Fetch investments separately
+        let investments = []
+        try {
+          const investmentsResponse = await apiClient.getInvestments()
+          if (investmentsResponse && investmentsResponse.investments) {
+            investments = investmentsResponse.investments
+          }
+        } catch (err) {
+          console.warn('Failed to load investments:', err)
+        }
+        
         // Check if bank accounts are needed (only for monthly payment investments)
-        const investmentsNeedingBanks = data.user.investments?.filter(inv => 
+        const investmentsNeedingBanks = investments.filter(inv => 
           inv.status !== 'withdrawn' && 
           inv.paymentFrequency === 'monthly' && // Only monthly investments need banks
           inv.paymentMethod !== 'wire-transfer'
-        ) || []
+        )
         
         const needsBank = investmentsNeedingBanks.length > 0
         setBankAccountRequired(needsBank)
         
         // Initialize bank assignments for investments that already have banks
-        if (data.user.investments) {
-          const initialAssignments = {}
-          data.user.investments.forEach(inv => {
-            if (inv.bankAccountId) {
-              // Mark as having a bank (we'll show it as connected)
-              initialAssignments[inv.id] = { id: inv.bankAccountId }
-            }
-          })
-          setInvestmentBankAssignments(initialAssignments)
-        }
+        const initialAssignments = {}
+        investments.forEach(inv => {
+          if (inv.bankAccountId) {
+            // Mark as having a bank (we'll show it as connected)
+            initialAssignments[inv.id] = { id: inv.bankAccountId }
+          }
+        })
+        setInvestmentBankAssignments(initialAssignments)
         
         console.log('User data loaded for testing mode:', data.user)
         console.log('Investments needing banks:', investmentsNeedingBanks.length)
@@ -140,8 +150,19 @@ function OnboardingContent() {
       localStorage.setItem('currentUserId', data.user.id)
       sessionStorage.setItem('onboarding_via_token', 'true')
       
+      // Fetch investments separately
+      let investments = []
+      try {
+        const investmentsResponse = await apiClient.getInvestments()
+        if (investmentsResponse && investmentsResponse.investments) {
+          investments = investmentsResponse.investments
+        }
+      } catch (err) {
+        console.warn('Failed to load investments:', err)
+      }
+      
       // Check if bank account is needed (only for monthly payment investments)
-      const needsBank = data.user.investments?.some(inv => 
+      const needsBank = investments.some(inv => 
         inv.paymentFrequency === 'monthly' && 
         inv.status !== 'withdrawn' &&
         inv.paymentMethod !== 'wire-transfer'
@@ -149,16 +170,14 @@ function OnboardingContent() {
       setBankAccountRequired(needsBank)
       
       // Initialize bank assignments for investments that already have banks
-      if (data.user.investments) {
-        const initialAssignments = {}
-        data.user.investments.forEach(inv => {
-          if (inv.bankAccountId) {
-            // Mark as having a bank (we'll show it as connected)
-            initialAssignments[inv.id] = { id: inv.bankAccountId }
-          }
-        })
-        setInvestmentBankAssignments(initialAssignments)
-      }
+      const initialAssignments = {}
+      investments.forEach(inv => {
+        if (inv.bankAccountId) {
+          // Mark as having a bank (we'll show it as connected)
+          initialAssignments[inv.id] = { id: inv.bankAccountId }
+        }
+      })
+      setInvestmentBankAssignments(initialAssignments)
       
       console.log('✅ User auto-logged in:', data.user.email)
       console.log('Bank account required:', needsBank)

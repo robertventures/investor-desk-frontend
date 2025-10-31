@@ -11,6 +11,7 @@ export default function ConfirmationPage() {
   const router = useRouter()
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [email, setEmail] = useState('')
+  const [userId, setUserId] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [countdown, setCountdown] = useState(26)
@@ -25,9 +26,10 @@ export default function ConfirmationPage() {
     
     // Fallback to localStorage
     const signupEmail = urlEmail || localStorage.getItem('signupEmail')
+    const pendingUserId = localStorage.getItem('pendingUserId')
     
-    if (!signupEmail) {
-      // If no email found, redirect to sign-in
+    if (!signupEmail || !pendingUserId) {
+      // If no email or user ID found, redirect to sign-in
       router.push('/sign-in')
       return
     }
@@ -36,6 +38,7 @@ export default function ConfirmationPage() {
     if (urlEmail) localStorage.setItem('signupEmail', urlEmail)
     
     setEmail(signupEmail)
+    setUserId(pendingUserId)
 
     // Start countdown timer
     const timer = setInterval(() => {
@@ -117,14 +120,14 @@ export default function ConfirmationPage() {
     setIsLoading(true)
     
     try {
-      if (!email) {
+      if (!email || !userId) {
         setError('Session expired. Please sign up again.')
         setTimeout(() => router.push('/'), 2000)
         return
       }
 
-      // Call backend to verify code and create the actual user account
-      const data = await apiClient.verifyAndCreate(email, enteredCode)
+      // Call backend to confirm account with verification code
+      const data = await apiClient.confirmAccount(userId, enteredCode)
 
       if (!data.success) {
         // Log full error details for debugging
@@ -169,18 +172,28 @@ export default function ConfirmationPage() {
         return
       }
 
-      // Verification successful! User account created and automatically logged in
-      // Update localStorage with user info
+      // Verification successful! User account confirmed and automatically logged in
+      // Update localStorage with user info and tokens
       if (typeof window !== 'undefined') {
-        localStorage.setItem('currentUserId', data.user.id)
-        localStorage.setItem('signupEmail', data.user.email)
-        localStorage.removeItem('pendingRegistration') // Clear pending flag
+        if (data.user && data.user.id) {
+          localStorage.setItem('currentUserId', data.user.id)
+        }
+        if (data.user && data.user.email) {
+          localStorage.setItem('signupEmail', data.user.email)
+        }
+        // Store tokens if provided
+        if (data.access_token && data.refresh_token) {
+          apiClient.setTokens(data.access_token, data.refresh_token)
+        }
+        // Clear pending registration data
+        localStorage.removeItem('pendingRegistration')
+        localStorage.removeItem('pendingUserId')
       }
       
-      logger.log('✅ Account created and verified successfully, user auto-logged in, redirecting to investment page')
+      logger.log('✅ Account confirmed and verified successfully, user auto-logged in, redirecting to investment page')
       
-      // Redirect to investment page where personal info will be collected
-      router.push('/investment?context=onboarding')
+      // Redirect to investment page to start making first investment
+      router.push('/investment')
     } catch (err) {
       logger.error('Verification error:', err)
       setError('An error occurred. Please try again.')

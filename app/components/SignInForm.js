@@ -72,17 +72,23 @@ export default function SignInForm() {
 
       // Login successful - user data is in data.user
       const user = data.user
+      console.log('[SignInForm] User data:', JSON.stringify(user, null, 2))
+      console.log('[SignInForm] isAdmin:', user.isAdmin, 'isVerified:', user.isVerified, 'needsOnboarding:', user.needsOnboarding)
 
       // Store minimal user info in localStorage for backward compatibility
       localStorage.setItem('currentUserId', user.id)
       localStorage.setItem('signupEmail', user.email)
 
       // Redirect based on user type
+      // IMPORTANT: Admin users should ALWAYS go to admin dashboard, regardless of verification status
       if (user.isAdmin) {
+        console.log('[SignInForm] Admin user detected, redirecting to /admin')
         router.push('/admin')
       } else if (!user.isVerified) {
+        console.log('[SignInForm] Unverified user, redirecting to /confirmation')
         router.push('/confirmation')
       } else {
+        console.log('[SignInForm] Verified user, redirecting to /dashboard')
         router.push('/dashboard')
       }
     } catch (err) {

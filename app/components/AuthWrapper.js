@@ -40,10 +40,12 @@ export default function AuthWrapper({ children }) {
           localStorage.setItem('currentUserId', data.user.id)
           localStorage.setItem('signupEmail', data.user.email)
           
-          // Check if user needs onboarding and redirect before rendering
-          if (data.user.needsOnboarding && !isOnboardingRoute) {
-            logger.log('User needs onboarding, redirecting from AuthWrapper...')
-            router.push('/onboarding')
+          console.log('[AuthWrapper] Auth check - isAdmin:', data.user.isAdmin, 'currentPath:', pathname)
+          
+          // If admin is on onboarding page, redirect to admin dashboard
+          if (data.user.isAdmin && isOnboardingRoute) {
+            console.log('[AuthWrapper] Admin on onboarding page, redirecting to admin dashboard')
+            router.push('/admin')
             return
           }
           

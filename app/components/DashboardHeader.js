@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { apiClient } from '@/lib/apiClient'
 import logger from '@/lib/logger'
 import { useUser } from '../contexts/UserContext'
@@ -87,8 +88,14 @@ export default function DashboardHeader({ onViewChange, activeView }) {
     <header className={styles.header}>
       <div className={styles.container}>
         <div className={styles.logo}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.png" alt="Robert Ventures" className={styles.logoImage} />
+          <Image
+            src="/images/logo.png"
+            alt="Robert Ventures"
+            width={160}
+            height={40}
+            className={styles.logoImage}
+            priority
+          />
         </div>
         
         <nav className={styles.nav}>

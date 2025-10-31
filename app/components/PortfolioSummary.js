@@ -44,13 +44,14 @@ export default function PortfolioSummary() {
         await refreshUser()
       }
       
-      // Fetch app time
-      let timeData
-      try {
-        timeData = await apiClient.getAppTime()
-      } catch (err) {
-        console.warn('Failed to get app time, using system time:', err)
-        timeData = { success: false }
+      // Fetch app time (only for admin users, regular users use system time)
+      let timeData = { success: false }
+      if (userData?.isAdmin) {
+        try {
+          timeData = await apiClient.getAppTime()
+        } catch (err) {
+          console.warn('Failed to get app time, using system time:', err)
+        }
       }
       
       const currentAppTime = (timeData?.success && timeData.appTime) ? timeData.appTime : new Date().toISOString()

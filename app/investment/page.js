@@ -141,13 +141,6 @@ function InvestmentPageContent() {
           return
         }
         
-        // Redirect to onboarding if user needs to complete setup
-        if (data.success && data.user && data.user.needsOnboarding) {
-          logger.log('User needs onboarding, redirecting...')
-          window.location.href = '/onboarding'
-          return
-        }
-        
         // Check if user is verified before allowing investment
         if (data.success && data.user && !data.user.isVerified) {
           window.location.href = '/confirmation'
@@ -170,17 +163,34 @@ function InvestmentPageContent() {
         }
         
         // Load existing draft investment data if it exists
+        // Load draft investment data if resuming
         const investmentId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
         if (data.success && investmentId) {
-          const existingInvestment = (data.user.investments || []).find(inv => inv.id === investmentId && inv.status === 'draft')
-          if (existingInvestment) {
-            if (existingInvestment.accountType) setSelectedAccountType(existingInvestment.accountType)
-            if (typeof existingInvestment.amount === 'number') setInvestmentAmount(existingInvestment.amount)
-            if (existingInvestment.paymentFrequency) setInvestmentPaymentFrequency(existingInvestment.paymentFrequency)
-            if (existingInvestment.lockupPeriod) setInvestmentLockup(existingInvestment.lockupPeriod)
-          } else {
-            // Investment ID in localStorage doesn't exist anymore - clear it
-            logger.log('Clearing stale investment ID from localStorage:', investmentId)
+          try {
+            // Fetch the specific investment from the investments endpoint
+            const investmentResponse = await apiClient.getInvestment(investmentId)
+            if (investmentResponse.success && investmentResponse.investment) {
+              const existingInvestment = investmentResponse.investment
+              // Only load if it's a draft
+              if (existingInvestment.status === 'draft') {
+                logger.log('Loading draft investment data:', existingInvestment)
+                if (existingInvestment.accountType) setSelectedAccountType(existingInvestment.accountType)
+                if (typeof existingInvestment.amount === 'number') setInvestmentAmount(existingInvestment.amount)
+                if (existingInvestment.paymentFrequency) setInvestmentPaymentFrequency(existingInvestment.paymentFrequency)
+                if (existingInvestment.lockupPeriod) setInvestmentLockup(existingInvestment.lockupPeriod)
+              } else {
+                // Investment is no longer a draft - clear it
+                logger.log('Investment is no longer a draft, clearing from localStorage:', investmentId)
+                localStorage.removeItem('currentInvestmentId')
+              }
+            } else {
+              // Investment not found - clear it from localStorage
+              logger.log('Investment not found, clearing from localStorage:', investmentId)
+              localStorage.removeItem('currentInvestmentId')
+            }
+          } catch (err) {
+            logger.warn('Failed to load draft investment:', err)
+            // Clear stale investment ID on error
             localStorage.removeItem('currentInvestmentId')
           }
         }

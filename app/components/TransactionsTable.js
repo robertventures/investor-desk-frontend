@@ -21,15 +21,30 @@ export default function TransactionsTable() {
       if (!userId) return
 
       try {
-        // Get current app time to ensure earnings/payouts align with time machine
-        const timeData = await apiClient.getAppTime()
-        const currentAppTime = timeData?.success ? timeData.appTime : new Date().toISOString()
+        // Fetch user data first
+        const data = await apiClient.getUser(userId)
+        
+        // Get current app time to ensure earnings/payouts align with time machine - only if user is admin
+        let currentAppTime = new Date().toISOString()
+        if (data?.user?.isAdmin) {
+          try {
+            const timeData = await apiClient.getAppTime()
+            currentAppTime = timeData?.success ? timeData.appTime : currentAppTime
+          } catch (err) {
+            console.warn('Failed to get app time, using system time:', err)
+          }
+        }
         setAppTime(currentAppTime)
 
-        // Backfill persistent transactions prior to loading
-        await apiClient.request('/api/migrate-transactions', { method: 'POST' })
+        // Backfill persistent transactions prior to loading (admin only)
+        if (data?.user?.isAdmin) {
+          try {
+            await apiClient.request('/api/migrate-transactions', { method: 'POST' })
+          } catch (err) {
+            console.warn('Failed to migrate transactions:', err)
+          }
+        }
 
-        const data = await apiClient.getUser(userId)
         if (data && data.success && data.user) {
           setUserData(data.user)
           const investments = data.user.investments || []

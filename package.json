@@ -6,7 +6,10 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync-api": "curl -s https://api.dev.robertventures.barva.dev/openapi.json | npx json > docs/openapi.json",
+    "generate-types": "npx openapi-typescript docs/openapi.json -o lib/apiTypes.ts",
+    "update-api": "npm run sync-api && npm run generate-types"
   },
   "dependencies": {
     "cookie": "^1.0.2",
@@ -15,13 +18,13 @@
     "jszip": "^3.10.1",
     "next": "^14.2.32",
     "papaparse": "^5.5.3",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "styled-jsx": "^5.1.1"
   },
   "devDependencies": {
     "eslint": "^8.0.0",
-    "eslint-config-next": "14.0.0"
+    "eslint-config-next": "^14.2.32",
+    "openapi-typescript": "^7.10.1"
   }
 }
-

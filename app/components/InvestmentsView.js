@@ -31,9 +31,16 @@ export default function InvestmentsView() {
         await refreshUser()
       }
       
-      const timeData = await apiClient.getAppTime()
-      
-      const currentAppTime = timeData?.success ? timeData.appTime : new Date().toISOString()
+      // Fetch current app time (Time Machine) from server - only if user is admin
+      let currentAppTime = new Date().toISOString()
+      if (userData?.isAdmin) {
+        try {
+          const timeData = await apiClient.getAppTime()
+          currentAppTime = timeData?.success ? timeData.appTime : currentAppTime
+        } catch (err) {
+          console.warn('Failed to get app time, using system time:', err)
+        }
+      }
       setAppTime(currentAppTime)
       
       if (userData) {

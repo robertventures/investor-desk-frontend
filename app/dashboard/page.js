@@ -42,12 +42,8 @@ function DashboardPageContent() {
         return
       }
       
-      // Redirect to onboarding if user needs to complete setup
-      if (userData.needsOnboarding) {
-        logger.log('User needs onboarding, redirecting...')
-        router.push('/onboarding')
-        return
-      }
+      // Note: No automatic redirect to onboarding
+      // Onboarding is only accessed via direct link with token (for imported users)
     }
     verify()
   }, [router, searchParams, userData, loading])

@@ -7,9 +7,8 @@ const nextConfig = {
   
   // Proxy API requests to backend to avoid CORS/cookie issues
   async rewrites() {
-    // Get backend URL from env, default to localhost:8000 in development
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-                   (process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '')
+    // Get backend URL from env; when not set, no proxy is applied
+    const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || ''
     
     if (!apiUrl) {
       return []

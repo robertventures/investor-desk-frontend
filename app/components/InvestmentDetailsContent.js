@@ -28,13 +28,19 @@ export default function InvestmentDetailsContent({ investmentId }) {
       }
 
       try {
-        // Get current app time for calculations
-        const [timeData, data] = await Promise.all([
-          apiClient.getAppTime(),
-          apiClient.getUser(userId)
-        ])
+        // Fetch user data first
+        const data = await apiClient.getUser(userId)
         
-        const currentAppTime = timeData?.success ? timeData.appTime : new Date().toISOString()
+        // Get current app time for calculations - only if user is admin
+        let currentAppTime = new Date().toISOString()
+        if (data?.user?.isAdmin) {
+          try {
+            const timeData = await apiClient.getAppTime()
+            currentAppTime = timeData?.success ? timeData.appTime : currentAppTime
+          } catch (err) {
+            console.warn('Failed to get app time, using system time:', err)
+          }
+        }
         setAppTime(currentAppTime)
 
         if (data && data.success && data.user) {
