@@ -1,16 +1,20 @@
 'use client'
-import { useEffect, useMemo, useState, Suspense } from 'react'
+import { useEffect, useMemo, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { fetchWithCsrf } from '../../../../lib/csrfClient'
+import { apiClient } from '../../../../lib/apiClient'
 import AdminHeader from '../../../components/AdminHeader'
 import { calculateInvestmentValue } from '../../../../lib/investmentCalculations.js'
 import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
 import styles from './page.module.css'
+import { useUser } from '@/app/contexts/UserContext'
 
 function AdminUserDetailsContent({ params }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { id } = params
+  const { userData, loading: userLoading } = useUser()
+  const initializedRef = useRef(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -20,6 +24,8 @@ function AdminUserDetailsContent({ params }) {
   const [appTime, setAppTime] = useState(null)
   const [activityPage, setActivityPage] = useState(1)
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview')
+  const [activityEvents, setActivityEvents] = useState([])
+  const [isLoadingActivity, setIsLoadingActivity] = useState(false)
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -106,32 +112,72 @@ function AdminUserDetailsContent({ params }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    
+    if (userLoading) return
+    if (!userData || !userData.isAdmin) {
+      console.log('[AdminUserDetails] Not an admin, redirecting to dashboard')
+      router.push('/dashboard')
+      return
+    }
+    if (initializedRef.current) return
+    initializedRef.current = true
+
     const init = async () => {
       try {
-        const meId = localStorage.getItem('currentUserId')
-        if (!meId) {
-          router.push('/')
-          return
-        }
-        const meRes = await fetch(`/api/users/${meId}`)
-        const meData = await meRes.json()
-        if (!meData.success || !meData.user || !meData.user.isAdmin) {
-          router.push('/dashboard')
-          return
-        }
-        setCurrentUser(meData.user)
+        setCurrentUser(userData)
 
-        const res = await fetch(`/api/users/${id}`)
-        const data = await res.json()
-        if (data.success) {
-          setUser(data.user)
-          // Store app time if available
-          if (data.appTime) {
-            setAppTime(data.appTime)
-          }
-          const u = data.user
-          setForm({
+        const [usersData, investmentsData] = await Promise.all([
+          apiClient.getAllUsers(),
+          apiClient.getAdminInvestments()
+        ])
+        
+        if (!usersData || !usersData.success) {
+          console.error('[AdminUserDetails] Failed to load users data')
+          return
+        }
+
+        const investmentsByUser = {}
+        if (investmentsData && investmentsData.success) {
+          const investmentsList = investmentsData.investments || []
+          investmentsList.forEach(inv => {
+            const userId = inv.userId.toString()
+            if (!investmentsByUser[userId]) {
+              investmentsByUser[userId] = []
+            }
+            investmentsByUser[userId].push(inv)
+          })
+        }
+
+        let targetUser = usersData.users.find(u => {
+          const userId = u.id.toString()
+          const targetId = id.toString()
+          return userId === targetId || userId.replace(/\D/g, '') === targetId.replace(/\D/g, '')
+        })
+
+        if (!targetUser) {
+          console.error('[AdminUserDetails] User not found:', id)
+          return
+        }
+
+        const userIdStr = targetUser.id.toString()
+        const numericMatch = userIdStr.match(/\d+$/)
+        const numericId = numericMatch ? numericMatch[0] : userIdStr
+        targetUser = {
+          ...targetUser,
+          investments: investmentsByUser[userIdStr] || investmentsByUser[numericId] || []
+        }
+
+        setUser(targetUser)
+        
+        if (usersData.timeOffset !== undefined && usersData.timeOffset !== null) {
+          const realTime = new Date()
+          const currentAppTime = new Date(realTime.getTime() + usersData.timeOffset).toISOString()
+          setAppTime(currentAppTime)
+        }
+
+        await loadUserActivity(targetUser.id)
+        
+        const u = targetUser;
+        setForm({
             accountType: u.accountType || 'individual',
             firstName: u.firstName || '',
             lastName: u.lastName || '',
@@ -176,7 +222,6 @@ function AdminUserDetailsContent({ params }) {
               country: u.authorizedRepresentative?.address?.country || 'United States'
             }
           })
-        }
       } catch (e) {
         console.error('Failed to load user', e)
       } finally {
@@ -184,7 +229,38 @@ function AdminUserDetailsContent({ params }) {
       }
     }
     init()
-  }, [id, router])
+  }, [id, router, userData, userLoading])
+
+  // Load user activity events from API
+  const loadUserActivity = async (userId) => {
+    try {
+      setIsLoadingActivity(true)
+      const activityData = await apiClient.getUserActivityEvents(userId)
+      
+      if (activityData && activityData.success) {
+        const events = activityData.events || activityData.items || []
+        console.log(`[AdminUserDetails] Loaded ${events.length} activity events for user ${userId}`)
+        setActivityEvents(events)
+      }
+    } catch (e) {
+      console.error('[AdminUserDetails] Failed to load activity events:', e)
+    } finally {
+      setIsLoadingActivity(false)
+    }
+  }
+
+  // Refresh activity when switching to activity tab
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', tab)
+    window.history.pushState({}, '', url)
+
+    // Refresh activity when switching to activity tab
+    if (tab === 'activity' && user) {
+      loadUserActivity(user.id)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -210,13 +286,6 @@ function AdminUserDetailsContent({ params }) {
         </div>
       </div>
     )
-  }
-
-  const handleTabChange = (tab) => {
-    setActiveTab(tab)
-    const url = new URL(window.location.href)
-    url.searchParams.set('tab', tab)
-    window.history.pushState({}, '', url)
   }
 
   
@@ -643,18 +712,57 @@ function AdminUserDetailsContent({ params }) {
     }
   }
 
+  const handleDeleteUser = async () => {
+    if (!user) return
+
+    const confirmMessage = `Are you sure you want to delete ${user.firstName || ''} ${user.lastName || ''} (${user.email})?\n\nThis will permanently delete:\n• Account and profile\n• All investments and transactions\n• All activity and withdrawals\n• Authentication access\n\nThis action cannot be undone.`
+    
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      console.log(`[AdminUserDetails] Deleting user ${user.id} (${user.email})...`)
+      
+      const data = await apiClient.deleteUser(user.id)
+      console.log('[AdminUserDetails] Delete response:', data)
+      
+      // Handle partial success (database deleted but auth failed)
+      if (data.partialSuccess) {
+        alert(`⚠️ Partial Success:\n\n${data.error}\n\n✅ User removed from database\n❌ Failed to remove from Supabase Auth\n\nYou may need to manually delete this user from the Supabase Auth dashboard.`)
+        router.push('/admin?tab=accounts')
+        return
+      }
+      
+      // Handle complete failure
+      if (!data.success) {
+        alert(`❌ Failed to delete user:\n\n${data.error}`)
+        return
+      }
+      
+      // Success - redirect to accounts list
+      console.log('[AdminUserDetails] ✅ User deleted successfully')
+      alert(`✅ User ${user.email} deleted successfully!`)
+      router.push('/admin?tab=accounts')
+    } catch (e) {
+      console.error('[AdminUserDetails] Delete failed:', e)
+      alert(`An error occurred: ${e.message}`)
+    }
+  }
+
   // Calculate investment metrics using app time if available
   const activeInvestments = (user.investments || []).filter(inv => inv.status === 'active' || inv.status === 'withdrawal_notice')
-  const pendingTotal = (user.investments || []).filter(inv => inv.status === 'pending' || inv.status === 'draft').reduce((sum, inv) => sum + (inv.amount || 0), 0)
+  // Only count investments with status 'pending' - draft investments are not submitted yet
+  const pendingTotal = (user.investments || []).filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
   
   // Calculate pending payouts (monthly distributions awaiting admin approval)
   const pendingPayouts = (user.investments || [])
     .flatMap(inv => Array.isArray(inv.transactions) ? inv.transactions : [])
     .filter(tx => tx.type === 'distribution' && tx.status === 'pending')
-    .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0)
   
   // Calculate original investment value (sum of all active investment principals)
-  const originalInvestmentValue = activeInvestments.reduce((sum, inv) => sum + (inv.amount || 0), 0)
+  const originalInvestmentValue = activeInvestments.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
   
   // Calculate current account value (sum of all active investments with compounding)
   // Use app time from Time Machine if available
@@ -742,7 +850,7 @@ function AdminUserDetailsContent({ params }) {
             </div>
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Pending Investments</div>
-              <div className={styles.metricValue}>${pendingTotal.toLocaleString()}</div>
+              <div className={styles.metricValue}>${pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Pending Payouts</div>
@@ -803,7 +911,7 @@ function AdminUserDetailsContent({ params }) {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '18px', fontWeight: '700', color: '#111827' }}>
-                          ${inv.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                          ${(Number(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </div>
                     </div>
@@ -964,81 +1072,107 @@ function AdminUserDetailsContent({ params }) {
           {/* Activity Tab */}
           {activeTab === 'activity' && (
             <>
+          {/* Account Summary Section */}
+          <div className={styles.sectionCard}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Account Summary</h2>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Type</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
+                  {user.accountType ? user.accountType.charAt(0).toUpperCase() + user.accountType.slice(1) : 'Individual'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Status</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: user.isVerified ? '#065f46' : '#ca8a04' }}>
+                  {user.isVerified ? '✅ Verified' : '⏳ Pending'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Email</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', wordBreak: 'break-word' }}>
+                  {user.email}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Phone</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
+                  {user.phone || user.phoneNumber || '-'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Member Since</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
+                  {user.createdAt ? formatDateForDisplay(user.createdAt) : '-'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Total Investments</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
+                  {(user.investments || []).length}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Active Investments</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
+                  {activeInvestments.length}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Current Value</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
+                  ${currentAccountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Activity Section */}
           <div className={styles.sectionCard}>
             <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Activity</h2>
-              {(() => {
-                const totalActivity = user?.activity?.length || 0
-                const totalTransactions = user?.investments?.reduce((sum, inv) => sum + (inv.transactions?.filter(tx => tx.type !== 'investment')?.length || 0), 0) || 0
-                const total = totalActivity + totalTransactions
-                const totalPages = Math.ceil(total / ACTIVITY_ITEMS_PER_PAGE)
-                return totalPages > 1 ? (
-                  <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                    Page {activityPage} of {totalPages}
-                  </div>
-                ) : null
-              })()}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  <h2 className={styles.sectionTitle}>Activity History</h2>
+                  {(() => {
+                    const total = activityEvents.length
+                    const totalPages = Math.ceil(total / ACTIVITY_ITEMS_PER_PAGE)
+                    return totalPages > 1 ? (
+                      <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
+                        Page {activityPage} of {totalPages}
+                      </div>
+                    ) : null
+                  })()}
+                </div>
+                <button
+                  onClick={() => user && loadUserActivity(user.id)}
+                  disabled={isLoadingActivity}
+                  style={{
+                    padding: '8px 16px',
+                    background: isLoadingActivity ? '#f3f4f6' : '#0369a1',
+                    color: isLoadingActivity ? '#9ca3af' : 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: isLoadingActivity ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {isLoadingActivity ? '⟳ Loading...' : '↻ Refresh'}
+                </button>
+              </div>
             </div>
             {(() => {
-              // Collect all activity events
-              const allActivity = []
-              
-              // Add user activity events (account creation, withdrawals, investment status changes, etc.)
-              if (user.activity && Array.isArray(user.activity)) {
-                user.activity.forEach(event => {
-                  allActivity.push({
-                    ...event,
-                    category: 'account'
-                  })
-                })
-              }
-              
-              // Add investment transaction events (distributions, contributions)
-              // NOTE: We filter out 'investment' type - that's just the initial principal ledger entry, not an activity event
-              if (user.investments && user.investments.length > 0) {
-                user.investments.forEach(inv => {
-                  if (inv.transactions && Array.isArray(inv.transactions)) {
-                    inv.transactions.forEach(tx => {
-                      // Skip 'investment' type transactions (initial principal ledger entries)
-                      // Activity panel should show: distributions, contributions, redemptions
-                      // The investment creation/confirmation is tracked in user.activity
-                      if (tx.type === 'investment') return
-                      
-                      allActivity.push({
-                        ...tx,
-                        investmentId: inv.id,
-                        lockupPeriod: inv.lockupPeriod,
-                        paymentFrequency: inv.paymentFrequency,
-                        category: 'transaction'
-                      })
-                    })
-                  }
-                })
-              }
-
-              // Sort by date (newest first), then by type for same dates
-              allActivity.sort((a, b) => {
-                const dateA = a.date ? new Date(a.date).getTime() : 0
-                const dateB = b.date ? new Date(b.date).getTime() : 0
-                
-                // First sort by date (newest first)
-                if (dateA !== dateB) {
-                  return dateB - dateA
-                }
-                
-                // If dates are the same, ensure distribution comes before contribution
-                // This handles compounding investments where both transactions have the same date
-                if (a.type === 'distribution' && b.type === 'contribution') {
-                  return -1 // a (distribution) comes first
-                }
-                if (a.type === 'contribution' && b.type === 'distribution') {
-                  return 1 // b (distribution) comes first
-                }
-                
-                return 0 // Same type, maintain order
-              })
-
               // Helper function to get event metadata (icon, title, color)
               const getEventMeta = (eventType) => {
                 switch (eventType) {
@@ -1079,13 +1213,82 @@ function AdminUserDetailsContent({ params }) {
                 }
               }
 
+              if (isLoadingActivity) {
+                return (
+                  <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+                    <div style={{ fontSize: '16px', marginBottom: '8px' }}>⟳ Loading activity...</div>
+                  </div>
+                )
+              }
+
+              if (!activityEvents || activityEvents.length === 0) {
+                return (
+                  <div className={styles.muted} style={{ padding: '40px', textAlign: 'center' }}>
+                    No activity events yet
+                  </div>
+                )
+              }
+
+              // Parse and prepare activity events from API
+              const allActivity = activityEvents.map(event => {
+                // Parse metadata if it exists
+                let metadata = {}
+                try {
+                  if (event.eventMetadata && typeof event.eventMetadata === 'string') {
+                    metadata = JSON.parse(event.eventMetadata)
+                  } else if (event.eventMetadata && typeof event.eventMetadata === 'object') {
+                    metadata = event.eventMetadata
+                  }
+                } catch (e) {
+                  console.error('Failed to parse event metadata:', e)
+                }
+
+                return {
+                  id: event.id,
+                  type: event.activityType,
+                  userId: event.userId,
+                  investmentId: event.investmentId,
+                  amount: metadata.amount,
+                  date: event.eventDate,
+                  title: event.title,
+                  description: event.description,
+                  status: event.status,
+                  metadata: metadata,
+                  monthIndex: metadata.monthIndex
+                }
+              })
+
+              // Sort by date (newest first)
+              allActivity.sort((a, b) => {
+                const dateA = a.date ? new Date(a.date).getTime() : 0
+                const dateB = b.date ? new Date(b.date).getTime() : 0
+                return dateB - dateA
+              })
+
               // Calculate summary stats
+              // Build an index of investments so we can reflect their CURRENT status
+              // when rendering investment-related events (created/submitted/confirmed)
+              const investmentsById = {}
+              ;(user.investments || []).forEach(inv => {
+                investmentsById[inv.id] = inv
+              })
+
               const distributions = allActivity.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
               const contributions = allActivity.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
-              const accountEvents = allActivity.filter(e => e.category === 'account')
-              const totalDistributionAmount = distributions.reduce((sum, e) => sum + (e.amount || 0), 0)
-              const totalContributionAmount = contributions.reduce((sum, e) => sum + (e.amount || 0), 0)
-              const pendingCount = allActivity.filter(e => e.status === 'pending').length
+              const accountEvents = allActivity.filter(e => 
+                e.type?.includes('account') || 
+                e.type?.includes('investment_created') || 
+                e.type?.includes('investment_submitted') ||
+                e.type?.includes('investment_confirmed')
+              )
+              const totalDistributionAmount = distributions.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+              const totalContributionAmount = contributions.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+              // Pending count should reflect investment state, not raw event status
+              const pendingCount = allActivity.filter(e => {
+                const inv = e.investmentId ? investmentsById[e.investmentId] : null
+                const status = (inv && e.type?.includes('investment')) ? inv.status : e.status
+                return status === 'pending'
+              }).length
 
               // Pagination
               const totalActivityPages = Math.ceil(allActivity.length / ACTIVITY_ITEMS_PER_PAGE)
@@ -1131,6 +1334,10 @@ function AdminUserDetailsContent({ params }) {
                   <div className={styles.list}>
                     {paginatedActivity.map(event => {
                       const meta = getEventMeta(event.type)
+                      // For investment events, display the INVESTMENT's current status (draft/pending/active)
+                      // instead of the API event status which is typically 'completed'.
+                      const invForEvent = event.investmentId ? investmentsById[event.investmentId] : null
+                      const displayStatus = (invForEvent && event.type?.includes('investment')) ? (invForEvent.status || event.status) : event.status
                       return (
                         <div key={event.id} style={{
                           padding: '16px',
@@ -1155,28 +1362,34 @@ function AdminUserDetailsContent({ params }) {
                               <span style={{ fontWeight: 'bold' }}>
                                 {meta.title}
                               </span>
-                              {event.status && (
+                              {displayStatus && (
                                 <span style={{
                                   padding: '2px 8px',
                                   borderRadius: '12px',
                                   fontSize: '12px',
                                   fontWeight: 'bold',
-                                  background: event.status === 'completed' ? '#dcfce7' :
-                                            event.status === 'pending' ? '#fef3c7' :
-                                            event.status === 'active' ? '#dbeafe' :
+                                  background: displayStatus === 'completed' ? '#dcfce7' :
+                                            displayStatus === 'pending' ? '#fef3c7' :
+                                            displayStatus === 'active' ? '#dbeafe' :
+                                            displayStatus === 'draft' ? '#dbeafe' :
+                                            displayStatus === 'withdrawal_notice' ? '#e0f2fe' :
+                                            displayStatus === 'withdrawn' ? '#f1f5f9' :
                                             '#fee2e2',
-                                  color: event.status === 'completed' ? '#166534' :
-                                        event.status === 'pending' ? '#92400e' :
-                                        event.status === 'active' ? '#1e40af' :
+                                  color: displayStatus === 'completed' ? '#166534' :
+                                        displayStatus === 'pending' ? '#92400e' :
+                                        displayStatus === 'active' ? '#1e40af' :
+                                        displayStatus === 'draft' ? '#1e40af' :
+                                        displayStatus === 'withdrawal_notice' ? '#2563eb' :
+                                        displayStatus === 'withdrawn' ? '#1f2937' :
                                         '#991b1b'
                                 }}>
-                                  {event.status}
+                                  {displayStatus}
                                 </span>
                               )}
                             </div>
                             {meta.showAmount && event.amount != null && (
                               <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                                ${(event.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                ${(Number(event.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </div>
                             )}
                           </div>
@@ -1381,13 +1594,23 @@ function AdminUserDetailsContent({ params }) {
           {/* Account Profile Section */}
           <div className={styles.sectionCard}>
             <div className={styles.sectionHeader}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <h2 className={styles.sectionTitle}>Account Profile</h2>
-                {!isEditing && (
-                  <button className={styles.editButton} onClick={handleEdit}>
-                    Edit Profile
-                  </button>
-                )}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  {!isEditing && (
+                    <>
+                      <button className={styles.editButton} onClick={handleEdit}>
+                        Edit Profile
+                      </button>
+                      <button 
+                        className={styles.dangerButton} 
+                        onClick={handleDeleteUser}
+                      >
+                        Delete User
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             <div className={styles.grid}>

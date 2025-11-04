@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { apiClient } from '@/lib/apiClient'
+import { useUser } from '@/app/contexts/UserContext'
 import styles from './TabbedResidentialIdentity.module.css'
 
 const MIN_DOB = '1900-01-01'
@@ -15,6 +16,15 @@ const formatPhone = (value = '') => {
 }
 
 const isCompletePhone = (value = '') => value.replace(/\D/g, '').length === 10
+
+// US phone validation aligned with backend: 10 digits; area code must start 2-9
+const isValidUSPhone = (value = '') => {
+  const digits = (value || '').replace(/\D/g, '')
+  const normalized = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits
+  if (normalized.length !== 10) return false
+  // Only enforce leading area code digit 2-9; backend will handle deeper checks
+  return /^[2-9][0-9]{9}$/.test(normalized)
+}
 
 // Normalize phone number to E.164 format for database storage (+1XXXXXXXXXX)
 const normalizePhoneForDB = (value = '') => {
@@ -169,101 +179,82 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     if (accountTypeProp) setAccountType(accountTypeProp)
   }, [accountTypeProp])
 
+  const { userData } = useUser()
+
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    const bootstrap = async () => {
-      const userId = localStorage.getItem('currentUserId')
-      if (!userId) return
-      try {
-        const data = await apiClient.getUser(userId)
-        if (data.success && data.user) {
-          const u = data.user
-          // Determine current investment accountType if available
-          const investments = Array.isArray(u.investments) ? u.investments : []
-          const currentInv = investments.find(inv => inv.id === (typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null))
-          if (!accountTypeProp && currentInv?.accountType) setAccountType(currentInv.accountType)
-          
-          // Check if user has any pending or active investments
-          // This will lock identity fields (name, DOB, SSN) but allow updating contact info (phone, address)
-          const hasPendingOrActive = investments.some(inv => inv.status === 'pending' || inv.status === 'active')
-          setHasActiveInvestments(hasPendingOrActive)
+    if (!userData) return
+    const u = userData
 
-          // Prefill from user's current address (single source of truth)
-          const addressForPrefill = u.address || null
+    const investments = Array.isArray(u.investments) ? u.investments : []
+    const currentInvId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
+    const currentInv = investments.find(inv => inv.id === currentInvId)
+    if (!accountTypeProp && currentInv?.accountType) setAccountType(currentInv.accountType)
 
-          // SSN/TIN: If already encrypted or masked, show masked value so validation passes
-          // Show as "•••-••-••••" to indicate it's on file
-          const savedSsn = u.ssn || u.taxId || ''
-          // Check if SSN is already masked (from API) or encrypted (old format) or exists
-          const isSsnOnFile = savedSsn && (savedSsn === '•••-••-••••' || savedSsn.includes(':') || savedSsn.length > 20)
-          
-          const savedJointSsn = u.jointHolder?.ssn || ''
-          const isJointSsnOnFile = savedJointSsn && (savedJointSsn === '•••-••-••••' || savedJointSsn.includes(':') || savedJointSsn.length > 20)
-          
-          const savedAuthRepSsn = u.authorizedRepresentative?.ssn || ''
-          const isAuthRepSsnOnFile = savedAuthRepSsn && (savedAuthRepSsn === '•••-••-••••' || savedAuthRepSsn.includes(':') || savedAuthRepSsn.length > 20)
+    const hasPendingOrActive = investments.some(inv => inv.status === 'pending' || inv.status === 'active')
+    setHasActiveInvestments(hasPendingOrActive)
 
-          console.log('=== Loading user data for investment form ===')
-          console.log('User object:', u)
-          console.log('- User ID:', u.id)
-          console.log('- User Email:', u.email)
-          console.log('- User SSN field exists:', 'ssn' in u)
-          console.log('- User SSN value:', u.ssn)
-          console.log('- Saved SSN value:', savedSsn)
-          console.log('- Is SSN on file:', isSsnOnFile)
-          console.log('- Will set form SSN to:', isSsnOnFile ? '•••-••-••••' : savedSsn)
-          console.log('===========================================')
-          
-          setForm(prev => ({
-            ...prev,
-            entityName: u.entityName || '',
-            firstName: u.firstName || '',
-            lastName: u.lastName || '',
-            phone: formatPhoneFromDB(u.phoneNumber || ''),
-            street1: addressForPrefill?.street1 || '',
-            street2: addressForPrefill?.street2 || '',
-            city: addressForPrefill?.city || '',
-            state: toFullStateName(addressForPrefill?.state || ''),
-            zip: addressForPrefill?.zip || '',
-            country: addressForPrefill?.country || 'United States',
-            dob: u.dob || '',
-            ssn: isSsnOnFile ? '•••-••-••••' : savedSsn,
-            jointHoldingType: u.jointHoldingType || '',
-            jointHolder: {
-              firstName: u.jointHolder?.firstName || '',
-              lastName: u.jointHolder?.lastName || '',
-              street1: u.jointHolder?.address?.street1 || '',
-              street2: u.jointHolder?.address?.street2 || '',
-              city: u.jointHolder?.address?.city || '',
-              state: toFullStateName(u.jointHolder?.address?.state || ''),
-              zip: u.jointHolder?.address?.zip || '',
-              country: u.jointHolder?.address?.country || 'United States',
-              dob: u.jointHolder?.dob || '',
-              ssn: isJointSsnOnFile ? '•••-••-••••' : savedJointSsn,
-              email: u.jointHolder?.email || '',
-              phone: formatPhoneFromDB(u.jointHolder?.phone || '')
-            },
-            authorizedRep: {
-              firstName: u.authorizedRepresentative?.firstName || '',
-              lastName: u.authorizedRepresentative?.lastName || '',
-              street1: u.authorizedRepresentative?.address?.street1 || '',
-              street2: u.authorizedRepresentative?.address?.street2 || '',
-              city: u.authorizedRepresentative?.address?.city || '',
-              state: toFullStateName(u.authorizedRepresentative?.address?.state || ''),
-              zip: u.authorizedRepresentative?.address?.zip || '',
-              country: u.authorizedRepresentative?.address?.country || 'United States',
-              dob: u.authorizedRepresentative?.dob || '',
-              ssn: isAuthRepSsnOnFile ? '•••-••-••••' : savedAuthRepSsn
-            }
-          }))
-        }
-      } catch (e) {
-        console.error('Failed to load user for address', e)
+    const addressForPrefill = u.address || null
+    const savedSsn = u.ssn || u.taxId || ''
+    const isSsnOnFile = savedSsn && (savedSsn === '•••-••-••••' || savedSsn.includes(':') || savedSsn.length > 20)
+    const savedJointSsn = u.jointHolder?.ssn || ''
+    const isJointSsnOnFile = savedJointSsn && (savedJointSsn === '•••-••-••••' || savedJointSsn.includes(':') || savedJointSsn.length > 20)
+    const savedAuthRepSsn = u.authorizedRepresentative?.ssn || ''
+    const isAuthRepSsnOnFile = savedAuthRepSsn && (savedAuthRepSsn === '•••-••-••••' || savedAuthRepSsn.includes(':') || savedAuthRepSsn.length > 20)
+
+    console.log('=== Loading user data for investment form ===')
+    console.log('User object:', u)
+    console.log('- User ID:', u.id)
+    console.log('- User Email:', u.email)
+    console.log('- User SSN field exists:', 'ssn' in u)
+    console.log('- User SSN value:', u.ssn)
+    console.log('- Saved SSN value:', savedSsn)
+    console.log('- Is SSN on file:', isSsnOnFile)
+    console.log('- Will set form SSN to:', isSsnOnFile ? '•••-••-••••' : savedSsn)
+    console.log('===========================================')
+
+    setForm(prev => ({
+      ...prev,
+      entityName: u.entityName || '',
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      phone: formatPhoneFromDB(u.phoneNumber || ''),
+      street1: addressForPrefill?.street1 || '',
+      street2: addressForPrefill?.street2 || '',
+      city: addressForPrefill?.city || '',
+      state: toFullStateName(addressForPrefill?.state || ''),
+      zip: addressForPrefill?.zip || '',
+      country: addressForPrefill?.country || 'United States',
+      dob: u.dob || '',
+      ssn: isSsnOnFile ? '•••-••-••••' : savedSsn,
+      jointHoldingType: u.jointHoldingType || '',
+      jointHolder: {
+        firstName: u.jointHolder?.firstName || '',
+        lastName: u.jointHolder?.lastName || '',
+        street1: u.jointHolder?.address?.street1 || '',
+        street2: u.jointHolder?.address?.street2 || '',
+        city: u.jointHolder?.address?.city || '',
+        state: toFullStateName(u.jointHolder?.address?.state || ''),
+        zip: u.jointHolder?.address?.zip || '',
+        country: u.jointHolder?.address?.country || 'United States',
+        dob: u.jointHolder?.dob || '',
+        ssn: isJointSsnOnFile ? '•••-••-••••' : savedJointSsn,
+        email: u.jointHolder?.email || '',
+        phone: formatPhoneFromDB(u.jointHolder?.phone || '')
+      },
+      authorizedRep: {
+        firstName: u.authorizedRepresentative?.firstName || '',
+        lastName: u.authorizedRepresentative?.lastName || '',
+        street1: u.authorizedRepresentative?.address?.street1 || '',
+        street2: u.authorizedRepresentative?.address?.street2 || '',
+        city: u.authorizedRepresentative?.address?.city || '',
+        state: toFullStateName(u.authorizedRepresentative?.address?.state || ''),
+        zip: u.authorizedRepresentative?.address?.zip || '',
+        country: u.authorizedRepresentative?.address?.country || 'United States',
+        dob: u.authorizedRepresentative?.dob || '',
+        ssn: isAuthRepSsnOnFile ? '•••-••-••••' : savedAuthRepSsn
       }
-    }
-    bootstrap()
-  }, [])
+    }))
+  }, [userData, accountTypeProp])
 
   // Joint holding type should not be auto-defaulted - user must select explicitly
 
@@ -348,7 +339,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       if (!form.lastName.trim()) newErrors.lastName = 'Required'
     }
     if (!form.phone.trim()) newErrors.phone = 'Required'
-    else if (!isCompletePhone(form.phone)) newErrors.phone = 'Enter full 10-digit phone number'
+    else if (!isValidUSPhone(form.phone)) newErrors.phone = 'Enter a valid US phone (10 digits; area code 2-9)'
     if (!form.street1.trim()) newErrors.street1 = 'Required'
     if (!form.city.trim()) newErrors.city = 'Required'
     else if (/[0-9]/.test(form.city)) newErrors.city = 'No numbers allowed'
@@ -385,7 +376,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       else if (form.jointHolder.ssn !== '•••-••-••••' && !isCompleteSsn(form.jointHolder.ssn)) newErrors['jointHolder.ssn'] = 'Enter full SSN'
       if (!/\S+@\S+\.\S+/.test(form.jointHolder.email)) newErrors['jointHolder.email'] = 'Invalid email'
       if (!form.jointHolder.phone.trim()) newErrors['jointHolder.phone'] = 'Required'
-      else if (!isCompletePhone(form.jointHolder.phone)) newErrors['jointHolder.phone'] = 'Enter full 10-digit phone number'
+      else if (!isValidUSPhone(form.jointHolder.phone)) newErrors['jointHolder.phone'] = 'Enter a valid US phone (10 digits; area code 2-9)'
     }
     if (accountType === 'entity') {
       // Authorized representative must also be provided
@@ -448,61 +439,80 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           lastName: form.lastName.trim()
         } : {}),
         phoneNumber: normalizePhoneForDB(form.phone.trim()),
-        // Always update user's single address with latest values
+        // Always update user's single address with latest values (match backend schema)
         address: {
           street1: form.street1,
           street2: form.street2,
           city: form.city,
           state: form.state,
-          zip: form.zip,
-          country: form.country
+          zip: form.zip
         },
-        ...(accountType === 'entity' ? { entity: {
-          name: form.entityName,
-          registrationDate: form.dob,
-          // Only send taxId if it's not masked (already on file)
-          ...(isSsnMasked ? {} : { taxId: form.ssn })
-        }} : {}),
         ...(accountType !== 'entity' ? {
           dob: form.dob,
           // Only send ssn if it's not masked (already on file)
           ...(isSsnMasked ? {} : { ssn: form.ssn })
+        } : {})
+      }
+
+      // Note: Joint holder data is investment-specific; do not send in /api/profile payload
+
+      // Build summary immediately and advance UI
+      const summary = {
+        ...(accountType !== 'entity' ? {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim()
         } : {}),
-        ...(accountType === 'entity' ? { authorizedRepresentative: {
-          firstName: form.authorizedRep.firstName.trim(),
-          lastName: form.authorizedRep.lastName.trim(),
-          dob: form.authorizedRep.dob,
-          // Only send ssn if it's not masked (already on file)
-          ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn })
-        }} : {})
-      }
-
-      // Add joint holder data if account type is joint
-      if (accountType === 'joint') {
-        const isJointSsnMasked = form.jointHolder.ssn === '•••-••-••••'
-        userData.jointHoldingType = form.jointHoldingType
-        userData.jointHolder = {
-          firstName: form.jointHolder.firstName.trim(),
-          lastName: form.jointHolder.lastName.trim(),
-          address: jointAddress,
-          dob: form.jointHolder.dob,
-          // Only send ssn if it's not masked (already on file)
-          ...(isJointSsnMasked ? {} : { ssn: form.jointHolder.ssn }),
+        phone: form.phone.trim(),
+        street1: form.street1,
+        street2: form.street2,
+        city: form.city,
+        state: form.state,
+        zip: form.zip,
+        country: form.country,
+        dob: form.dob,
+        ssn: form.ssn,
+        accountType,
+        jointHoldingType: form.jointHoldingType,
+        jointHolder: accountType === 'joint' ? {
+          firstName: form.jointHolder.firstName,
+          lastName: form.jointHolder.lastName,
           email: form.jointHolder.email,
-          phone: normalizePhoneForDB(form.jointHolder.phone)
-        }
+          phone: form.jointHolder.phone,
+          dob: form.jointHolder.dob,
+          ssn: form.jointHolder.ssn,
+          address: jointAddress
+        } : undefined,
+        entityName: accountType === 'entity' ? form.entityName : undefined,
+        authorizedRep: accountType === 'entity' ? {
+          firstName: form.authorizedRep.firstName,
+          lastName: form.authorizedRep.lastName,
+          dob: form.authorizedRep.dob,
+          ssn: form.authorizedRep.ssn,
+          address: {
+            street1: form.authorizedRep.street1,
+            street2: form.authorizedRep.street2,
+            city: form.authorizedRep.city,
+            state: form.authorizedRep.state,
+            zip: form.authorizedRep.zip,
+            country: form.authorizedRep.country,
+          }
+        } : undefined
       }
+      if (typeof onReviewSummary === 'function') onReviewSummary(summary)
+      if (typeof onCompleted === 'function') onCompleted(summary)
 
-      // Use apiClient to call Python backend
-      const userResponse = await apiClient.updateUser(userId, userData)
-
-      if (!userResponse.success) {
-        console.error('Failed to update user profile:', userResponse.error)
-        alert(`Failed to save personal information: ${userResponse.error || 'Unknown error'}`)
-        return
-      }
-
-      console.log('✅ User profile updated successfully')
+      // Use apiClient to call Python backend (background save)
+      apiClient.updateUser(userId, userData)
+        .then(userResponse => {
+          if (!userResponse.success) {
+            console.error('Failed to update user profile:', userResponse.error)
+          } else {
+            console.log('✅ User profile updated successfully')
+          }
+        })
+        .catch(e => {
+          console.error('Failed saving user data', e)
+        })
 
       // Prepare address data for saving (defined BEFORE usage below)
       const mainAddress = {
@@ -582,67 +592,15 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           }
         }
 
-        // Use apiClient to update investment via special action
-        try {
-          const investmentResponse = await apiClient.updateUser(userId, {
-            _action: 'updateInvestment',
-            investmentId,
-            fields: investmentFields
-          })
-
+        // Update investment using investments endpoint (not profile)
+        apiClient.updateInvestment(userId, investmentId, investmentFields).then(investmentResponse => {
           if (!investmentResponse.success) {
             console.error('Failed to update investment:', investmentResponse.error)
-            // Don't block the flow for investment update failures
           }
-        } catch (error) {
+        }).catch(error => {
           console.error('Failed to update investment:', error)
-          // Don't block the flow for investment update failures
-        }
+        })
       }
-
-      const summary = {
-        ...(accountType !== 'entity' ? {
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim()
-        } : {}),
-        phone: form.phone.trim(),
-        street1: form.street1,
-        street2: form.street2,
-        city: form.city,
-        state: form.state,
-        zip: form.zip,
-        country: form.country,
-        dob: form.dob,
-        ssn: form.ssn,
-        accountType,
-        jointHoldingType: form.jointHoldingType,
-        jointHolder: accountType === 'joint' ? {
-          firstName: form.jointHolder.firstName,
-          lastName: form.jointHolder.lastName,
-          email: form.jointHolder.email,
-          phone: form.jointHolder.phone,
-          dob: form.jointHolder.dob,
-          ssn: form.jointHolder.ssn,
-          address: jointAddress
-        } : undefined,
-        entityName: accountType === 'entity' ? form.entityName : undefined,
-        authorizedRep: accountType === 'entity' ? {
-          firstName: form.authorizedRep.firstName,
-          lastName: form.authorizedRep.lastName,
-          dob: form.authorizedRep.dob,
-          ssn: form.authorizedRep.ssn,
-          address: {
-            street1: form.authorizedRep.street1,
-            street2: form.authorizedRep.street2,
-            city: form.authorizedRep.city,
-            state: form.authorizedRep.state,
-            zip: form.authorizedRep.zip,
-            country: form.authorizedRep.country,
-          }
-        } : undefined
-      }
-      if (typeof onReviewSummary === 'function') onReviewSummary(summary)
-      if (typeof onCompleted === 'function') onCompleted(summary)
     } catch (e) {
       console.error('Failed saving address & identity', e)
     } finally {

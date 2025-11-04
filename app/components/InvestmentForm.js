@@ -14,6 +14,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
   const [selectedLockup, setSelectedLockup] = useState(initialLockup === '1-year' || initialLockup === '3-year' ? initialLockup : '3-year')
   const [isAmountFocused, setIsAmountFocused] = useState(false)
   const [displayAmount, setDisplayAmount] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Calculate bonds based on $10 per bond
   const bonds = Math.floor(formData.investmentAmount / 10)
@@ -230,6 +231,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
 
   const handleInvest = async (lockupPeriod) => {
     if (!validateForm()) return
+    setIsSubmitting(true)
     try {
       if (typeof window === 'undefined') return
       
@@ -271,7 +273,8 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             if (data.investment?.id) {
               localStorage.setItem('currentInvestmentId', data.investment.id)
               if (accountType) {
-                await apiClient.updateInvestment(userId, data.investment.id, { accountType })
+                apiClient.updateInvestment(userId, data.investment.id, { accountType })
+                  .catch(err => console.error('Account type update failed:', err))
               }
             }
             notifyCompletion(data.investment?.id, lockupPeriod)
@@ -283,7 +286,8 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         
         // If account type was already chosen, update it
         if (accountType) {
-          await apiClient.updateInvestment(userId, existingInvestmentId, { accountType })
+          apiClient.updateInvestment(userId, existingInvestmentId, { accountType })
+            .catch(err => console.error('Account type update failed:', err))
         }
         
         notifyCompletion(existingInvestmentId, lockupPeriod)
@@ -301,7 +305,8 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
           localStorage.setItem('currentInvestmentId', data.investment.id)
           // If account type was already chosen earlier in the step, persist it now
           if (accountType) {
-            await apiClient.updateInvestment(userId, data.investment.id, { accountType })
+            apiClient.updateInvestment(userId, data.investment.id, { accountType })
+              .catch(err => console.error('Account type update failed:', err))
           }
         }
         notifyCompletion(data.investment?.id, lockupPeriod)
@@ -309,6 +314,8 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
     } catch (err) {
       console.error('Error starting investment', err)
       alert('An error occurred. Please try again.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -429,6 +436,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             <button 
               onClick={() => handleInvest(selectedLockup)}
               className={styles.investButton}
+              disabled={isSubmitting}
             >
               Continue
             </button>

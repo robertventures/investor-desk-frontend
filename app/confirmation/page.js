@@ -185,6 +185,14 @@ export default function ConfirmationPage() {
         if (data.access_token && data.refresh_token) {
           apiClient.setTokens(data.access_token, data.refresh_token)
         }
+        // Seed UserContext immediately with the returned user
+        try {
+          if (data.user) {
+            sessionStorage.setItem('preloadedUser', JSON.stringify(data.user))
+          }
+        } catch (e) {
+          // ignore storage errors
+        }
         // Clear pending registration data
         localStorage.removeItem('pendingRegistration')
         localStorage.removeItem('pendingUserId')

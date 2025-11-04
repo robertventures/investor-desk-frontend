@@ -10,92 +10,37 @@ export function UserProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const loadUser = useCallback(async (fresh = false) => {
-    if (typeof window === 'undefined') return
-
-    const userId = localStorage.getItem('currentUserId')
-    if (!userId) {
-      setLoading(false)
-      return null
-    }
-
+  const loadUser = useCallback(async () => {
+    if (typeof window === 'undefined') return null
     try {
       setLoading(true)
-      const data = await apiClient.getUser(userId, fresh)
-      if (data.success && data.user) {
-        // Fetch investments separately
-        let investments = []
-        try {
-          const investmentsResponse = await apiClient.getInvestments()
-          if (investmentsResponse && investmentsResponse.investments) {
-            investments = investmentsResponse.investments
-          }
-        } catch (investmentsError) {
-          logger.warn('Failed to load investments data', investmentsError)
-          // Don't fail the whole user load if investments fails
-        }
-
-        // Fetch activity events separately
-        let activityEvents = []
-        try {
-          const activityResponse = await apiClient.getActivityEvents()
-          if (activityResponse && activityResponse.items) {
-            // Map API response to frontend format
-            activityEvents = activityResponse.items.map(event => {
-              let metadata = {}
-              try {
-                if (event.eventMetadata && typeof event.eventMetadata === 'string') {
-                  metadata = JSON.parse(event.eventMetadata)
-                } else if (event.eventMetadata && typeof event.eventMetadata === 'object') {
-                  metadata = event.eventMetadata
-                }
-              } catch (parseError) {
-                logger.warn('Failed to parse event metadata for event', event.id, parseError)
-              }
-              
-              // For investment events, try to get the amount from the investment if not in metadata
-              let amount = metadata.amount || 0
-              if (!amount && event.investmentId && investments.length > 0) {
-                const relatedInvestment = investments.find(inv => inv.id === event.investmentId)
-                if (relatedInvestment) {
-                  amount = relatedInvestment.amount || 0
-                }
-              }
-              
-              return {
-                id: event.id,
-                type: event.activityType,
-                date: event.eventDate,
-                investmentId: event.investmentId,
-                status: event.status,
-                amount,
-                // Include any other metadata fields
-                ...metadata
-              }
-            })
-          }
-        } catch (activityError) {
-          logger.warn('Failed to load activity data', activityError)
-          // Don't fail the whole user load if activity fails
-        }
-
-        // Merge investments and activity into user data
-        const userWithData = {
-          ...data.user,
-          investments,
-          activity: activityEvents
-        }
-        
-        setUserData(userWithData)
+      apiClient.ensureTokensLoaded()
+      if (!apiClient.isAuthenticated()) {
+        setUserData(null)
         setError(null)
-        return userWithData
-      } else {
-        setError('Failed to load user data')
         return null
       }
+
+      const data = await apiClient.getCurrentUser()
+      if (data.success && data.user) {
+        // Backward compatibility for components still reading from localStorage
+        try {
+          localStorage.setItem('currentUserId', data.user.id)
+          if (data.user.email) localStorage.setItem('signupEmail', data.user.email)
+        } catch (e) {
+          // ignore storage errors
+        }
+
+        setUserData(data.user)
+        setError(null)
+        return data.user
+      }
+      setUserData(null)
+      return null
     } catch (e) {
       logger.error('Failed to load user data', e)
       setError(e.message)
+      setUserData(null)
       return null
     } finally {
       setLoading(false)
@@ -103,15 +48,65 @@ export function UserProvider({ children }) {
   }, [])
 
   const refreshUser = useCallback(() => {
-    return loadUser(true)
+    return loadUser()
   }, [loadUser])
 
+  // Seed from preloaded user (set during confirmation) then refresh in background
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const preloaded = sessionStorage.getItem('preloadedUser')
+      if (preloaded) {
+        const parsed = JSON.parse(preloaded)
+        if (parsed && typeof parsed === 'object') {
+          setUserData(parsed)
+          setLoading(false)
+        }
+        sessionStorage.removeItem('preloadedUser')
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+    // Always perform a background refresh to verify session
     loadUser()
   }, [loadUser])
 
+  // Lazy loaders for heavy data
+  const loadInvestments = useCallback(async () => {
+    try {
+      const response = await apiClient.getInvestments()
+      const investments = response?.investments || []
+      setUserData(prev => prev ? { ...prev, investments } : prev)
+      return investments
+    } catch (e) {
+      logger.warn('Failed to load investments data', e)
+      return []
+    }
+  }, [])
+
+  const loadActivity = useCallback(async () => {
+    try {
+      const activityResponse = await apiClient.getActivityEvents()
+      const items = activityResponse?.items || []
+      // Minimal normalization
+      const activity = items.map(event => ({
+        id: event.id,
+        type: event.activityType,
+        date: event.eventDate,
+        investmentId: event.investmentId,
+        status: event.status,
+        ...(typeof event.eventMetadata === 'string' ? (() => { try { return JSON.parse(event.eventMetadata) } catch { return {} } })() : (event.eventMetadata || {}))
+      }))
+      setUserData(prev => prev ? { ...prev, activity } : prev)
+      return activity
+    } catch (e) {
+      logger.warn('Failed to load activity data', e)
+      return []
+    }
+  }, [])
+
   return (
-    <UserContext.Provider value={{ userData, loading, error, refreshUser }}>
+    <UserContext.Provider value={{ userData, loading, error, refreshUser, loadInvestments, loadActivity }}>
       {children}
     </UserContext.Provider>
   )

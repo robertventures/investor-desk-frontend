@@ -1,43 +1,26 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient } from '../lib/apiClient'
 import Header from './components/Header'
 import AccountCreationForm from './components/AccountCreationForm'
 import styles from './page.module.css'
+import { useUser } from './contexts/UserContext'
 
 export default function Home() {
   const router = useRouter()
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const { userData, loading } = useUser()
   
   useEffect(() => {
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      try {
-        const response = await apiClient.getCurrentUser()
-        if (response && response.success && response.user) {
-          // User is already logged in, redirect to dashboard
-          if (response.user.isAdmin) {
-            router.push('/admin')
-          } else {
-            router.push('/dashboard')
-          }
-        } else {
-          // Not logged in, show signup form
-          setIsCheckingAuth(false)
-        }
-      } catch (error) {
-        // Error checking auth, assume not logged in
-        setIsCheckingAuth(false)
-      }
+    if (loading) return
+    if (userData) {
+      if (userData.isAdmin) router.push('/admin')
+      else router.push('/dashboard')
     }
-    
-    checkAuth()
-  }, [router])
+  }, [router, userData, loading])
   
   // Show nothing while checking auth to avoid flash
-  if (isCheckingAuth) {
+  if (loading) {
     return null
   }
   

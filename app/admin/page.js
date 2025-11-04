@@ -38,11 +38,14 @@ function AdminPageContent() {
     isLoadingWithdrawals,
     pendingPayouts,
     isLoadingPayouts,
+    activityEvents,
+    isLoadingActivity,
     timeMachineData,
     setTimeMachineData,
     refreshUsers,
     refreshWithdrawals,
-    refreshPayouts
+    refreshPayouts,
+    refreshActivity
   } = useAdminData()
 
   // Metrics calculation with custom hook
@@ -588,7 +591,12 @@ function AdminPageContent() {
 
           {/* Activity Tab */}
           {activeTab === 'activity' && (
-            <ActivityTab users={users || []} />
+            <ActivityTab 
+              activityEvents={activityEvents || []} 
+              isLoadingActivity={isLoadingActivity}
+              users={users || []}
+              onRefreshActivity={refreshActivity}
+            />
           )}
 
           {/* Transactions Tab */}

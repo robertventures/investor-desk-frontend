@@ -32,7 +32,7 @@ export default function ProfileView() {
   // Format US phone numbers as (XXX) XXX-XXXX while typing (ignore leading country code 1)
   const formatPhone = (value = '') => {
     const digitsOnly = (value || '').replace(/\D/g, '')
-    const withoutCountry = digitsOnly.startsWith('1') ? digitsOnly.slice(1) : digitsOnly
+    const withoutCountry = digitsOnly.startsWith('1') && digitsOnly.length === 11 ? digitsOnly.slice(1) : digitsOnly
     const len = withoutCountry.length
     if (len === 0) return ''
     if (len <= 3) return `(${withoutCountry}`
@@ -60,6 +60,14 @@ export default function ProfileView() {
       return `+${digits}`
     }
     return value // Return original if format is unexpected
+  }
+
+  // US phone validation aligned with backend: 10 digits; area code must start 2-9
+  const isValidUSPhoneDigits = (raw = '') => {
+    const digitsOnly = (raw || '').replace(/\D/g, '')
+    const normalized = digitsOnly.length === 11 && digitsOnly.startsWith('1') ? digitsOnly.slice(1) : digitsOnly
+    if (normalized.length !== 10) return false
+    return /^[2-9][0-9]{9}$/.test(normalized)
   }
 
   const parseDateString = (value = '') => {
@@ -113,10 +121,22 @@ export default function ProfileView() {
   // Handle tab from URL params
   useEffect(() => {
     const tab = searchParams?.get('tab')
-    if (tab && ['investor-info', 'trusted-contact', 'addresses', 'banking', 'security'].includes(tab)) {
+    if (tab && ['investor-info', 'entity-info', 'trusted-contact', 'addresses', 'banking', 'security'].includes(tab)) {
+      // If trying to access entity-info tab but user doesn't have entity investments, redirect to investor-info
+      if (tab === 'entity-info' && userData) {
+        const hasEntityInvestments = Array.isArray(userData?.investments) && 
+          userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
+        if (!hasEntityInvestments) {
+          const params = new URLSearchParams(searchParams.toString())
+          params.set('tab', 'investor-info')
+          router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
+          setActiveTab('investor-info')
+          return
+        }
+      }
       setActiveTab(tab)
     }
-  }, [searchParams])
+  }, [searchParams, userData, router])
 
   const loadUser = async () => {
     if (typeof window === 'undefined') return
@@ -127,13 +147,20 @@ export default function ProfileView() {
     try {
       // Use apiClient to route to Python backend (not Next.js)
       const data = await apiClient.getUser(userId)
+      console.log('[ProfileView] Loaded user data:', data)
+      console.log('[ProfileView] Phone field check:', {
+        hasPhone: 'phone' in (data.user || {}),
+        phoneValue: data.user?.phone,
+        hasPhoneNumber: 'phoneNumber' in (data.user || {}),
+        phoneNumberValue: data.user?.phoneNumber
+      })
       if (data.success && data.user) {
         setUserData(data.user)
         setFormData({
           firstName: data.user.firstName || '',
           lastName: data.user.lastName || '',
           email: data.user.email || '',
-          phoneNumber: formatPhone(data.user.phoneNumber || ''),
+          phoneNumber: formatPhone(data.user.phoneNumber || data.user.phone || ''),
           dob: data.user.dob || '',
           ssn: data.user.ssn || '',
           jointHolder: data.user.jointHolder ? {
@@ -381,17 +408,13 @@ export default function ProfileView() {
     if (!formData.lastName.trim()) newErrors.lastName = 'Required'
     if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email'
     if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Required'
-    else {
-      const raw = formData.phoneNumber.replace(/\D/g, '')
-      const normalized = raw.length === 11 && raw.startsWith('1') ? raw.slice(1) : raw
-      if (normalized.length !== 10) newErrors.phoneNumber = 'Enter a valid US 10-digit phone'
-    }
+    else if (!isValidUSPhoneDigits(formData.phoneNumber)) newErrors.phoneNumber = 'Enter a valid US phone (10 digits; area code 2-9)'
     if (formData.dob && !isAdultDob(formData.dob)) newErrors.dob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
 
     const hasPendingOrActiveEntity = Array.isArray(userData?.investments) && 
       userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
-    const showEntity = userData?.accountType === 'entity' || hasPendingOrActiveEntity
-    if (showEntity && formData.entity) {
+    // Entity validation only when user has entity investments
+    if (hasPendingOrActiveEntity && formData.entity) {
       if (!formData.entity.name.trim()) newErrors.entityName = 'Required'
       if (!formData.entity.registrationDate) newErrors.entityRegistrationDate = 'Required'
       if (!formData.entity.taxId.trim()) newErrors.entityTaxId = 'Required'
@@ -404,7 +427,7 @@ export default function ProfileView() {
       }
     }
 
-    if (showEntity && formData.authorizedRepresentative) {
+    if (hasPendingOrActiveEntity && formData.authorizedRepresentative) {
       if (!formData.authorizedRepresentative.dob || !isAdultDob(formData.authorizedRepresentative.dob)) newErrors.repDob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
       if (!formData.authorizedRepresentative.ssn.trim()) newErrors.repSsn = 'Required'
       if (formData.authorizedRepresentative.address) {
@@ -425,11 +448,7 @@ export default function ProfileView() {
       if (!formData.jointHolder.lastName.trim()) newErrors.jointLastName = 'Required'
       if (!formData.jointHolder.email.trim() || !/\S+@\S+\.\S+/.test(formData.jointHolder.email)) newErrors.jointEmail = 'Valid email required'
       if (!formData.jointHolder.phone.trim()) newErrors.jointPhone = 'Required'
-      else {
-        const rawJoint = formData.jointHolder.phone.replace(/\D/g, '')
-        const normalizedJoint = rawJoint.length === 11 && rawJoint.startsWith('1') ? rawJoint.slice(1) : rawJoint
-        if (normalizedJoint.length !== 10) newErrors.jointPhone = 'Enter a valid US 10-digit phone'
-      }
+      else if (!isValidUSPhoneDigits(formData.jointHolder.phone)) newErrors.jointPhone = 'Enter a valid US phone (10 digits; area code 2-9)'
       if (!formData.jointHolder.dob || !isAdultDob(formData.jointHolder.dob)) newErrors.jointDob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
       if (!formData.jointHolder.ssn.trim()) newErrors.jointSsn = 'Required'
       if (formData.jointHolder.address) {
@@ -447,10 +466,8 @@ export default function ProfileView() {
         newErrors.trustedEmail = 'Invalid email format'
       }
       if (formData.trustedContact.phone) {
-        const rawTrusted = formData.trustedContact.phone.replace(/\D/g, '')
-        const normalizedTrusted = rawTrusted.length === 11 && rawTrusted.startsWith('1') ? rawTrusted.slice(1) : rawTrusted
-        if (normalizedTrusted.length > 0 && normalizedTrusted.length !== 10) {
-          newErrors.trustedPhone = 'Enter a valid US 10-digit phone'
+        if (!isValidUSPhoneDigits(formData.trustedContact.phone)) {
+          newErrors.trustedPhone = 'Enter a valid US phone (10 digits; area code 2-9)'
         }
       }
     }
@@ -466,68 +483,24 @@ export default function ProfileView() {
       if (typeof window === 'undefined') return
       
       const userId = localStorage.getItem('currentUserId')
+      // Check if user has entity investments (for saving entity data)
+      const hasEntityInvestments = Array.isArray(userData?.investments) && 
+        userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
+      
+      // Only send fields supported by the backend ProfileUpdateRequest
       const data = await apiClient.updateUser(userId, {
         firstName: formData.firstName,
         lastName: formData.lastName,
         phoneNumber: normalizePhoneForDB(formData.phoneNumber),
         dob: formData.dob,
         ssn: formData.ssn,
-        email: formData.email,
-        ...(Array.isArray(userData?.investments) && userData.investments.some(inv => inv.accountType === 'joint') || !!userData?.jointHolder ? {
-          jointHoldingType: formData.jointHoldingType,
-          jointHolder: {
-            firstName: formData.jointHolder.firstName,
-            lastName: formData.jointHolder.lastName,
-            email: formData.jointHolder.email,
-            phone: normalizePhoneForDB(formData.jointHolder.phone),
-            dob: formData.jointHolder.dob,
-            ssn: formData.jointHolder.ssn,
-            address: {
-              street1: formData.jointHolder.address.street1,
-              street2: formData.jointHolder.address.street2,
-              city: formData.jointHolder.address.city,
-              state: formData.jointHolder.address.state,
-              zip: formData.jointHolder.address.zip,
-              country: formData.jointHolder.address.country
-            }
-          }
-        } : {}),
-        ...(formData.entity && (Array.isArray(userData?.investments) && userData.investments.some(inv => inv.accountType === 'entity') || !!userData?.entity) ? {
-          entity: {
-            name: formData.entity.name,
-            registrationDate: formData.entity.registrationDate,
-            taxId: formData.entity.taxId,
-            address: {
-              street1: formData.entity.address.street1,
-              street2: formData.entity.address.street2,
-              city: formData.entity.address.city,
-              state: formData.entity.address.state,
-              zip: formData.entity.address.zip,
-              country: formData.entity.address.country
-            }
-          }
-        } : {}),
-        ...(formData.authorizedRepresentative && (Array.isArray(userData?.investments) && userData.investments.some(inv => inv.accountType === 'entity') || !!userData?.entity) ? {
-          authorizedRepresentative: {
-            dob: formData.authorizedRepresentative.dob,
-            ssn: formData.authorizedRepresentative.ssn,
-            address: {
-              street1: formData.authorizedRepresentative.address.street1,
-              street2: formData.authorizedRepresentative.address.street2,
-              city: formData.authorizedRepresentative.address.city,
-              state: formData.authorizedRepresentative.address.state,
-              zip: formData.authorizedRepresentative.address.zip,
-              country: formData.authorizedRepresentative.address.country
-            }
-          }
-        } : {}),
-        trustedContact: formData.trustedContact ? {
-          firstName: formData.trustedContact.firstName,
-          lastName: formData.trustedContact.lastName,
-          email: formData.trustedContact.email,
-          phone: formData.trustedContact.phone,
-          relationship: formData.trustedContact.relationship
-        } : {}
+        address: {
+          street1: formData.address?.street1 || '',
+          street2: formData.address?.street2 || '',
+          city: formData.address?.city || '',
+          state: formData.address?.state || '',
+          zip: formData.address?.zip || ''
+        }
       })
       if (data.success && data.user) {
         setUserData(data.user)
@@ -640,9 +613,9 @@ export default function ProfileView() {
     userData.investments.some(inv => inv.accountType === 'joint' && (inv.status === 'pending' || inv.status === 'active'))
   const showJointSection = userData?.accountType === 'joint' || hasPendingOrActiveJoint
   
-  const hasPendingOrActiveEntity = Array.isArray(userData?.investments) && 
+  // Entity information should ONLY display when user has entity investments (not just accountType === 'entity')
+  const hasEntityInvestments = Array.isArray(userData?.investments) && 
     userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
-  const showEntitySection = userData?.accountType === 'entity' || hasPendingOrActiveEntity
 
   // Check if user has any investment (pending, active, or withdrawn) - if so, lock personal info
   const hasInvestments = Array.isArray(userData?.investments) && 
@@ -650,6 +623,7 @@ export default function ProfileView() {
 
   const tabs = [
     { id: 'investor-info', label: 'Investor Info' },
+    ...(hasEntityInvestments ? [{ id: 'entity-info', label: 'Entity Information' }] : []),
     { id: 'trusted-contact', label: 'Trusted Contact' },
     { id: 'addresses', label: 'Address' },
     { id: 'banking', label: 'Banking Information' },
@@ -684,17 +658,32 @@ export default function ProfileView() {
             userData={userData}
             errors={errors}
             showJointSection={showJointSection}
-            showEntitySection={showEntitySection}
             showSSN={showSSN}
             showJointSSN={showJointSSN}
-            showRepSSN={showRepSSN}
             setShowSSN={setShowSSN}
             setShowJointSSN={setShowJointSSN}
-            setShowRepSSN={setShowRepSSN}
             maskSSN={maskSSN}
             handleChange={handleChange}
             handleJointHolderChange={handleJointHolderChange}
             handleJointAddressChange={handleJointAddressChange}
+            handleSave={handleSave}
+            isSaving={isSaving}
+            saveSuccess={saveSuccess}
+            MIN_DOB={MIN_DOB}
+            maxDob={maxDob}
+            maxToday={maxToday}
+            hasInvestments={hasInvestments}
+          />
+        )}
+
+        {activeTab === 'entity-info' && hasEntityInvestments && (
+          <EntityInfoTab
+            formData={formData}
+            userData={userData}
+            errors={errors}
+            showRepSSN={showRepSSN}
+            setShowRepSSN={setShowRepSSN}
+            maskSSN={maskSSN}
             handleEntityChange={handleEntityChange}
             handleEntityAddressChange={handleEntityAddressChange}
             handleAuthorizedRepChange={handleAuthorizedRepChange}
@@ -705,7 +694,6 @@ export default function ProfileView() {
             MIN_DOB={MIN_DOB}
             maxDob={maxDob}
             maxToday={maxToday}
-            hasInvestments={hasInvestments}
           />
         )}
 
@@ -768,7 +756,7 @@ export default function ProfileView() {
 }
 
 // Individual Tab Components
-function InvestorInfoTab({ formData, userData, errors, showJointSection, showEntitySection, showSSN, showJointSSN, showRepSSN, setShowSSN, setShowJointSSN, setShowRepSSN, maskSSN, handleChange, handleJointHolderChange, handleJointAddressChange, handleEntityChange, handleEntityAddressChange, handleAuthorizedRepChange, handleAuthorizedRepAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments }) {
+function InvestorInfoTab({ formData, userData, errors, showJointSection, showSSN, showJointSSN, setShowSSN, setShowJointSSN, maskSSN, handleChange, handleJointHolderChange, handleJointAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
@@ -919,225 +907,245 @@ function InvestorInfoTab({ formData, userData, errors, showJointSection, showEnt
         </section>
       )}
 
-      {showEntitySection && (
-        <>
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Entity Information</h2>
-            <div className={styles.compactGrid}>
-              <div className={styles.field}>
-                <label className={styles.label}>Entity Name</label>
-                <input
-                  className={`${styles.input} ${errors.entityName ? styles.inputError : ''}`}
-                  type="text"
-                  name="name"
-                  value={formData.entity?.name || ''}
-                  onChange={handleEntityChange}
-                />
-                {errors.entityName && <span className={styles.errorText}>{errors.entityName}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Registration Date</label>
-                <input
-                  className={`${styles.input} ${errors.entityRegistrationDate ? styles.inputError : ''}`}
-                  type="date"
-                  name="registrationDate"
-                  value={formData.entity?.registrationDate || ''}
-                  onChange={handleEntityChange}
-                  min={MIN_DOB}
-                  max={maxToday}
-                />
-                {errors.entityRegistrationDate && <span className={styles.errorText}>{errors.entityRegistrationDate}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>EIN / Tax ID</label>
-                <input
-                  className={`${styles.input} ${errors.entityTaxId ? styles.inputError : ''}`}
-                  type="text"
-                  name="taxId"
-                  value={formData.entity?.taxId || ''}
-                  onChange={handleEntityChange}
-                />
-                {errors.entityTaxId && <span className={styles.errorText}>{errors.entityTaxId}</span>}
-              </div>
-            </div>
-            <div className={styles.compactGrid}>
-              <div className={styles.field}>
-                <label className={styles.label}>Street Address 1</label>
-                <input
-                  className={`${styles.input} ${errors.entityStreet1 ? styles.inputError : ''}`}
-                  type="text"
-                  name="street1"
-                  value={formData.entity?.address?.street1 || ''}
-                  onChange={handleEntityAddressChange}
-                />
-                {errors.entityStreet1 && <span className={styles.errorText}>{errors.entityStreet1}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Street Address 2</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  name="street2"
-                  value={formData.entity?.address?.street2 || ''}
-                  onChange={handleEntityAddressChange}
-                />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>City</label>
-                <input
-                  className={`${styles.input} ${errors.entityCity ? styles.inputError : ''}`}
-                  type="text"
-                  name="city"
-                  value={formData.entity?.address?.city || ''}
-                  onChange={handleEntityAddressChange}
-                />
-                {errors.entityCity && <span className={styles.errorText}>{errors.entityCity}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>State</label>
-                <input
-                  className={`${styles.input} ${errors.entityState ? styles.inputError : ''}`}
-                  type="text"
-                  name="state"
-                  value={formData.entity?.address?.state || ''}
-                  onChange={handleEntityAddressChange}
-                />
-                {errors.entityState && <span className={styles.errorText}>{errors.entityState}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>ZIP Code</label>
-                <input
-                  className={`${styles.input} ${errors.entityZip ? styles.inputError : ''}`}
-                  type="text"
-                  name="zip"
-                  value={formData.entity?.address?.zip || ''}
-                  onChange={handleEntityAddressChange}
-                />
-                {errors.entityZip && <span className={styles.errorText}>{errors.entityZip}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Country</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  name="country"
-                  value={formData.entity?.address?.country || 'United States'}
-                  onChange={handleEntityAddressChange}
-                  disabled
-                />
-              </div>
-            </div>
-          </section>
 
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Authorized Representative</h2>
-            <div className={styles.compactGrid}>
-              <div className={styles.field}>
-                <label className={styles.label}>Date of Birth</label>
-                <input
-                  className={`${styles.input} ${errors.repDob ? styles.inputError : ''}`}
-                  type="date"
-                  name="dob"
-                  value={formData.authorizedRepresentative?.dob || ''}
-                  onChange={handleAuthorizedRepChange}
-                  min={MIN_DOB}
-                  max={maxDob}
-                />
-                {errors.repDob && <span className={styles.errorText}>{errors.repDob}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>SSN</label>
-                <div className={styles.inputWrapper}>
-                  <input
-                    className={`${styles.input} ${styles.inputWithToggle} ${errors.repSsn ? styles.inputError : ''}`}
-                    type="text"
-                    name="ssn"
-                    value={showRepSSN ? (formData.authorizedRepresentative?.ssn || '') : maskSSN(formData.authorizedRepresentative?.ssn || '')}
-                    onChange={handleAuthorizedRepChange}
-                    readOnly={!showRepSSN}
-                  />
-                  <button
-                    type="button"
-                    className={styles.toggleButton}
-                    onClick={() => setShowRepSSN(!showRepSSN)}
-                    aria-label={showRepSSN ? 'Hide SSN' : 'Show SSN'}
-                  >
-                    {showRepSSN ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                {errors.repSsn && <span className={styles.errorText}>{errors.repSsn}</span>}
-              </div>
+      <div className={styles.actions}>
+        <button
+          className={styles.saveButton}
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </button>
+        {saveSuccess && <span className={styles.success}>Saved!</span>}
+      </div>
+    </div>
+  )
+}
+
+function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleAuthorizedRepChange, handleAuthorizedRepAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday }) {
+  return (
+    <div className={styles.content}>
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Entity Information</h2>
+        <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
+          Information about the entity associated with your investments. Note: Different LLCs require separate accounts with different email addresses.
+        </p>
+        <div className={styles.compactGrid}>
+          <div className={styles.field}>
+            <label className={styles.label}>Entity Name</label>
+            <input
+              className={`${styles.input} ${errors.entityName ? styles.inputError : ''}`}
+              type="text"
+              name="name"
+              value={formData.entity?.name || ''}
+              onChange={handleEntityChange}
+            />
+            {errors.entityName && <span className={styles.errorText}>{errors.entityName}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Registration Date</label>
+            <input
+              className={`${styles.input} ${errors.entityRegistrationDate ? styles.inputError : ''}`}
+              type="date"
+              name="registrationDate"
+              value={formData.entity?.registrationDate || ''}
+              onChange={handleEntityChange}
+              min={MIN_DOB}
+              max={maxToday}
+            />
+            {errors.entityRegistrationDate && <span className={styles.errorText}>{errors.entityRegistrationDate}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>EIN / Tax ID</label>
+            <input
+              className={`${styles.input} ${errors.entityTaxId ? styles.inputError : ''}`}
+              type="text"
+              name="taxId"
+              value={formData.entity?.taxId || ''}
+              onChange={handleEntityChange}
+            />
+            {errors.entityTaxId && <span className={styles.errorText}>{errors.entityTaxId}</span>}
+          </div>
+        </div>
+        <div className={styles.compactGrid}>
+          <div className={styles.field}>
+            <label className={styles.label}>Street Address 1</label>
+            <input
+              className={`${styles.input} ${errors.entityStreet1 ? styles.inputError : ''}`}
+              type="text"
+              name="street1"
+              value={formData.entity?.address?.street1 || ''}
+              onChange={handleEntityAddressChange}
+            />
+            {errors.entityStreet1 && <span className={styles.errorText}>{errors.entityStreet1}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Street Address 2</label>
+            <input
+              className={styles.input}
+              type="text"
+              name="street2"
+              value={formData.entity?.address?.street2 || ''}
+              onChange={handleEntityAddressChange}
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>City</label>
+            <input
+              className={`${styles.input} ${errors.entityCity ? styles.inputError : ''}`}
+              type="text"
+              name="city"
+              value={formData.entity?.address?.city || ''}
+              onChange={handleEntityAddressChange}
+            />
+            {errors.entityCity && <span className={styles.errorText}>{errors.entityCity}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>State</label>
+            <input
+              className={`${styles.input} ${errors.entityState ? styles.inputError : ''}`}
+              type="text"
+              name="state"
+              value={formData.entity?.address?.state || ''}
+              onChange={handleEntityAddressChange}
+            />
+            {errors.entityState && <span className={styles.errorText}>{errors.entityState}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>ZIP Code</label>
+            <input
+              className={`${styles.input} ${errors.entityZip ? styles.inputError : ''}`}
+              type="text"
+              name="zip"
+              value={formData.entity?.address?.zip || ''}
+              onChange={handleEntityAddressChange}
+            />
+            {errors.entityZip && <span className={styles.errorText}>{errors.entityZip}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Country</label>
+            <input
+              className={styles.input}
+              type="text"
+              name="country"
+              value={formData.entity?.address?.country || 'United States'}
+              onChange={handleEntityAddressChange}
+              disabled
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Authorized Representative</h2>
+        <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
+          Information about the authorized representative for this entity.
+        </p>
+        <div className={styles.compactGrid}>
+          <div className={styles.field}>
+            <label className={styles.label}>Date of Birth</label>
+            <input
+              className={`${styles.input} ${errors.repDob ? styles.inputError : ''}`}
+              type="date"
+              name="dob"
+              value={formData.authorizedRepresentative?.dob || ''}
+              onChange={handleAuthorizedRepChange}
+              min={MIN_DOB}
+              max={maxDob}
+            />
+            {errors.repDob && <span className={styles.errorText}>{errors.repDob}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>SSN</label>
+            <div className={styles.inputWrapper}>
+              <input
+                className={`${styles.input} ${styles.inputWithToggle} ${errors.repSsn ? styles.inputError : ''}`}
+                type="text"
+                name="ssn"
+                value={showRepSSN ? (formData.authorizedRepresentative?.ssn || '') : maskSSN(formData.authorizedRepresentative?.ssn || '')}
+                onChange={handleAuthorizedRepChange}
+                readOnly={!showRepSSN}
+              />
+              <button
+                type="button"
+                className={styles.toggleButton}
+                onClick={() => setShowRepSSN(!showRepSSN)}
+                aria-label={showRepSSN ? 'Hide SSN' : 'Show SSN'}
+              >
+                {showRepSSN ? 'Hide' : 'Show'}
+              </button>
             </div>
-            <div className={styles.compactGrid}>
-              <div className={styles.field}>
-                <label className={styles.label}>Street Address 1</label>
-                <input
-                  className={`${styles.input} ${errors.repStreet1 ? styles.inputError : ''}`}
-                  type="text"
-                  name="street1"
-                  value={formData.authorizedRepresentative?.address?.street1 || ''}
-                  onChange={handleAuthorizedRepAddressChange}
-                />
-                {errors.repStreet1 && <span className={styles.errorText}>{errors.repStreet1}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Street Address 2</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  name="street2"
-                  value={formData.authorizedRepresentative?.address?.street2 || ''}
-                  onChange={handleAuthorizedRepAddressChange}
-                />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>City</label>
-                <input
-                  className={`${styles.input} ${errors.repCity ? styles.inputError : ''}`}
-                  type="text"
-                  name="city"
-                  value={formData.authorizedRepresentative?.address?.city || ''}
-                  onChange={handleAuthorizedRepAddressChange}
-                />
-                {errors.repCity && <span className={styles.errorText}>{errors.repCity}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>State</label>
-                <input
-                  className={`${styles.input} ${errors.repState ? styles.inputError : ''}`}
-                  type="text"
-                  name="state"
-                  value={formData.authorizedRepresentative?.address?.state || ''}
-                  onChange={handleAuthorizedRepAddressChange}
-                />
-                {errors.repState && <span className={styles.errorText}>{errors.repState}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>ZIP Code</label>
-                <input
-                  className={`${styles.input} ${errors.repZip ? styles.inputError : ''}`}
-                  type="text"
-                  name="zip"
-                  value={formData.authorizedRepresentative?.address?.zip || ''}
-                  onChange={handleAuthorizedRepAddressChange}
-                />
-                {errors.repZip && <span className={styles.errorText}>{errors.repZip}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Country</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  name="country"
-                  value={formData.authorizedRepresentative?.address?.country || 'United States'}
-                  onChange={handleAuthorizedRepAddressChange}
-                  disabled
-                />
-              </div>
-            </div>
-          </section>
-        </>
-      )}
+            {errors.repSsn && <span className={styles.errorText}>{errors.repSsn}</span>}
+          </div>
+        </div>
+        <div className={styles.compactGrid}>
+          <div className={styles.field}>
+            <label className={styles.label}>Street Address 1</label>
+            <input
+              className={`${styles.input} ${errors.repStreet1 ? styles.inputError : ''}`}
+              type="text"
+              name="street1"
+              value={formData.authorizedRepresentative?.address?.street1 || ''}
+              onChange={handleAuthorizedRepAddressChange}
+            />
+            {errors.repStreet1 && <span className={styles.errorText}>{errors.repStreet1}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Street Address 2</label>
+            <input
+              className={styles.input}
+              type="text"
+              name="street2"
+              value={formData.authorizedRepresentative?.address?.street2 || ''}
+              onChange={handleAuthorizedRepAddressChange}
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>City</label>
+            <input
+              className={`${styles.input} ${errors.repCity ? styles.inputError : ''}`}
+              type="text"
+              name="city"
+              value={formData.authorizedRepresentative?.address?.city || ''}
+              onChange={handleAuthorizedRepAddressChange}
+            />
+            {errors.repCity && <span className={styles.errorText}>{errors.repCity}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>State</label>
+            <input
+              className={`${styles.input} ${errors.repState ? styles.inputError : ''}`}
+              type="text"
+              name="state"
+              value={formData.authorizedRepresentative?.address?.state || ''}
+              onChange={handleAuthorizedRepAddressChange}
+            />
+            {errors.repState && <span className={styles.errorText}>{errors.repState}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>ZIP Code</label>
+            <input
+              className={`${styles.input} ${errors.repZip ? styles.inputError : ''}`}
+              type="text"
+              name="zip"
+              value={formData.authorizedRepresentative?.address?.zip || ''}
+              onChange={handleAuthorizedRepAddressChange}
+            />
+            {errors.repZip && <span className={styles.errorText}>{errors.repZip}</span>}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Country</label>
+            <input
+              className={styles.input}
+              type="text"
+              name="country"
+              value={formData.authorizedRepresentative?.address?.country || 'United States'}
+              onChange={handleAuthorizedRepAddressChange}
+              disabled
+            />
+          </div>
+        </div>
+      </section>
 
       <div className={styles.actions}>
         <button

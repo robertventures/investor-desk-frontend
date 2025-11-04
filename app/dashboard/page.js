@@ -2,12 +2,13 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import logger from '@/lib/logger'
-import { UserProvider, useUser } from '../contexts/UserContext'
+import { useUser } from '../contexts/UserContext'
 import DashboardHeader from '../components/DashboardHeader'
 import PortfolioSummary from '../components/PortfolioSummary'
 import InvestmentsView from '../components/InvestmentsView'
 import ProfileView from '../components/ProfileView'
 import DocumentsView from '../components/DocumentsView'
+import ContactView from '../components/ContactView'
 import FixedInvestButton from '../components/FixedInvestButton'
 import styles from './page.module.css'
 
@@ -16,7 +17,7 @@ function DashboardPageContent() {
   const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
   const [activeView, setActiveView] = useState('portfolio')
-  const { userData, loading } = useUser()
+  const { userData, loading, loadInvestments, loadActivity } = useUser()
 
   // Guard against missing/removed account
   useEffect(() => {
@@ -47,6 +48,14 @@ function DashboardPageContent() {
     }
     verify()
   }, [router, searchParams, userData, loading])
+
+  // Lazy load investments once user is available
+  useEffect(() => {
+    if (!loading && userData) {
+      loadInvestments().catch(() => {})
+      loadActivity().catch(() => {})
+    }
+  }, [loading, userData, loadInvestments, loadActivity])
 
   // Initialize activeView from URL params and sync URL with activeView
   useEffect(() => {
@@ -80,13 +89,7 @@ function DashboardPageContent() {
       case 'documents':
         return <DocumentsView />
       case 'contact':
-        return (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <h2>Contact Us</h2>
-            <p>Get in touch with our team for any questions or support.</p>
-            {/* Add contact form/content here later */}
-          </div>
-        )
+        return <ContactView />
       case 'portfolio':
       default:
         return <PortfolioSummary />
@@ -117,16 +120,14 @@ function DashboardPageContent() {
 
 export default function DashboardPage() {
   return (
-    <UserProvider>
-      <Suspense fallback={
-        <div className={styles.main}>
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            Loading...
-          </div>
+    <Suspense fallback={
+      <div className={styles.main}>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          Loading...
         </div>
-      }>
-        <DashboardPageContent />
-      </Suspense>
-    </UserProvider>
+      </div>
+    }>
+      <DashboardPageContent />
+    </Suspense>
   )
 }

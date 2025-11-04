@@ -7,6 +7,14 @@ import styles from './PersonalDetailsForm.module.css'
 // Names: Allow only letters, spaces, hyphens, apostrophes, and periods
 const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
 
+// Format phone number as (XXX) XXX-XXXX for display
+const formatPhone = (value = '') => {
+  const digits = value.replace(/\D/g, '').slice(0, 10)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
 // Normalize phone number to E.164 format for database storage (+1XXXXXXXXXX)
 const normalizePhoneForDB = (value = '') => {
   const digits = value.replace(/\D/g, '')
@@ -34,6 +42,8 @@ export default function PersonalDetailsForm() {
     
     if (name === 'firstName' || name === 'lastName') {
       formattedValue = formatName(value)
+    } else if (name === 'phoneNumber') {
+      formattedValue = formatPhone(value)
     }
     
     setFormData(prev => ({
@@ -63,8 +73,11 @@ export default function PersonalDetailsForm() {
     
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required'
-    } else if (!/^[\+]?[1-9][\d]{0,15}$/.test(formData.phoneNumber.replace(/\s/g, ''))) {
-      newErrors.phoneNumber = 'Please enter a valid phone number'
+    } else {
+      const digits = formData.phoneNumber.replace(/\D/g, '')
+      if (digits.length !== 10) {
+        newErrors.phoneNumber = 'Please enter a valid 10-digit US phone number'
+      }
     }
     
     setErrors(newErrors)
@@ -95,7 +108,7 @@ export default function PersonalDetailsForm() {
           phoneNumber: normalizePhoneForDB(formData.phoneNumber)
         }
         
-        // Update existing user in database
+        // Update existing user in database via Next.js API route
         const response = await fetch(`/api/users/${userId}`, {
           method: 'PUT',
           headers: {

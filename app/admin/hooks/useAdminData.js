@@ -9,6 +9,7 @@ const CACHE_DURATION = 30000 // 30 seconds
 const CACHE_KEY_USERS = 'admin_users_cache'
 const CACHE_KEY_WITHDRAWALS = 'admin_withdrawals_cache'
 const CACHE_KEY_PAYOUTS = 'admin_payouts_cache'
+const CACHE_KEY_ACTIVITY = 'admin_activity_cache'
 
 /**
  * Custom hook to manage all admin data fetching and state with intelligent caching
@@ -23,6 +24,8 @@ export function useAdminData() {
   const [isLoadingWithdrawals, setIsLoadingWithdrawals] = useState(false)
   const [pendingPayouts, setPendingPayouts] = useState([])
   const [isLoadingPayouts, setIsLoadingPayouts] = useState(false)
+  const [activityEvents, setActivityEvents] = useState([])
+  const [isLoadingActivity, setIsLoadingActivity] = useState(false)
   const [timeMachineData, setTimeMachineData] = useState({ 
     appTime: null, 
     isActive: false,
@@ -108,6 +111,7 @@ export function useAdminData() {
           loadUsers(),
           loadWithdrawals(),
           loadPendingPayouts(),
+          loadActivityEvents(),
           loadTimeMachine()
         ])
       } catch (e) {
@@ -260,6 +264,38 @@ export function useAdminData() {
     }
   }
 
+  const loadActivityEvents = async (forceRefresh = false) => {
+    try {
+      // Check cache first unless forcing refresh
+      if (!forceRefresh) {
+        const cached = getCachedData(CACHE_KEY_ACTIVITY)
+        if (cached) {
+          logger.log('📦 Using cached activity data')
+          setActivityEvents(cached)
+          return
+        }
+      }
+      
+      if (forceRefresh) {
+        clearCache(CACHE_KEY_ACTIVITY)
+      }
+      
+      setIsLoadingActivity(true)
+      const data = await apiClient.getAdminActivityEvents({ size: 100 })
+      if (data && data.success) {
+        // Extract items from paginated response
+        const events = data.items || data.events || []
+        logger.log(`✓ Loaded ${events.length} activity events`)
+        setActivityEvents(events)
+        setCachedData(CACHE_KEY_ACTIVITY, events)
+      }
+    } catch (e) {
+      logger.error('Failed to load activity events', e)
+    } finally {
+      setIsLoadingActivity(false)
+    }
+  }
+
   const loadTimeMachine = async () => {
     try {
       const timeData = await apiClient.getAppTime()
@@ -281,6 +317,7 @@ export function useAdminData() {
     clearCache(CACHE_KEY_USERS)
     clearCache(CACHE_KEY_WITHDRAWALS)
     clearCache(CACHE_KEY_PAYOUTS)
+    clearCache(CACHE_KEY_ACTIVITY)
   }
 
   return {
@@ -291,11 +328,14 @@ export function useAdminData() {
     isLoadingWithdrawals,
     pendingPayouts,
     isLoadingPayouts,
+    activityEvents,
+    isLoadingActivity,
     timeMachineData,
     setTimeMachineData,
     refreshUsers: loadUsers,
     refreshWithdrawals: loadWithdrawals,
     refreshPayouts: loadPendingPayouts,
+    refreshActivity: loadActivityEvents,
     refreshTimeMachine: loadTimeMachine
   }
 }

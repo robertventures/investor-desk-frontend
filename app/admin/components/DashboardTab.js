@@ -206,7 +206,7 @@ const DashboardTab = memo(function DashboardTab({
         />
         <MetricCard 
           label="Pending Investments" 
-          value={`$${metrics.pendingCapital.toLocaleString()}`} 
+          value={`$${metrics.pendingCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
         />
       </div>
 
@@ -247,13 +247,13 @@ const DashboardTab = memo(function DashboardTab({
                     </div>
                   </div>
                   <div className={styles.pendingItemAmount}>
-                    ${inv.amount.toLocaleString()}
+                    ${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div className={styles.pendingItemActions}>
                   <button
                     onClick={() => {
-                      if (confirm(`Approve investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nAmount: $${inv.amount.toLocaleString()}\nAccount Type: ${inv.accountType}\nLockup: ${inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'}\nPayment Method: ${inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH Transfer'}\n\nThis will activate the investment and lock the user's account type.`)) {
+                      if (confirm(`Approve investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nAmount: $${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nAccount Type: ${inv.accountType}\nLockup: ${inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'}\nPayment Method: ${inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH Transfer'}\n\nThis will activate the investment and lock the user's account type.`)) {
                         onApprove(inv.user.id, inv.id)
                       }
                     }}
@@ -515,7 +515,7 @@ const DashboardTab = memo(function DashboardTab({
                       <div className={styles.activityItemDetails}>
                         <span>{inv.userName}</span>
                         <span className={styles.activityItemAmount}>
-                          ${inv.amount.toLocaleString()}
+                          ${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>

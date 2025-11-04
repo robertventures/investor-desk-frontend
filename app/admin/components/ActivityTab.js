@@ -7,48 +7,54 @@ import { formatCurrency } from '../../../lib/formatters.js'
 /**
  * Activity tab showing all platform-wide activity events
  */
-export default function ActivityTab({ users }) {
+export default function ActivityTab({ activityEvents, isLoadingActivity, users, onRefreshActivity }) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
 
-  // Collect all activity events from all users
-  const allActivity = useMemo(() => {
-    const events = []
-    
+  // Create a map of users by ID for quick lookup
+  const usersById = useMemo(() => {
+    const map = {}
     users.forEach(user => {
-      if (Array.isArray(user.activity)) {
-        user.activity.forEach(event => {
-          events.push({
-            ...event,
-            userId: user.id,
-            userEmail: user.email,
-            userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
-          })
-        })
+      map[user.id] = user
+    })
+    return map
+  }, [users])
+
+  // Transform and enrich activity events with user data
+  const allActivity = useMemo(() => {
+    // Map API response to component format
+    const events = activityEvents.map(event => {
+      const user = usersById[event.userId] || {}
+      
+      // Parse metadata if it exists
+      let metadata = {}
+      try {
+        if (event.eventMetadata && typeof event.eventMetadata === 'string') {
+          metadata = JSON.parse(event.eventMetadata)
+        } else if (event.eventMetadata && typeof event.eventMetadata === 'object') {
+          metadata = event.eventMetadata
+        }
+      } catch (e) {
+        console.error('Failed to parse event metadata:', e)
       }
-      const investments = Array.isArray(user.investments) ? user.investments : []
-      investments.forEach(investment => {
-        const transactions = Array.isArray(investment.transactions) ? investment.transactions : []
-        transactions.forEach(tx => {
-          // Note: Investments generate distribution and contribution transactions
-          // - distribution: Monthly interest payments
-          // - contribution: Compounded interest (for compounding investments)
-          // For compounding investments, a distribution is generated first, then immediately 
-          // converted to a contribution (reinvestment)
-          
-          events.push({
-            ...tx,
-            userId: user.id,
-            userEmail: user.email,
-            userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-            investmentId: investment.id,
-            lockupPeriod: investment.lockupPeriod || tx.lockupPeriod,
-            paymentFrequency: investment.paymentFrequency || tx.paymentFrequency
-          })
-        })
-      })
+
+      return {
+        id: event.id,
+        type: event.activityType,
+        userId: event.userId,
+        userEmail: user.email || '-',
+        userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || '-',
+        investmentId: event.investmentId,
+        amount: metadata.amount,
+        date: event.eventDate,
+        displayDate: event.eventDate,
+        title: event.title,
+        description: event.description,
+        status: event.status,
+        metadata: metadata
+      }
     })
 
     // Sort by date (most recent first)
@@ -59,7 +65,7 @@ export default function ActivityTab({ users }) {
     })
 
     return events
-  }, [users])
+  }, [activityEvents, usersById])
 
   // Filter activity based on search term
   const filteredActivity = useMemo(() => {
@@ -140,6 +146,13 @@ export default function ActivityTab({ users }) {
             {totalPages > 1 && ` - Page ${currentPage} of ${totalPages}`}
           </p>
         </div>
+        <button
+          className={styles.refreshButton}
+          onClick={() => onRefreshActivity(true)}
+          disabled={isLoadingActivity}
+        >
+          {isLoadingActivity ? '⟳ Loading...' : '↻ Refresh'}
+        </button>
       </div>
 
       {/* Search Bar */}
@@ -178,7 +191,13 @@ export default function ActivityTab({ users }) {
             </tr>
           </thead>
           <tbody>
-            {filteredActivity.length === 0 ? (
+            {isLoadingActivity ? (
+              <tr>
+                <td colSpan="8" className={styles.emptyState}>
+                  Loading activity events...
+                </td>
+              </tr>
+            ) : filteredActivity.length === 0 ? (
               <tr>
                 <td colSpan="8" className={styles.emptyState}>
                   {searchTerm ? `No activity events found matching "${searchTerm}"` : 'No activity events yet'}

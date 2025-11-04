@@ -30,59 +30,21 @@ export default function AuthWrapper({ children }) {
     
     const checkAuth = async () => {
       try {
-        // Verify authentication via API using apiClient
-        const data = await apiClient.getCurrentUser()
+        apiClient.ensureTokensLoaded()
+        const hasToken = apiClient.isAuthenticated()
 
-        const isLoggedIn = data && data.success && data.user
-
-        if (isLoggedIn) {
-          // Store user ID in localStorage for backward compatibility
-          localStorage.setItem('currentUserId', data.user.id)
-          localStorage.setItem('signupEmail', data.user.email)
-          
-          console.log('[AuthWrapper] Auth check - isAdmin:', data.user.isAdmin, 'currentPath:', pathname)
-          
-          // If admin is on onboarding page, redirect to admin dashboard
-          if (data.user.isAdmin && isOnboardingRoute) {
-            console.log('[AuthWrapper] Admin on onboarding page, redirecting to admin dashboard')
-            router.push('/admin')
-            return
-          }
-          
-          // If user completed onboarding but is on onboarding page, redirect to appropriate dashboard
-          if (!data.user.needsOnboarding && isOnboardingRoute) {
-            logger.log('User onboarding complete, redirecting to dashboard...')
-            // Check if user is admin and redirect accordingly
-            if (data.user.isAdmin) {
-              router.push('/admin')
-            } else {
-              router.push('/dashboard')
-            }
-            return
-          }
-        } else {
+        if (!hasToken) {
           // Clear localStorage if not authenticated
           localStorage.removeItem('currentUserId')
           localStorage.removeItem('signupEmail')
         }
-        
-        setIsAuthenticated(isLoggedIn)
+
+        setIsAuthenticated(hasToken)
         setIsLoading(false)
 
         // If user is not logged in and trying to access protected route
-        if (!isLoggedIn && !isPublicRoute) {
+        if (!hasToken && !isPublicRoute) {
           router.push('/sign-in')
-          return
-        }
-
-        // If user is logged in and on sign-in route, redirect to appropriate dashboard
-        if (isLoggedIn && pathname === '/sign-in') {
-          // Check if user is admin and redirect accordingly
-          if (data.user.isAdmin) {
-            router.push('/admin')
-          } else {
-            router.push('/dashboard')
-          }
           return
         }
       } catch (error) {
@@ -113,9 +75,9 @@ export default function AuthWrapper({ children }) {
   }, [pathname, router, isPublicRoute])
 
   // Show loading state while checking authentication
-  // For public routes, always render to avoid blocking
+  // For public routes, still provide UserContext so pages can safely call useUser
   if (isLoading && isPublicRoute) {
-    return children
+    return <UserProvider>{children}</UserProvider>
   }
   
   if (isLoading) {
@@ -127,10 +89,6 @@ export default function AuthWrapper({ children }) {
     return null
   }
 
-  // Wrap children with UserProvider for authenticated users
-  if (isAuthenticated) {
-    return <UserProvider>{children}</UserProvider>
-  }
-
-  return children
+  // Always provide UserContext; protected routes are still blocked above
+  return <UserProvider>{children}</UserProvider>
 }
