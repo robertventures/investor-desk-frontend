@@ -196,15 +196,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/investments/{investment_id}/payout-summary": {
+    "/api/investments/{investment_id}/calculation": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Investments:Payout-Summary */
-        get: operations["investments_payout_summary_api_investments__investment_id__payout_summary_get"];
+        /** Investments:Calculation */
+        get: operations["investments_calculation_api_investments__investment_id__calculation_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -213,15 +213,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/investments/{investment_id}/compounding-summary": {
+    "/api/investments/{investment_id}/withdraw": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Investments:Compounding-Summary */
-        get: operations["investments_compounding_summary_api_investments__investment_id__compounding_summary_get"];
+        get?: never;
+        put?: never;
+        /** Investments:Withdraw */
+        post: operations["investments_withdraw_api_investments__investment_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Withdrawals:List */
+        get: operations["withdrawals_list_api_withdrawals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/withdrawals/{withdrawal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Withdrawals:Get */
+        get: operations["withdrawals_get_api_withdrawals__withdrawal_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -259,6 +293,23 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Admin:Users:Delete */
+        delete: operations["admin_users_delete_api_admin_users__user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -326,6 +377,57 @@ export interface paths {
         put?: never;
         /** Admin:Investments:Reject */
         post: operations["admin_investments_reject_api_admin_investments__investment_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/transactions/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin:Transactions:Migrate */
+        post: operations["admin_transactions_migrate_api_admin_transactions_migrate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin:Withdrawals:List */
+        get: operations["admin_withdrawals_list_api_admin_withdrawals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/withdrawals/{withdrawal_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin:Withdrawals:Approve */
+        post: operations["admin_withdrawals_approve_api_admin_withdrawals__withdrawal_id__approve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -483,6 +585,15 @@ export interface components {
             /** Apptime */
             appTime: string;
         };
+        /** CalculationDetails */
+        CalculationDetails: {
+            /** Totalperiods */
+            totalPeriods: number;
+            /** Monthselapsed */
+            monthsElapsed: string;
+            /** Accrualsegments */
+            accrualSegments: components["schemas"]["AccrualSegmentResponse"][];
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /**
@@ -504,75 +615,6 @@ export interface components {
              */
             success: boolean;
             user: components["schemas"]["UserResponse"];
-        };
-        /** CompoundingSummaryData */
-        CompoundingSummaryData: {
-            /** Investmentid */
-            investmentId: number;
-            /** Initialprincipal */
-            initialPrincipal: string;
-            /** Finalbalance */
-            finalBalance: string;
-            /** Totalinterestearned */
-            totalInterestEarned: string;
-            /** Totalperiods */
-            totalPeriods: number;
-            lockupPeriod: components["schemas"]["LockupPeriod"];
-            paymentFrequency: components["schemas"]["PaymentFrequency"];
-            /** Apyrate */
-            apyRate: string;
-            /** Confirmedat */
-            confirmedAt?: string | null;
-            /** Lockupendat */
-            lockupEndAt?: string | null;
-            /** Asofdate */
-            asOfDate: string | null;
-            /** Iswithdrawable */
-            isWithdrawable: boolean;
-            /** Daysuntilwithdrawable */
-            daysUntilWithdrawable?: number | null;
-            /** Transactions */
-            transactions: components["schemas"]["CompoundingTransactionResponse"][];
-            /** Totalrawinterest */
-            totalRawInterest: string;
-            /** Roundingdifference */
-            roundingDifference: string;
-        };
-        /** CompoundingSummaryResponse */
-        CompoundingSummaryResponse: {
-            /**
-             * Success
-             * @default true
-             */
-            success: boolean;
-            data: components["schemas"]["CompoundingSummaryData"];
-        };
-        /** CompoundingTransactionResponse */
-        CompoundingTransactionResponse: {
-            /** Startdate */
-            startDate: string;
-            /** Enddate */
-            endDate: string;
-            /** Segmenttype */
-            segmentType: string;
-            /** Daysinsegment */
-            daysInSegment: number;
-            /** Daysinmonth */
-            daysInMonth: number;
-            /** Startingbalance */
-            startingBalance: string;
-            /** Interestearned */
-            interestEarned: string;
-            /** Endingbalance */
-            endingBalance: string;
-            /** Rawinterest */
-            rawInterest: string;
-            /** Rawendingbalance */
-            rawEndingBalance: string;
-            /** Apyrate */
-            apyRate: string;
-            /** Rateused */
-            rateUsed: string;
         };
         /** ConfirmAccountRequest */
         ConfirmAccountRequest: {
@@ -604,6 +646,41 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InvestmentCalculationData */
+        InvestmentCalculationData: {
+            /** Investmentid */
+            investmentId: number;
+            /** Principalamount */
+            principalAmount: string;
+            /** Currentvalue */
+            currentValue: string;
+            /** Totalearnings */
+            totalEarnings: string;
+            /** Apyrate */
+            apyRate: string;
+            lockupPeriod: components["schemas"]["LockupPeriod"];
+            paymentFrequency: components["schemas"]["PaymentFrequency"];
+            /** Confirmedat */
+            confirmedAt?: string | null;
+            /** Lockupendat */
+            lockupEndAt?: string | null;
+            /** Asofdate */
+            asOfDate: string | null;
+            /** Iswithdrawable */
+            isWithdrawable: boolean;
+            /** Daysuntilwithdrawable */
+            daysUntilWithdrawable?: number | null;
+            details: components["schemas"]["CalculationDetails"];
+        };
+        /** InvestmentCalculationResponse */
+        InvestmentCalculationResponse: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            data: components["schemas"]["InvestmentCalculationData"];
         };
         /** InvestmentCreateRequest */
         InvestmentCreateRequest: {
@@ -720,6 +797,19 @@ export interface components {
             /** Pages */
             pages: number;
         };
+        /** Page[WithdrawalResponse] */
+        Page_WithdrawalResponse_: {
+            /** Items */
+            items: components["schemas"]["WithdrawalResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+            /** Pages */
+            pages: number;
+        };
         /** PasswordResetConfirm */
         PasswordResetConfirm: {
             /**
@@ -759,44 +849,6 @@ export interface components {
          * @enum {string}
          */
         PaymentMethod: "ach" | "wire";
-        /** PayoutSummaryData */
-        PayoutSummaryData: {
-            /** Investmentid */
-            investmentId: number;
-            /** Principalamount */
-            principalAmount: string;
-            /** Currentvalue */
-            currentValue: string;
-            /** Totalearnings */
-            totalEarnings: string;
-            /** Monthselapsed */
-            monthsElapsed: string;
-            lockupPeriod: components["schemas"]["LockupPeriod"];
-            paymentFrequency: components["schemas"]["PaymentFrequency"];
-            /** Apyrate */
-            apyRate: string;
-            /** Confirmedat */
-            confirmedAt?: string | null;
-            /** Lockupendat */
-            lockupEndAt?: string | null;
-            /** Asofdate */
-            asOfDate: string | null;
-            /** Iswithdrawable */
-            isWithdrawable: boolean;
-            /** Daysuntilwithdrawable */
-            daysUntilWithdrawable?: number | null;
-            /** Accrualsegments */
-            accrualSegments: components["schemas"]["AccrualSegmentResponse"][];
-        };
-        /** PayoutSummaryResponse */
-        PayoutSummaryResponse: {
-            /**
-             * Success
-             * @default true
-             */
-            success: boolean;
-            data: components["schemas"]["PayoutSummaryData"];
-        };
         /** ProfileUpdateRequest */
         ProfileUpdateRequest: {
             /** Firstname */
@@ -911,6 +963,15 @@ export interface components {
              */
             expires_in: number;
         };
+        /** TransactionMigrateResponse */
+        TransactionMigrateResponse: {
+            /** Transactionsdeleted */
+            transactionsDeleted: number;
+            /** Eventsdeleted */
+            eventsDeleted: number;
+            /** Transactionscreated */
+            transactionsCreated: number;
+        };
         /** UserDetail */
         UserDetail: {
             /**
@@ -1014,6 +1075,80 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** WithdrawalDetailResponse */
+        WithdrawalDetailResponse: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            withdrawal: components["schemas"]["WithdrawalResponse"];
+        };
+        /** WithdrawalListResponse */
+        WithdrawalListResponse: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Withdrawals */
+            withdrawals: components["schemas"]["WithdrawalResponse"][];
+        };
+        /** WithdrawalResponse */
+        WithdrawalResponse: {
+            /** Id */
+            id: number;
+            /** Userid */
+            userId: number;
+            /** Investmentid */
+            investmentId: number;
+            /** Amount */
+            amount: string;
+            /** Principalamount */
+            principalAmount: string;
+            /** Earningsamount */
+            earningsAmount: string;
+            status: components["schemas"]["WithdrawalStatus"];
+            withdrawalType: components["schemas"]["WithdrawalType"];
+            /** Adminterminated */
+            adminTerminated: boolean;
+            /** Adminuserid */
+            adminUserId?: number | null;
+            /** Lockupoverridden */
+            lockupOverridden: boolean;
+            /** Investmentsnapshot */
+            investmentSnapshot?: {
+                [key: string]: unknown;
+            } | null;
+            /** Requestedat */
+            requestedAt: string | null;
+            /** Approvedat */
+            approvedAt?: string | null;
+            /** Rejectedat */
+            rejectedAt?: string | null;
+            /** Paidat */
+            paidAt?: string | null;
+            /** Payoutcalculatedat */
+            payoutCalculatedAt?: string | null;
+            /** Rejectionreason */
+            rejectionReason?: string | null;
+            /** Adminnotes */
+            adminNotes?: string | null;
+            /** Createdat */
+            createdAt: string | null;
+            /** Updatedat */
+            updatedAt: string | null;
+        };
+        /**
+         * WithdrawalStatus
+         * @enum {string}
+         */
+        WithdrawalStatus: "pending" | "approved" | "rejected" | "paid" | "cancelled";
+        /**
+         * WithdrawalType
+         * @enum {string}
+         */
+        WithdrawalType: "normal" | "admin_terminated";
     };
     responses: never;
     parameters: never;
@@ -1488,7 +1623,7 @@ export interface operations {
             };
         };
     };
-    investments_payout_summary_api_investments__investment_id__payout_summary_get: {
+    investments_calculation_api_investments__investment_id__calculation_get: {
         parameters: {
             query?: {
                 asOfDate?: string | null;
@@ -1507,7 +1642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PayoutSummaryResponse"];
+                    "application/json": components["schemas"]["InvestmentCalculationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1521,14 +1656,63 @@ export interface operations {
             };
         };
     };
-    investments_compounding_summary_api_investments__investment_id__compounding_summary_get: {
+    investments_withdraw_api_investments__investment_id__withdraw_post: {
         parameters: {
-            query?: {
-                asOfDate?: string | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 investment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WithdrawalDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdrawals_list_api_withdrawals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WithdrawalListResponse"];
+                };
+            };
+        };
+    };
+    withdrawals_get_api_withdrawals__withdrawal_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                withdrawal_id: number;
             };
             cookie?: never;
         };
@@ -1540,7 +1724,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CompoundingSummaryResponse"];
+                    "application/json": components["schemas"]["WithdrawalDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1613,6 +1797,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Page_UserDetail_"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_users_delete_api_admin_users__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1751,6 +1964,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvestmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_transactions_migrate_api_admin_transactions_migrate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionMigrateResponse"];
+                };
+            };
+        };
+    };
+    admin_withdrawals_list_api_admin_withdrawals_get: {
+        parameters: {
+            query?: {
+                /** @description Page number */
+                page?: number;
+                /** @description Page size */
+                size?: number;
+                status?: string | null;
+                user_id?: number | null;
+                investment_id?: number | null;
+                search?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_WithdrawalResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_withdrawals_approve_api_admin_withdrawals__withdrawal_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                withdrawal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WithdrawalResponse"];
                 };
             };
             /** @description Validation Error */

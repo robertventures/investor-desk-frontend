@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
 import { fetchWithCsrf } from '../../../../lib/csrfClient'
 import AdminHeader from '../../../components/AdminHeader'
@@ -8,9 +8,10 @@ import styles from './page.module.css'
 import { formatCurrency } from '../../../../lib/formatters.js'
 import { formatDateTime } from '../../../../lib/dateUtils.js'
 
-export default function AdminTransactionDetailsPage({ params }) {
+export default function AdminTransactionDetailsPage() {
   const router = useRouter()
-  const { id: transactionId } = params
+  const params = useParams()
+  const transactionId = params?.id
   const [currentUser, setCurrentUser] = useState(null)
   const [transaction, setTransaction] = useState(null)
   const [investment, setInvestment] = useState(null)

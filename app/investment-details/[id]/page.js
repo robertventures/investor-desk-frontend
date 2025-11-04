@@ -1,14 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '@/lib/apiClient'
 import DashboardHeader from '../../components/DashboardHeader'
 import InvestmentDetailsContent from '../../components/InvestmentDetailsContent'
 import FixedInvestButton from '../../components/FixedInvestButton'
 import styles from './page.module.css'
 
-export default function InvestmentDetailsPage({ params }) {
-  const { id } = params
+export default function InvestmentDetailsPage() {
+  const params = useParams()
+  const id = params?.id
   const router = useRouter()
   const [activeView, setActiveView] = useState('investments')
 
@@ -39,6 +40,17 @@ export default function InvestmentDetailsPage({ params }) {
 
   const handleViewChange = (view) => {
     router.push(`/dashboard?section=${view}`)
+  }
+
+  // Show loading state if id is not yet available
+  if (!id) {
+    return (
+      <main className={styles.main}>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          Loading investment details...
+        </div>
+      </main>
+    )
   }
 
   return (

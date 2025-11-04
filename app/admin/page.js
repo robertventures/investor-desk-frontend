@@ -238,12 +238,7 @@ function AdminPageContent() {
   const approveInvestment = async (userId, investmentId) => {
     try {
       setSavingId(investmentId)
-      const data = await apiClient.updateUser(userId, {
-        _action: 'updateInvestment',
-        investmentId,
-        adminUserId: currentUser?.id,
-        fields: { status: 'active' }
-      })
+      const data = await apiClient.approveInvestment(investmentId)
       if (!data.success) {
         alert(data.error || 'Failed to confirm investment')
         return
@@ -260,12 +255,7 @@ function AdminPageContent() {
   const rejectInvestment = async (userId, investmentId) => {
     try {
       setSavingId(investmentId)
-      const data = await apiClient.updateUser(userId, {
-        _action: 'updateInvestment',
-        investmentId,
-        adminUserId: currentUser?.id,
-        fields: { status: 'rejected' }
-      })
+      const data = await apiClient.rejectInvestment(investmentId)
       if (!data.success) {
         alert(data.error || 'Failed to reject investment')
         return

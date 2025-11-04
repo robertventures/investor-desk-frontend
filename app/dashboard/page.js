@@ -49,11 +49,19 @@ function DashboardPageContent() {
     verify()
   }, [router, searchParams, userData, loading])
 
-  // Lazy load investments once user is available
+  // Lazy load investments and activity once user is available
+  // These calls fail gracefully - if endpoints aren't ready, app continues to work
   useEffect(() => {
     if (!loading && userData) {
-      loadInvestments().catch(() => {})
-      loadActivity().catch(() => {})
+      // Load investments asynchronously - fails gracefully
+      loadInvestments().catch((err) => {
+        console.log('Investments endpoint not available yet:', err.message)
+      })
+      
+      // Load activity asynchronously - fails gracefully
+      loadActivity().catch((err) => {
+        console.log('Activity endpoint not available yet:', err.message)
+      })
     }
   }, [loading, userData, loadInvestments, loadActivity])
 

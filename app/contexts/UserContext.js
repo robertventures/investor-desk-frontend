@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { apiClient } from '@/lib/apiClient'
 import logger from '@/lib/logger'
 
@@ -9,10 +9,15 @@ export function UserProvider({ children }) {
   const [userData, setUserData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const isLoadingUserRef = useRef(false)
 
   const loadUser = useCallback(async () => {
     if (typeof window === 'undefined') return null
+    // Prevent concurrent calls
+    if (isLoadingUserRef.current) return null
+    
     try {
+      isLoadingUserRef.current = true
       setLoading(true)
       apiClient.ensureTokensLoaded()
       if (!apiClient.isAuthenticated()) {
@@ -44,6 +49,7 @@ export function UserProvider({ children }) {
       return null
     } finally {
       setLoading(false)
+      isLoadingUserRef.current = false
     }
   }, [])
 
@@ -72,20 +78,35 @@ export function UserProvider({ children }) {
   }, [loadUser])
 
   // Lazy loaders for heavy data
+  const isLoadingInvestmentsRef = useRef(false)
+  const isLoadingActivityRef = useRef(false)
+
   const loadInvestments = useCallback(async () => {
+    // Prevent concurrent calls
+    if (isLoadingInvestmentsRef.current) return []
+    
     try {
+      isLoadingInvestmentsRef.current = true
       const response = await apiClient.getInvestments()
       const investments = response?.investments || []
       setUserData(prev => prev ? { ...prev, investments } : prev)
       return investments
     } catch (e) {
       logger.warn('Failed to load investments data', e)
+      // Set empty array on error to prevent infinite retries
+      setUserData(prev => prev ? { ...prev, investments: [] } : prev)
       return []
+    } finally {
+      isLoadingInvestmentsRef.current = false
     }
   }, [])
 
   const loadActivity = useCallback(async () => {
+    // Prevent concurrent calls
+    if (isLoadingActivityRef.current) return []
+    
     try {
+      isLoadingActivityRef.current = true
       const activityResponse = await apiClient.getActivityEvents()
       const items = activityResponse?.items || []
       // Minimal normalization
@@ -101,7 +122,11 @@ export function UserProvider({ children }) {
       return activity
     } catch (e) {
       logger.warn('Failed to load activity data', e)
+      // Set empty array to prevent retries
+      setUserData(prev => prev ? { ...prev, activity: [] } : prev)
       return []
+    } finally {
+      isLoadingActivityRef.current = false
     }
   }, [])
 

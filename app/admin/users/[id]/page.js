@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState, useRef, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import { fetchWithCsrf } from '../../../../lib/csrfClient'
 import { apiClient } from '../../../../lib/apiClient'
 import AdminHeader from '../../../components/AdminHeader'
@@ -9,10 +9,11 @@ import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
 import styles from './page.module.css'
 import { useUser } from '@/app/contexts/UserContext'
 
-function AdminUserDetailsContent({ params }) {
+function AdminUserDetailsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { id } = params
+  const params = useParams()
+  const id = params?.id
   const { userData, loading: userLoading } = useUser()
   const initializedRef = useRef(false)
   const [currentUser, setCurrentUser] = useState(null)
@@ -1891,7 +1892,7 @@ function AdminUserDetailsContent({ params }) {
   )
 }
 
-export default function AdminUserDetailsPage({ params }) {
+export default function AdminUserDetailsPage() {
   return (
     <Suspense fallback={
       <div className={styles.main}>
@@ -1902,7 +1903,7 @@ export default function AdminUserDetailsPage({ params }) {
         </div>
       </div>
     }>
-      <AdminUserDetailsContent params={params} />
+      <AdminUserDetailsContent />
     </Suspense>
   )
 }

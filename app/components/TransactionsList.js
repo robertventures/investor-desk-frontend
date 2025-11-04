@@ -105,7 +105,10 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
   // IMPORTANT: Hooks must be called unconditionally in the same order on every render.
   // Compute memoized values before any early returns to avoid React hook order errors.
   const { filtered, visibleEvents, totalPages } = useMemo(() => {
-    const filtered = filterInvestmentId ? events.filter(ev => ev.investmentId === filterInvestmentId) : events
+    // Use string comparison to handle both string and number IDs
+    const filtered = filterInvestmentId 
+      ? events.filter(ev => String(ev.investmentId) === String(filterInvestmentId)) 
+      : events
     
     // Apply pagination if no limit is set (limit is used for "Recent Activity" widgets)
     // When limit is set, we're showing a preview; when not set, show full paginated list

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUser } from '../contexts/UserContext'
 import { apiClient } from '../../lib/apiClient'
 import { fetchWithCsrf } from '../../lib/csrfClient'
 import styles from './InvestmentDetailsContent.module.css'
@@ -9,58 +10,106 @@ import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStat
 
 export default function InvestmentDetailsContent({ investmentId }) {
   const router = useRouter()
+  const { userData, loading: userLoading, loadInvestments, loadActivity } = useUser()
   const [activeTab, setActiveTab] = useState('investment-info')
   const [investmentData, setInvestmentData] = useState(null)
-  const [userData, setUserData] = useState(null)
   const [appTime, setAppTime] = useState(null)
   const [isWithdrawing, setIsWithdrawing] = useState(false)
   const [withdrawalInfo, setWithdrawalInfo] = useState(null)
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false)
+  const [isLoadingInvestments, setIsLoadingInvestments] = useState(true)
 
+  // Load investments and activity when component mounts (fails gracefully)
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (userLoading) return
+    if (!userData) return
     
     const loadData = async () => {
-      const userId = localStorage.getItem('currentUserId')
-      if (!userId) {
-        router.push('/')
-        return
-      }
-
       try {
-        // Fetch user data first
-        const data = await apiClient.getUser(userId)
+        // Load investments and activity if not already loaded (fails gracefully)
+        const promises = []
+        
+        if (!userData.investments) {
+          promises.push(
+            loadInvestments().catch((err) => {
+              console.log('Investments endpoint not available yet:', err.message)
+              return [] // Return empty array on error
+            })
+          )
+        } else {
+          // Investments already loaded
+          setIsLoadingInvestments(false)
+        }
+        
+        if (!userData.activity) {
+          promises.push(
+            loadActivity().catch((err) => {
+              console.log('Activity endpoint not available yet:', err.message)
+              return [] // Return empty array on error
+            })
+          )
+        }
+        
+        // Wait for both to complete (they won't throw errors due to catch handlers)
+        if (promises.length > 0) {
+          await Promise.all(promises)
+        }
         
         // Get current app time for calculations - only if user is admin
-        let currentAppTime = new Date().toISOString()
-        if (data?.user?.isAdmin) {
+        if (userData?.isAdmin) {
           try {
             const timeData = await apiClient.getAppTime()
-            currentAppTime = timeData?.success ? timeData.appTime : currentAppTime
+            const currentAppTime = timeData?.success ? timeData.appTime : new Date().toISOString()
+            setAppTime(currentAppTime)
           } catch (err) {
             console.warn('Failed to get app time, using system time:', err)
+            setAppTime(new Date().toISOString())
           }
-        }
-        setAppTime(currentAppTime)
-
-        if (data && data.success && data.user) {
-          const investment = data.user.investments?.find(inv => inv.id === investmentId)
-          if (investment) {
-            setInvestmentData(investment)
-            setUserData(data.user)
-            const wd = (data.user.withdrawals || []).find(w => w.investmentId === investmentId)
-            if (wd) setWithdrawalInfo(wd)
-          } else {
-            router.push('/dashboard')
-          }
+        } else {
+          setAppTime(new Date().toISOString())
         }
       } catch (e) {
         console.error('Failed to load investment data', e)
-        router.push('/dashboard')
+        setIsLoadingInvestments(false)
       }
     }
     loadData()
-  }, [investmentId, router])
+  }, [userData, userLoading, loadInvestments, loadActivity])
+
+  // Find investment once userData.investments is available
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!investmentId) return
+    if (userLoading) return
+    if (!userData) {
+      router.push('/')
+      return
+    }
+    
+    // Wait for investments to be loaded
+    if (!userData.investments) {
+      return
+    }
+    
+    setIsLoadingInvestments(false)
+    
+    const investments = userData.investments || []
+    
+    // Convert investmentId to string for comparison to handle both string and number IDs
+    const investment = investments.find(inv => String(inv.id) === String(investmentId))
+    
+    if (investment) {
+      setInvestmentData(investment)
+      
+      // Also use string comparison for withdrawal lookup
+      const wd = (userData.withdrawals || []).find(w => String(w.investmentId) === String(investmentId))
+      if (wd) setWithdrawalInfo(wd)
+    } else {
+      console.error('Investment not found:', investmentId)
+      router.push('/dashboard?section=investments')
+    }
+  }, [investmentId, router, userData, userLoading])
 
   const handleWithdrawalClick = () => {
     setShowWithdrawConfirm(true)
@@ -103,7 +152,7 @@ export default function InvestmentDetailsContent({ investmentId }) {
     }
   }
 
-  if (!investmentData || !userData) {
+  if (userLoading || isLoadingInvestments || !investmentData || !userData) {
     return <div className={styles.loading}>Loading investment details...</div>
   }
 
