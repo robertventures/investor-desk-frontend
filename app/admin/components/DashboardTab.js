@@ -5,6 +5,7 @@ import ActionCard from './ActionCard'
 import SectionCard from './SectionCard'
 import { fetchWithCsrf } from '../../../lib/csrfClient'
 import styles from './DashboardTab.module.css'
+import { formatCurrency } from '../../../lib/formatters.js'
 
 /**
  * Main dashboard tab showing overview metrics and recent activity
@@ -198,15 +199,15 @@ const DashboardTab = memo(function DashboardTab({
         />
         <MetricCard 
           label="Total AUM" 
-          value={`$${metrics.totalAUM.toLocaleString()}`} 
+          value={formatCurrency(Number(metrics.totalAUM) || 0)} 
         />
         <MetricCard 
           label="Total Amount Owed" 
-          value={`$${metrics.totalAmountOwed.toLocaleString()}`} 
+          value={formatCurrency(Number(metrics.totalAmountOwed) || 0)} 
         />
         <MetricCard 
           label="Pending Investments" 
-          value={`$${metrics.pendingCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+          value={formatCurrency(Number(metrics.pendingCapital) || 0)} 
         />
       </div>
 

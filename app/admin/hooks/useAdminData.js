@@ -299,12 +299,12 @@ export function useAdminData() {
   const loadTimeMachine = async () => {
     try {
       const timeData = await apiClient.getAppTime()
-      if (timeData && timeData.success) {
+      if (timeData && (timeData.appTime || timeData.systemTime)) {
         setTimeMachineData({
           appTime: timeData.appTime,
-          isActive: timeData.isTimeMachineActive,
-          realTime: timeData.realTime,
-          autoApproveDistributions: timeData.autoApproveDistributions || false
+          isActive: !!timeData.isOverridden,
+          realTime: timeData.systemTime,
+          autoApproveDistributions: timeMachineData.autoApproveDistributions || false
         })
       }
     } catch (e) {

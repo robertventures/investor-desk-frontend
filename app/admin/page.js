@@ -12,6 +12,7 @@ import ActivityTab from './components/ActivityTab'
 import DistributionsTab from './components/DistributionsTab'
 import { calculateInvestmentValue } from '../../lib/investmentCalculations.js'
 import { formatDateForDisplay } from '../../lib/dateUtils.js'
+import { formatCurrency } from '../../lib/formatters.js'
 import styles from './page.module.css'
 
 /**
@@ -128,8 +129,10 @@ function AdminPageContent() {
 
   const sortedAccountUsers = useMemo(() => {
     return [...nonAdminUsers].sort((a, b) => {
-      const dateA = a.displayCreatedAt ? new Date(a.displayCreatedAt).getTime() : 0
-      const dateB = b.displayCreatedAt ? new Date(b.displayCreatedAt).getTime() : 0
+      const createdA = a.displayCreatedAt || a.createdAt || a.created_at
+      const createdB = b.displayCreatedAt || b.createdAt || b.created_at
+      const dateA = createdA ? new Date(createdA).getTime() : 0
+      const dateB = createdB ? new Date(createdB).getTime() : 0
       return dateB - dateA
     })
   }, [nonAdminUsers])
@@ -183,14 +186,15 @@ function AdminPageContent() {
       if (accountFilters.numInvestmentsMin && numInvestments < Number(accountFilters.numInvestmentsMin)) return false
       if (accountFilters.numInvestmentsMax && numInvestments > Number(accountFilters.numInvestmentsMax)) return false
       
-      // Filter by created date (use displayCreatedAt for imported accounts)
-      if (accountFilters.createdDateStart && user.displayCreatedAt) {
-        const userDate = new Date(user.displayCreatedAt).setHours(0,0,0,0)
+      // Filter by created date (prefer displayCreatedAt, fallback to createdAt)
+      const createdRaw = user.displayCreatedAt || user.createdAt || user.created_at
+      if (accountFilters.createdDateStart && createdRaw) {
+        const userDate = new Date(createdRaw).setHours(0,0,0,0)
         const filterDate = new Date(accountFilters.createdDateStart).setHours(0,0,0,0)
         if (userDate < filterDate) return false
       }
-      if (accountFilters.createdDateEnd && user.displayCreatedAt) {
-        const userDate = new Date(user.displayCreatedAt).setHours(0,0,0,0)
+      if (accountFilters.createdDateEnd && createdRaw) {
+        const userDate = new Date(createdRaw).setHours(0,0,0,0)
         const filterDate = new Date(accountFilters.createdDateEnd).setHours(0,0,0,0)
         if (userDate > filterDate) return false
       }
@@ -339,32 +343,23 @@ function AdminPageContent() {
     }
     
     try {
-      const res = await fetchWithCsrf('/api/admin/time-machine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appTime: new Date(newAppTime).toISOString(),
-          adminUserId: currentUser.id
-        })
-      })
+      const appTimeISO = new Date(newAppTime).toISOString()
+      console.log('[Admin] Setting app time to:', appTimeISO)
       
-      if (!res.ok) {
-        console.error('Response not OK:', res.status, res.statusText)
-        throw new Error(`HTTP error! status: ${res.status}`)
-      }
+      const data = await apiClient.setAppTime(appTimeISO)
+      console.log('[Admin] Time machine set response:', data)
       
-      const data = await res.json()
-      
-      if (data.success) {
+      if (data.appTime) {
+        // Map backend response to frontend structure
         setTimeMachineData({
           appTime: data.appTime,
-          isActive: true,
+          isActive: true, // Any override means it's active
           realTime: new Date().toISOString()
         })
         
         alert('Time machine updated successfully!')
       } else {
-        alert(data.error || 'Failed to update app time')
+        alert('Failed to update app time')
       }
     } catch (e) {
       console.error('Failed to update app time', e)
@@ -374,32 +369,28 @@ function AdminPageContent() {
 
   const resetAppTime = async () => {
     try {
-      const res = await fetchWithCsrf(`/api/admin/time-machine?adminUserId=${currentUser.id}`, {
-        method: 'DELETE'
-      })
+      console.log('[Admin] Resetting app time to real time')
       
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`)
-      }
+      const data = await apiClient.resetAppTime()
+      console.log('[Admin] Time machine reset response:', data)
       
-      const data = await res.json()
-      if (data.success) {
-        const realTime = new Date().toISOString()
+      if (data.appTime) {
+        // Map backend response to frontend structure
         setTimeMachineData({
-          appTime: realTime,
+          appTime: data.appTime,
           isActive: false,
-          realTime,
-          autoApproveDistributions: false
+          realTime: data.appTime, // After reset, app time equals real time
+          autoApproveDistributions: timeMachineData.autoApproveDistributions // Preserve this frontend-only setting
         })
         
-        alert('Time machine reset to real time!')
-        return { appTime: realTime }
+        alert(data.message || 'Time machine reset to real time!')
+        return { appTime: data.appTime }
       } else {
-        alert(data.error || 'Failed to reset app time')
+        alert('Failed to reset app time')
       }
     } catch (e) {
       console.error('Failed to reset app time', e)
-      alert('An error occurred while resetting app time')
+      alert('An error occurred while resetting app time: ' + e.message)
     }
     return null
   }
@@ -459,7 +450,7 @@ function AdminPageContent() {
           data.authDeletionFailures.forEach(f => {
             errorMessage += `- User ${f.userId} (auth_id: ${f.authId}): ${f.error}\n`
           })
-          errorMessage += '\n⚠️ Users removed from database but still exist in Supabase Auth. You may need to delete them manually from the Supabase Auth dashboard.'
+          errorMessage += '\n⚠️ Users were removed from the database but still exist in the authentication service. You may need to delete them manually in your auth provider dashboard.'
         }
         alert(errorMessage)
         await refreshUsers(true)  // Force refresh to see updated state
@@ -774,14 +765,14 @@ function AdminPageContent() {
                     .filter(inv => inv.status === 'active' || inv.status === 'withdrawal_notice')
                   
                   const investedAmount = activeInvestments
-                    .reduce((sum, inv) => sum + (inv.amount || 0), 0)
+                    .reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
                   
                   // Calculate total account value (including compounding interest)
                   // Use app time from time machine if available
                   const accountValue = activeInvestments
                     .reduce((sum, inv) => {
                       const calculation = calculateInvestmentValue(inv, timeMachineData.appTime)
-                      return sum + calculation.currentValue
+                      return sum + (Number(calculation.currentValue) || 0)
                     }, 0)
                   
                   return (
@@ -820,15 +811,15 @@ function AdminPageContent() {
                         </div>
                         <div className={styles.accountStat}>
                           <div className={styles.statLabel}>Invested</div>
-                          <div className={styles.statValue}>${investedAmount.toLocaleString()}</div>
+                          <div className={styles.statValue}>{formatCurrency(Number(investedAmount) || 0)}</div>
                         </div>
                         <div className={styles.accountStat}>
                           <div className={styles.statLabel}>Account Value</div>
-                          <div className={styles.statValue}>${accountValue.toLocaleString()}</div>
+                          <div className={styles.statValue}>{formatCurrency(Number(accountValue) || 0)}</div>
                         </div>
                         <div className={styles.accountStat}>
                           <div className={styles.statLabel}>Created</div>
-                          <div className={styles.statValue}>{user.displayCreatedAt ? formatDateForDisplay(user.displayCreatedAt) : '-'}</div>
+                          <div className={styles.statValue}>{(user.displayCreatedAt || user.createdAt || user.created_at) ? formatDateForDisplay(user.displayCreatedAt || user.createdAt || user.created_at) : '-'}</div>
                         </div>
                       </div>
                       <div className={styles.accountCardActions} onClick={(e) => e.stopPropagation()}>
@@ -846,7 +837,7 @@ function AdminPageContent() {
                               
                               // Handle partial success (database deleted but auth failed)
                               if (data.partialSuccess) {
-                                alert(`⚠️ Partial Success:\n\n${data.error}\n\n✅ User removed from database\n❌ Failed to remove from Supabase Auth\n\nYou may need to manually delete this user from the Supabase Auth dashboard.`)
+                                alert(`⚠️ Partial Success:\n\n${data.error}\n\n✅ User removed from database\n❌ Failed to remove from the authentication service\n\nYou may need to manually delete this user in your auth provider dashboard.`)
                                 await refreshUsers(true)
                                 return
                               }

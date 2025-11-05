@@ -6,6 +6,9 @@ import ImportInvestorsTab from './ImportInvestorsTab'
 import DocumentManagerSection from './DocumentManagerSection'
 import styles from './OperationsTab.module.css'
 
+// Feature flag: Enable when backend endpoint is ready
+const MASTER_PASSWORD_ENABLED = false
+
 /**
  * Operations tab containing investor import, time machine, and withdrawals
  */
@@ -30,12 +33,16 @@ export default function OperationsTab({
   const [isGenerating, setIsGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Fetch current master password info
+  // Fetch current master password info (only if feature is enabled)
   useEffect(() => {
-    fetchMasterPasswordInfo()
+    if (MASTER_PASSWORD_ENABLED) {
+      fetchMasterPasswordInfo()
+    }
   }, [])
 
   const fetchMasterPasswordInfo = async () => {
+    if (!MASTER_PASSWORD_ENABLED) return
+    
     try {
       const data = await apiClient.request('/api/admin/generate-master-password')
       if (data && data.success && data.hasPassword) {
@@ -47,6 +54,11 @@ export default function OperationsTab({
   }
 
   const handleGenerateMasterPassword = async () => {
+    if (!MASTER_PASSWORD_ENABLED) {
+      alert('Master password generation is not yet available. This feature is coming soon.')
+      return
+    }
+    
     setIsGenerating(true)
     setCopied(false)
     try {

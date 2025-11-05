@@ -1,142 +1,140 @@
 "use client"
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { usePlaidLink } from 'react-plaid-link'
+import { apiClient } from '../../lib/apiClient'
 import styles from './BankConnectionModal.module.css'
 
-// Mock bank data with logos (using emoji as placeholder for logos)
-const MOCK_BANKS = [
-  { id: 'chase', name: 'Chase', logo: '🏦', color: '#117ACA' },
-  { id: 'bofa', name: 'Bank of America', logo: '🏛️', color: '#E31837' },
-  { id: 'wells', name: 'Wells Fargo', logo: '🏢', color: '#D71E28' },
-  { id: 'citi', name: 'Citi', logo: '🏪', color: '#056DAE' },
-  { id: 'capital-one', name: 'Capital One', logo: '💳', color: '#004879' },
-  { id: 'usbank', name: 'U.S. Bank', logo: '🏦', color: '#0C234B' },
-  { id: 'pnc', name: 'PNC Bank', logo: '🏛️', color: '#F47920' },
-  { id: 'td', name: 'TD Bank', logo: '🏢', color: '#00B140' },
-  { id: 'schwab', name: 'Charles Schwab', logo: '💼', color: '#00A0DF' },
-  { id: 'fidelity', name: 'Fidelity', logo: '📊', color: '#00713E' },
-]
-
-// Generate realistic mock accounts for a bank
-function generateMockAccounts(bankId) {
-  const lastFourOptions = ['1234', '5678', '9012', '3456', '7890', '2468', '1357']
-  const randomLast4_1 = lastFourOptions[Math.floor(Math.random() * lastFourOptions.length)]
-  const randomLast4_2 = lastFourOptions[Math.floor(Math.random() * lastFourOptions.length)]
-  
-  const accounts = [
-    {
-      id: `${bankId}-checking-1`,
-      type: 'checking',
-      name: 'Everyday Checking',
-      last4: randomLast4_1,
-      balance: (Math.random() * 50000 + 5000).toFixed(2),
-    },
-    {
-      id: `${bankId}-savings-1`,
-      type: 'savings',
-      name: 'Premium Savings',
-      last4: randomLast4_2,
-      balance: (Math.random() * 150000 + 10000).toFixed(2),
-    }
-  ]
-  
-  // Sometimes add a third account
-  if (Math.random() > 0.5) {
-    accounts.push({
-      id: `${bankId}-checking-2`,
-      type: 'checking',
-      name: 'Business Checking',
-      last4: lastFourOptions[Math.floor(Math.random() * lastFourOptions.length)],
-      balance: (Math.random() * 80000 + 15000).toFixed(2),
-    })
-  }
-  
-  return accounts
-}
-
 export default function BankConnectionModal({ isOpen, onClose, onAccountSelected }) {
-  const [step, setStep] = useState(1) // 1: bank selection, 2: login, 3: account selection
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedBank, setSelectedBank] = useState(null)
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [accounts, setAccounts] = useState([])
-  const [selectedAccount, setSelectedAccount] = useState(null)
+  const [step, setStep] = useState(1) // 1: choose method, 2: connecting, 3: done
+  const [linkToken, setLinkToken] = useState(null)
+  const [isFetchingToken, setIsFetchingToken] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [showManualEntry, setShowManualEntry] = useState(false)
+  const [manualName, setManualName] = useState('')
+  const [manualRouting, setManualRouting] = useState('')
+  const [manualAccount, setManualAccount] = useState('')
+  const [manualType, setManualType] = useState('checking')
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false)
 
-  // Reset modal state when closed
+  const resetState = () => {
+    setStep(1)
+    setLinkToken(null)
+    setIsFetchingToken(false)
+    setErrorMessage('')
+    setShowManualEntry(false)
+    setManualName('')
+    setManualRouting('')
+    setManualAccount('')
+    setManualType('checking')
+    setIsSubmittingManual(false)
+  }
+
   useEffect(() => {
     if (!isOpen) {
-      setTimeout(() => {
-        setStep(1)
-        setSearchTerm('')
-        setSelectedBank(null)
-        setUsername('')
-        setPassword('')
-        setAccounts([])
-        setSelectedAccount(null)
-      }, 300) // Wait for close animation
+      setTimeout(() => resetState(), 300)
     }
   }, [isOpen])
 
-  const filteredBanks = MOCK_BANKS.filter(bank =>
-    bank.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const handleBankSelect = (bank) => {
-    setSelectedBank(bank)
-    setStep(2)
+  const generateIdempotencyKey = () => {
+    // Lightweight UUID v4-ish
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
   }
 
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    if (!username || !password) return
-
-    setIsLoading(true)
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Generate mock accounts
-    const mockAccounts = generateMockAccounts(selectedBank.id)
-    setAccounts(mockAccounts)
-    setIsLoading(false)
-    setStep(3)
-  }
-
-  const handleAccountSelect = (account) => {
-    setSelectedAccount(account)
-  }
-
-  const handleContinue = () => {
-    if (selectedAccount && selectedBank) {
-      // Pass back the selected account with bank info
-      onAccountSelected({
-        id: `bank-${Date.now()}`,
-        bankId: selectedBank.id,
-        bankName: selectedBank.name,
-        bankLogo: selectedBank.logo,
-        bankColor: selectedBank.color,
-        accountType: selectedAccount.type,
-        accountName: selectedAccount.name,
-        last4: selectedAccount.last4,
-        nickname: `${selectedBank.name} ${selectedAccount.type.charAt(0).toUpperCase() + selectedAccount.type.slice(1)} (...${selectedAccount.last4})`,
-        type: 'ach',
-        createdAt: new Date().toISOString(),
-        lastUsedAt: new Date().toISOString()
+  const fetchLinkToken = async () => {
+    try {
+      setIsFetchingToken(true)
+      setErrorMessage('')
+      const res = await apiClient.request('/api/plaid/link-token', {
+        method: 'POST',
+        body: JSON.stringify({ use_case: 'processor', client_app: 'web' })
       })
-      onClose()
+      setLinkToken(res.link_token)
+    } catch (e) {
+      setErrorMessage(e?.message || 'Failed to initialize Plaid')
+    } finally {
+      setIsFetchingToken(false)
     }
   }
 
-  const handleBack = () => {
-    if (step === 2) {
-      setStep(1)
-      setSelectedBank(null)
-      setUsername('')
-      setPassword('')
-    } else if (step === 3) {
+  useEffect(() => {
+    if (isOpen && !showManualEntry && !linkToken && !isFetchingToken) {
+      fetchLinkToken()
+    }
+  }, [isOpen, showManualEntry, linkToken, isFetchingToken])
+
+  const onPlaidSuccess = async (public_token, metadata) => {
+    try {
       setStep(2)
-      setSelectedAccount(null)
+      setErrorMessage('')
+      const accountId = metadata?.account?.id
+      const institution = metadata?.institution || {}
+      const accountMask = metadata?.account?.mask
+      const accountName = metadata?.account?.name
+      const payload = {
+        public_token,
+        account_id: accountId,
+        institution: { id: institution?.institution_id || institution?.id, name: institution?.name },
+        account_mask: accountMask,
+        account_name: accountName,
+        save_for_reuse: true,
+        idempotency_key: generateIdempotencyKey()
+      }
+      const res = await apiClient.request('/api/plaid/link-success', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      const method = res?.payment_method
+      if (method && typeof onAccountSelected === 'function') {
+        onAccountSelected(method)
+      }
+      onClose()
+    } catch (e) {
+      setErrorMessage(e?.message || 'Failed to link bank account')
+      setStep(1)
+    }
+  }
+
+  const plaidConfig = useMemo(() => ({
+    token: linkToken,
+    onSuccess: onPlaidSuccess,
+  }), [linkToken])
+
+  const { open, ready } = usePlaidLink(plaidConfig)
+
+  const handleManualSubmit = async (e) => {
+    e.preventDefault()
+    if (!manualName || !manualRouting || !manualAccount) return
+    if (!/^[0-9]{9}$/.test(manualRouting)) {
+      setErrorMessage('Routing number must be 9 digits')
+      return
+    }
+    try {
+      setIsSubmittingManual(true)
+      setErrorMessage('')
+      const res = await apiClient.request('/api/payment-methods/manual', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_holder_name: manualName,
+          routing_number: manualRouting,
+          account_number: manualAccount,
+          account_type: manualType,
+          save_for_reuse: true,
+          idempotency_key: generateIdempotencyKey()
+        })
+      })
+      const method = res?.payment_method
+      if (method && typeof onAccountSelected === 'function') {
+        onAccountSelected(method)
+      }
+      onClose()
+    } catch (e) {
+      setErrorMessage(e?.message || 'Failed to add bank account')
+    } finally {
+      setIsSubmittingManual(false)
     }
   }
 
@@ -145,185 +143,134 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             {step > 1 && (
-              <button className={styles.backButton} onClick={handleBack}>
+              <button className={styles.backButton} onClick={() => setStep(1)}>
                 ← Back
               </button>
             )}
           </div>
           <div className={styles.headerCenter}>
-            {step === 1 && 'Select your bank'}
-            {step === 2 && `Log in to ${selectedBank?.name}`}
-            {step === 3 && 'Select account'}
+            {showManualEntry ? 'Enter bank details' : 'Connect your bank'}
           </div>
           <button className={styles.closeButton} onClick={onClose}>✕</button>
         </div>
 
-        {/* Progress indicator */}
         <div className={styles.progress}>
           <div className={`${styles.progressStep} ${step >= 1 ? styles.active : ''}`} />
           <div className={`${styles.progressStep} ${step >= 2 ? styles.active : ''}`} />
           <div className={`${styles.progressStep} ${step >= 3 ? styles.active : ''}`} />
         </div>
 
-        {/* Content */}
         <div className={styles.content}>
-          {step === 1 && (
+          {!showManualEntry ? (
             <div className={styles.bankSelection}>
-              <div className={styles.searchBox}>
-                <span className={styles.searchIcon}>🔍</span>
-                <input
-                  type="text"
-                  placeholder="Search for your bank..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={styles.searchInput}
-                  autoFocus
-                />
-              </div>
-              
-              <div className={styles.bankList}>
-                {filteredBanks.length > 0 ? (
-                  filteredBanks.map(bank => (
-                    <button
-                      key={bank.id}
-                      className={styles.bankItem}
-                      onClick={() => handleBankSelect(bank)}
-                    >
-                      <span className={styles.bankLogo} style={{ backgroundColor: bank.color + '20' }}>
-                        {bank.logo}
-                      </span>
-                      <span className={styles.bankName}>{bank.name}</span>
-                      <span className={styles.bankArrow}>→</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className={styles.noResults}>
-                    No banks found matching "{searchTerm}"
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className={styles.loginForm}>
-              <div className={styles.bankHeader}>
-                <span className={styles.bankLogoBig} style={{ backgroundColor: selectedBank?.color + '20' }}>
-                  {selectedBank?.logo}
-                </span>
-                <div className={styles.bankInfo}>
-                  <div className={styles.bankNameBig}>{selectedBank?.name}</div>
-                  <div className={styles.bankSubtext}>Enter your online banking credentials</div>
-                </div>
-              </div>
-
-              <form onSubmit={handleLogin} className={styles.form}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Username</label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className={styles.input}
-                    placeholder="Enter your username"
-                    autoFocus
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={styles.input}
-                    placeholder="Enter your password"
-                    disabled={isLoading}
-                  />
-                </div>
-
+              {errorMessage && (
                 <div className={styles.securityNote}>
-                  <span className={styles.lockIcon}>🔒</span>
-                  <span className={styles.securityText}>
-                    Your credentials are encrypted and secure. Robert Ventures uses bank-level security.
-                  </span>
+                  <span className={styles.lockIcon}>⚠️</span>
+                  <span className={styles.securityText}>{errorMessage}</span>
                 </div>
-
-                <button
-                  type="submit"
-                  className={styles.submitButton}
-                  disabled={!username || !password || isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <span className={styles.spinner}></span>
-                      Connecting...
-                    </>
-                  ) : (
-                    'Continue'
-                  )}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className={styles.accountSelection}>
-              <div className={styles.selectionHeader}>
-                <span className={styles.checkIcon}>✓</span>
-                <div className={styles.successText}>Successfully connected to {selectedBank?.name}</div>
-                <div className={styles.successSubtext}>Select an account to link for funding</div>
-              </div>
-
-              <div className={styles.accountList}>
-                {accounts.map(account => (
-                  <button
-                    key={account.id}
-                    className={`${styles.accountItem} ${selectedAccount?.id === account.id ? styles.selected : ''}`}
-                    onClick={() => handleAccountSelect(account)}
-                  >
-                    <div className={styles.accountLeft}>
-                      <div className={styles.accountIcon}>
-                        {account.type === 'checking' ? '💵' : '💰'}
-                      </div>
-                      <div className={styles.accountDetails}>
-                        <div className={styles.accountName}>{account.name}</div>
-                        <div className={styles.accountNumber}>
-                          {selectedBank?.name} •••• {account.last4}
-                        </div>
-                      </div>
-                    </div>
-                    <div className={styles.accountRight}>
-                      <div className={styles.accountBalance}>
-                        ${parseFloat(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      {selectedAccount?.id === account.id && (
-                        <div className={styles.selectedCheckmark}>✓</div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
+              )}
               <button
-                className={styles.continueButton}
-                onClick={handleContinue}
-                disabled={!selectedAccount}
+                className={styles.submitButton}
+                onClick={() => {
+                  if (!linkToken) fetchLinkToken()
+                  if (ready) open()
+                }}
+                disabled={!linkToken || isFetchingToken || !ready}
               >
-                Link Account
+                {(!linkToken || isFetchingToken || !ready) ? (
+                  <>
+                    <span className={styles.spinner}></span>
+                    Initializing Plaid...
+                  </>
+                ) : (
+                  'Continue with Plaid'
+                )}
+              </button>
+              <div style={{ textAlign: 'center', color: '#6b7280' }}>or</div>
+              <button
+                className={styles.submitButton}
+                onClick={() => setShowManualEntry(true)}
+              >
+                Enter bank details manually
               </button>
             </div>
+          ) : (
+            <form onSubmit={handleManualSubmit} className={styles.form}>
+              {errorMessage && (
+                <div className={styles.securityNote}>
+                  <span className={styles.lockIcon}>⚠️</span>
+                  <span className={styles.securityText}>{errorMessage}</span>
+                </div>
+              )}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Account holder name</label>
+                <input
+                  className={styles.input}
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="John Doe"
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Routing number</label>
+                <input
+                  className={styles.input}
+                  value={manualRouting}
+                  onChange={(e) => setManualRouting(e.target.value.replace(/[^0-9]/g, '').slice(0, 9))}
+                  placeholder="9 digits"
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Account number</label>
+                <input
+                  className={styles.input}
+                  value={manualAccount}
+                  onChange={(e) => setManualAccount(e.target.value.replace(/[^0-9]/g, '').slice(0, 17))}
+                  placeholder="Account number"
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Account type</label>
+                <select
+                  className={styles.input}
+                  value={manualType}
+                  onChange={(e) => setManualType(e.target.value)}
+                >
+                  <option value="checking">Checking</option>
+                  <option value="savings">Savings</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                className={styles.submitButton}
+                disabled={isSubmittingManual || !manualName || !manualRouting || !manualAccount}
+              >
+                {isSubmittingManual ? (
+                  <>
+                    <span className={styles.spinner}></span>
+                    Adding account...
+                  </>
+                ) : (
+                  'Add bank account'
+                )}
+              </button>
+              <button
+                type="button"
+                className={styles.submitButton}
+                onClick={() => setShowManualEntry(false)}
+                disabled={isSubmittingManual}
+              >
+                Back
+              </button>
+            </form>
           )}
         </div>
 
-        {/* Footer */}
         <div className={styles.footer}>
-          <span className={styles.poweredBy}>🔒 Secured by Plaid-like Technology</span>
+          <span className={styles.poweredBy}>🔒 Secured by Plaid</span>
         </div>
       </div>
     </div>

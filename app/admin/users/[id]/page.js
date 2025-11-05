@@ -730,7 +730,7 @@ function AdminUserDetailsContent() {
       
       // Handle partial success (database deleted but auth failed)
       if (data.partialSuccess) {
-        alert(`⚠️ Partial Success:\n\n${data.error}\n\n✅ User removed from database\n❌ Failed to remove from Supabase Auth\n\nYou may need to manually delete this user from the Supabase Auth dashboard.`)
+        alert(`⚠️ Partial Success:\n\n${data.error}\n\n✅ User removed from database\n❌ Failed to remove from the authentication service\n\nYou may need to manually delete this user in your auth provider dashboard.`)
         router.push('/admin?tab=accounts')
         return
       }

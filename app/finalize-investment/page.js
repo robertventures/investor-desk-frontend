@@ -43,6 +43,8 @@ function ClientContent() {
   const [selectedPayoutBankId, setSelectedPayoutBankId] = useState('')
   const [showAllBanksModal, setShowAllBanksModal] = useState(false)
   const [bankSelectionMode, setBankSelectionMode] = useState('') // 'funding' or 'payout'
+  const [fundingInfo, setFundingInfo] = useState(null)
+  const [fundingError, setFundingError] = useState('')
 
   useEffect(() => {
     setMounted(true)
@@ -115,18 +117,29 @@ function ClientContent() {
         }
         
         setInvestment(inv)
-        const banks = Array.isArray(data.user.bankAccounts) ? data.user.bankAccounts : []
-        setAvailableBanks(banks)
-        // Preselect last used bank if present
-        if (banks.length > 0) {
-          const lastUsed = banks.reduce((latest, b) => {
-            const t = b.lastUsedAt ? new Date(b.lastUsedAt).getTime() : 0
-            return t > (latest.t || 0) ? { id: b.id, t } : latest
-          }, { id: '', t: 0 })
-          if (lastUsed.id) {
-            setSelectedBankId(lastUsed.id)
-            setSelectedFundingBankId(lastUsed.id)
-            setSelectedPayoutBankId(lastUsed.id)
+        try {
+          const pmRes = await apiClient.listPaymentMethods('bank_ach')
+          const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
+          setAvailableBanks(pms)
+          if (pms.length > 0) {
+            const first = pms[0]
+            if (first?.id) {
+              setSelectedBankId(first.id)
+              setSelectedFundingBankId(first.id)
+              setSelectedPayoutBankId(first.id)
+            }
+          }
+        } catch (e) {
+          // Fallback to any legacy user bank accounts if present
+          const banks = Array.isArray(data.user.bankAccounts) ? data.user.bankAccounts : []
+          setAvailableBanks(banks)
+          if (banks.length > 0) {
+            const first = banks[0]
+            if (first?.id) {
+              setSelectedBankId(first.id)
+              setSelectedFundingBankId(first.id)
+              setSelectedPayoutBankId(first.id)
+            }
           }
         }
       } else {
@@ -149,6 +162,31 @@ function ClientContent() {
       setTenPercentConfirmed(Boolean(investment.compliance.tenPercentLimitConfirmed))
     }
   }, [investment?.compliance])
+
+  // Poll funding status if a funding is in progress
+  useEffect(() => {
+    if (!fundingInfo?.id || !investment?.id) return
+    let isMounted = true
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiClient.getFundingStatus(investment.id, fundingInfo.id)
+        if (!isMounted) return
+        if (res?.funding) {
+          setFundingInfo(res.funding)
+          const s = res.funding.status
+          if (s === 'settled' || s === 'failed' || s === 'returned') {
+            clearInterval(interval)
+          }
+        }
+      } catch (e) {
+        // keep polling silently
+      }
+    }, 3000)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [fundingInfo?.id, investment?.id])
 
   // Load banking details from user account
   useEffect(() => {
@@ -196,6 +234,14 @@ function ClientContent() {
 
   const isIra = investment?.accountType === 'ira'
   const requiresWireTransfer = investment?.amount > 100000
+
+  const generateIdempotencyKey = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
+  }
 
   return (
     <div className={styles.sections}>
@@ -380,12 +426,12 @@ function ClientContent() {
                                 <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
                                   {bank.bankLogo || '🏦'}
                                 </span>
-                                <div className={styles.savedBankDetails}>
-                                  <div className={styles.savedBankName}>{bank.nickname || bank.bankName || 'Bank Account'}</div>
-                                  <div className={styles.savedBankAccount}>
-                                    {bank.accountType ? bank.accountType.charAt(0).toUpperCase() + bank.accountType.slice(1) : 'Account'} •••• {bank.last4 || '****'}
-                                  </div>
+                              <div className={styles.savedBankDetails}>
+                                <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
+                                <div className={styles.savedBankAccount}>
+                                  {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
                                 </div>
+                              </div>
                               </div>
                               {selectedFundingBankId === bank.id && (
                                 <span className={styles.selectedCheck}>✓</span>
@@ -597,6 +643,23 @@ function ClientContent() {
       </Section>
 
       <div className={styles.actions}>
+        {fundingInfo && (
+          <div className={styles.warning} style={{ marginBottom: '12px' }}>
+            <div className={styles.warningTitle}>
+              Funding status: {fundingInfo.status?.toUpperCase() || 'PENDING'}
+            </div>
+            {fundingInfo.expected_settlement_date && (
+              <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                Expected settlement: {new Date(fundingInfo.expected_settlement_date).toLocaleString()}
+              </div>
+            )}
+          </div>
+        )}
+        {fundingError && (
+          <div className={styles.submitError}>
+            <p className={styles.submitErrorText}>{fundingError}</p>
+          </div>
+        )}
         <p style={{ 
           fontSize: '14px', 
           color: '#6b7280', 
@@ -722,6 +785,26 @@ function ClientContent() {
                 return
               }
               console.log('Investment submitted successfully! Status changed to PENDING.')
+
+              // Initiate ACH funding if bank-transfer selected and amount <= $100,000
+              if (paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000) {
+                try {
+                  const amountCents = Math.round((investment.amount || 0) * 100)
+                  const idempotencyKey = generateIdempotencyKey()
+                  const fundRes = await apiClient.fundInvestment(
+                    investmentId,
+                    selectedFundingBankId,
+                    amountCents,
+                    idempotencyKey,
+                    `Investment ${investmentId}`
+                  )
+                  setFundingInfo(fundRes?.funding || null)
+                  setFundingError('')
+                } catch (fe) {
+                  console.error('Funding initiation failed:', fe)
+                  setFundingError(fe?.message || 'Failed to initiate funding')
+                }
+              }
               
               // Store finalization data in localStorage for future reference
               // Note: The API doesn't support storing compliance, banking, and document data yet
@@ -755,13 +838,14 @@ function ClientContent() {
                 console.warn('Failed to store finalization data in localStorage:', err)
               }
               
-              // Small delay to ensure UI doesn't flash before redirect
-              console.log('Investment submitted successfully, redirecting to dashboard...')
-              await new Promise(resolve => setTimeout(resolve, 500))
-              
-              // Redirect to dashboard (will default to portfolio view)
-              console.log('Redirecting to dashboard...')
-              window.location.href = '/dashboard'
+              // If we started funding, remain on page for polling in next step; otherwise redirect
+              if (!(paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000)) {
+                // Small delay to ensure UI doesn't flash before redirect
+                console.log('Investment submitted successfully, redirecting to dashboard...')
+                await new Promise(resolve => setTimeout(resolve, 500))
+                console.log('Redirecting to dashboard...')
+                window.location.href = '/dashboard'
+              }
             } catch (e) {
               console.error('Failed to save finalization data', e)
               setSubmitError('An error occurred while submitting your investment. Please try again. If the problem persists, contact support.')
@@ -793,51 +877,20 @@ function ClientContent() {
       <BankConnectionModal
         isOpen={showBankModal}
         onClose={() => !isSavingBank && setShowBankModal(false)}
-        onAccountSelected={async (account) => {
-          setSelectedBankId(account.id)
-          setSelectedFundingBankId(account.id)
-          setSelectedPayoutBankId(account.id)
-          // Add to available banks list
-          const newBanksList = [account, ...availableBanks.filter(b => b.id !== account.id)]
-          setAvailableBanks(newBanksList)
-          
-          // Save bank account to database
+        onAccountSelected={async (method) => {
+          setSelectedBankId(method.id)
+          setSelectedFundingBankId(method.id)
+          setSelectedPayoutBankId(method.id)
           setIsSavingBank(true)
           try {
-            if (typeof window === 'undefined') return
-            
-            const userId = localStorage.getItem('currentUserId')
-            console.log('Saving bank account to database...')
-            
-            // Use apiClient to ensure it goes to the Python backend
-            const data = await apiClient.updateUser(userId, {
-              _action: 'addBankAccount',
-              bankAccount: account
-            })
-            
-            console.log('Bank account save response:', data)
-            
-            if (data.success) {
-              console.log('✅ Bank account saved successfully to database')
-              // Update user data with saved bank accounts
-              if (data.user) {
-                setUser(data.user)
-              }
-              // Update available banks from the response
-              if (data.bankAccounts) {
-                setAvailableBanks(data.bankAccounts)
-              }
-            } else {
-              console.error('❌ Failed to save bank account:', data.error)
-              // Show the actual error message
-              alert(`Failed to save bank account: ${data.error}\n\nThe account is available for this session but may not persist.`)
-            }
+            const pmRes = await apiClient.listPaymentMethods('bank_ach')
+            const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
+            setAvailableBanks(pms)
           } catch (e) {
-            console.error('❌ Error saving bank account:', e)
-            console.error('Error details:', e)
-            alert(`Error saving bank account: ${e.message}\n\nThe account is available for this session but may not persist.`)
+            // ignore, keep current state
           } finally {
             setIsSavingBank(false)
+            setShowBankModal(false)
           }
         }}
       />
@@ -880,9 +933,9 @@ function ClientContent() {
                           {bank.bankLogo || '🏦'}
                         </span>
                         <div className={styles.modalBankDetails}>
-                          <div className={styles.modalBankName}>{bank.nickname || bank.bankName || 'Bank Account'}</div>
+                          <div className={styles.modalBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
                           <div className={styles.modalBankAccount}>
-                            {bank.accountType ? bank.accountType.charAt(0).toUpperCase() + bank.accountType.slice(1) : 'Account'} •••• {bank.last4 || '****'}
+                            {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
                           </div>
                         </div>
                       </div>
