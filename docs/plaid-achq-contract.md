@@ -6,6 +6,56 @@
 - Bank accounts per user: Single active bank on file. When a user adds a new bank, replace the previous one in storage. UI still allows “Add New Bank”.
 - No minimum balance check: Do not enforce any available balance checks before selection.
 
+### Visual Overview
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as Frontend (Next.js)
+    participant Plaid as Plaid Link
+    participant BE as Backend API
+    participant ACHQ
+
+    User->>FE: Open "Connect Bank"
+    FE->>BE: POST /api/plaid/link-token
+    BE-->>FE: link_token
+    User->>Plaid: Complete Link
+    Plaid-->>FE: public_token, account_id
+
+    FE->>BE: POST /api/plaid/link-success {public_token, account_id, institution, account_mask, account_name, save_for_reuse, idempotency_key}
+    BE->>Plaid: Exchange public_token → access_token
+    BE->>Plaid: Create processor_token (achq)
+    BE->>ACHQ: Create/attach bank payment method
+    Note over BE,ACHQ: Enforce single active bank per user (replace previous)
+    BE-->>FE: payment_method {status: ready}
+
+    alt No Plaid or unsupported bank
+        FE->>BE: POST /api/payment-methods/manual {routing_number, account_number, account_type, ...}
+        BE->>ACHQ: Tokenize + start micro-deposits
+        BE-->>FE: payment_method {status: verification_pending}
+        FE->>BE: POST /api/payment-methods/:id/verify {amounts}
+        BE-->>FE: payment_method {status: ready}
+    end
+
+    FE->>BE: POST /api/investments/:id/fund {payment_method_id, amount_cents, idempotency_key}
+    BE->>ACHQ: Create ACH debit
+    BE-->>FE: funding {status: pending}
+    loop Poll funding status
+        FE->>BE: GET /api/investments/:id/funding/:fundingId
+        BE-->>FE: funding {created|pending|submitted|settled|failed|returned}
+    end
+    ACHQ-->>BE: Webhook events (signature verified)
+    BE->>BE: Update internal status\n(settled → investment.active)
+```
+
+### Diagram Notes (Backend Requirements)
+- Implement the endpoints exactly as named in this doc; return shapes as shown.
+- On `/api/plaid/link-success`: exchange `public_token`, create Plaid `processor_token` (achq), attach/create ACHQ bank, and enforce one-bank policy.
+- On `/api/payment-methods/manual`: validate ABA, tokenize with ACHQ, initiate micro-deposits, return `status: verification_pending`; verify via `/verify` to become `ready`.
+- On `/api/investments/:id/fund`: create an idempotent ACH debit at ACHQ and return a `funding` handle; FE will poll status until webhook-driven settlement.
+- Webhooks: verify ACHQ signature and map events to canonical statuses; only mark investment `active` on `settled`.
+- Idempotency: FE supplies `idempotency_key`; store and dedupe per user/action.
+- No balance checks before allowing funding initiation.
+
 ### Primary Flow: Plaid Link → ACHQ Payment Method
 1) FE requests link token
    - POST `/api/plaid/link-token`
