@@ -105,7 +105,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Profile:Patch */
+        patch: operations["profile_patch_api_profile_patch"];
         trace?: never;
     };
     "/api/profile/confirm/{user_id}": {
@@ -312,7 +313,8 @@ export interface paths {
         delete: operations["admin_users_delete_api_admin_users__user_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Admin:Users:Update */
+        patch: operations["admin_users_update_api_admin_users__user_id__patch"];
         trace?: never;
     };
     "/api/admin/activity/events": {
@@ -579,6 +581,17 @@ export interface components {
             state?: string | null;
             /** Zip */
             zip?: string | null;
+        };
+        /** AdminUserUpdateRequest */
+        AdminUserUpdateRequest: {
+            /** Firstname */
+            firstName?: string | null;
+            /** Lastname */
+            lastName?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Ssn */
+            ssn?: string | null;
         };
         /** AppTimeResponse */
         AppTimeResponse: {
@@ -849,6 +862,22 @@ export interface components {
          * @enum {string}
          */
         PaymentMethod: "ach" | "wire";
+        /** ProfilePatchRequest */
+        ProfilePatchRequest: {
+            /** Phone */
+            phone?: string | null;
+            address?: components["schemas"]["AddressUpdateRequest"] | null;
+            accountType?: components["schemas"]["AccountType"] | null;
+        };
+        /** ProfilePatchResponse */
+        ProfilePatchResponse: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            user: components["schemas"]["UserDetail"];
+        };
         /** ProfileUpdateRequest */
         ProfileUpdateRequest: {
             /** Firstname */
@@ -981,12 +1010,6 @@ export interface components {
             id: string;
             /** Email */
             email: string;
-            /**
-             * Password
-             * @description Always returns 'hashed' for security
-             * @default hashed
-             */
-            password: string;
             /** Isverified */
             isVerified: boolean;
             /** Verifiedat */
@@ -1363,6 +1386,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRegisterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    profile_patch_api_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfilePatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfilePatchResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1826,6 +1882,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_users_update_api_admin_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -1,7 +1,5 @@
 .investmentsView {
-  max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 24px;
 }
 
 .investmentsContainer {
@@ -203,10 +201,6 @@
 }
 
 @media (max-width: 768px) {
-  .investmentsView {
-    padding: 24px 16px;
-  }
-
   .investmentsContainer {
     padding: 20px;
   }

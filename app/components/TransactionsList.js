@@ -62,7 +62,7 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
   const itemsPerPage = 5
   
   // PERFORMANCE FIX: Use UserContext instead of fetching user data again
-  const { userData: user, loading } = useUser()
+  const { userData: user, loading, refreshUser } = useUser()
 
   useEffect(() => {
     setMounted(true)
@@ -148,6 +148,56 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
           // Exclude only account_created as it doesn't represent a transaction
           // Investment created should show the amount since it represents a pending investment
           const shouldShowAmount = ev.type !== 'account_created'
+          
+          // Check if this event is for a draft investment
+          const isDraftInvestment = ev.investmentId && user?.investments?.some(inv => 
+            String(inv.id) === String(ev.investmentId) && inv.status === 'draft'
+          )
+          
+          const handleResumeDraft = (e) => {
+            e.stopPropagation()
+            if (ev.investmentId) {
+              try {
+                localStorage.setItem('currentInvestmentId', String(ev.investmentId))
+              } catch {}
+              router.push('/investment')
+            }
+          }
+          
+          const handleDeleteDraft = async (e) => {
+            e.stopPropagation()
+            if (!confirm('Delete this draft? This cannot be undone.')) return
+            if (!ev.investmentId) return
+            
+            try {
+              if (typeof window === 'undefined') return
+              
+              const userId = localStorage.getItem('currentUserId')
+              if (!userId) {
+                alert('User not found')
+                return
+              }
+              
+              const res = await fetch(`/api/users/${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ _action: 'deleteInvestment', investmentId: ev.investmentId })
+              })
+              const data = await res.json()
+              if (!data.success) {
+                alert(data.error || 'Failed to delete draft')
+                return
+              }
+              // Refresh user data to update the list
+              if (refreshUser) {
+                await refreshUser()
+              }
+            } catch (e) {
+              console.error('Failed to delete draft', e)
+              alert('Failed to delete draft')
+            }
+          }
+          
           return (
             <div className={styles.event} key={ev.id} onClick={() => { if (expandable) setExpandedId(prev => prev === ev.id ? null : ev.id) }} style={{ cursor: expandable ? 'pointer' : 'default' }}>
               <div className={`${styles.icon} ${meta.iconClass}`}>{meta.icon}</div>
@@ -183,11 +233,28 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
                   </div>
                 )}
               </div>
-              {shouldShowAmount && (
-                <div className={`${styles.amount} ${amountClass}`}>
-                  {formatCurrency(ev.amount || 0)}
-                </div>
-              )}
+              <div className={styles.rightColumn}>
+                {shouldShowAmount && (
+                  <div className={`${styles.amount} ${amountClass}`}>
+                    {formatCurrency(ev.amount || 0)}
+                  </div>
+                )}
+                {isDraftInvestment && (
+                  <>
+                    <div className={styles.resumeDraft} onClick={handleResumeDraft}>
+                      Resume Draft →
+                    </div>
+                    {isExpanded && (
+                      <button
+                        className={styles.deleteDraft}
+                        onClick={handleDeleteDraft}
+                      >
+                        Delete Draft
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )
         })}

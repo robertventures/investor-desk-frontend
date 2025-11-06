@@ -5,6 +5,16 @@ import styles from './DistributionsTab.module.css'
 import { formatCurrency } from '../../../lib/formatters.js'
 
 /**
+ * Helper function to safely convert amount to number
+ * Handles null, undefined, strings, and NaN values
+ */
+function safeAmount(amount) {
+  if (amount === null || amount === undefined) return 0
+  const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount)
+  return isNaN(num) ? 0 : num
+}
+
+/**
  * Transactions tab showing all transactions: investments, monthly payments and compounding calculations
  */
 export default function DistributionsTab({ users, timeMachineData }) {
@@ -53,7 +63,7 @@ export default function DistributionsTab({ users, timeMachineData }) {
         // Add distribution and contribution transactions
         const transactions = Array.isArray(investment.transactions) ? investment.transactions : []
         transactions.forEach(tx => {
-          if (tx.type === 'distribution' || tx.type === 'contribution') {
+          if (tx.type === 'distribution' || tx.type === 'contribution' || tx.type === 'monthly_distribution' || tx.type === 'monthly_compounded') {
             const txDate = tx.date
             const txTime = txDate ? new Date(txDate).getTime() : 0
             
@@ -92,7 +102,16 @@ export default function DistributionsTab({ users, timeMachineData }) {
 
     // Filter by type
     if (filterType !== 'all') {
-      filtered = filtered.filter(event => event.type === filterType)
+      filtered = filtered.filter(event => {
+        // Group similar transaction types together
+        if (filterType === 'distribution') {
+          return event.type === 'distribution' || event.type === 'monthly_distribution'
+        }
+        if (filterType === 'contribution') {
+          return event.type === 'contribution' || event.type === 'monthly_compounded'
+        }
+        return event.type === filterType
+      })
     }
 
     // Filter by search term
@@ -114,13 +133,13 @@ export default function DistributionsTab({ users, timeMachineData }) {
 
   // Calculate summary statistics
   const summary = useMemo(() => {
-    const payouts = filteredDistributions.filter(e => e.type === 'distribution')
-    const compounded = filteredDistributions.filter(e => e.type === 'contribution')
+    const payouts = filteredDistributions.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
+    const compounded = filteredDistributions.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
     const investments = filteredDistributions.filter(e => e.type === 'investment')
     
-    const totalPayouts = payouts.reduce((sum, e) => sum + (e.amount || 0), 0)
-    const totalCompounded = compounded.reduce((sum, e) => sum + (e.amount || 0), 0)
-    const totalInvestments = investments.reduce((sum, e) => sum + (e.amount || 0), 0)
+    const totalPayouts = payouts.reduce((sum, e) => sum + safeAmount(e.amount), 0)
+    const totalCompounded = compounded.reduce((sum, e) => sum + safeAmount(e.amount), 0)
+    const totalInvestments = investments.reduce((sum, e) => sum + safeAmount(e.amount), 0)
     const totalAll = totalPayouts + totalCompounded + totalInvestments
 
     return {
@@ -164,15 +183,16 @@ export default function DistributionsTab({ users, timeMachineData }) {
         }
       }
       
+      const amount = safeAmount(event.amount)
       groups[monthKey].events.push(event)
-      groups[monthKey].totalAmount += event.amount || 0
+      groups[monthKey].totalAmount += amount
       
-      if (event.type === 'distribution') {
-        groups[monthKey].payoutAmount += event.amount || 0
-      } else if (event.type === 'contribution') {
-        groups[monthKey].compoundedAmount += event.amount || 0
+      if (event.type === 'distribution' || event.type === 'monthly_distribution') {
+        groups[monthKey].payoutAmount += amount
+      } else if (event.type === 'contribution' || event.type === 'monthly_compounded') {
+        groups[monthKey].compoundedAmount += amount
       } else if (event.type === 'investment') {
-        groups[monthKey].investmentAmount += event.amount || 0
+        groups[monthKey].investmentAmount += amount
       }
     })
 
@@ -195,22 +215,22 @@ export default function DistributionsTab({ users, timeMachineData }) {
   }, [searchTerm, filterType])
 
   const getEventIcon = (eventType) => {
-    if (eventType === 'distribution') return '💸'
-    if (eventType === 'contribution') return '📈'
+    if (eventType === 'distribution' || eventType === 'monthly_distribution') return '💸'
+    if (eventType === 'contribution' || eventType === 'monthly_compounded') return '📈'
     if (eventType === 'investment') return '💰'
     return '📊'
   }
 
   const getEventTitle = (eventType) => {
-    if (eventType === 'distribution') return 'Distribution'
-    if (eventType === 'contribution') return 'Contribution'
+    if (eventType === 'distribution' || eventType === 'monthly_distribution') return 'Distribution'
+    if (eventType === 'contribution' || eventType === 'monthly_compounded') return 'Contribution'
     if (eventType === 'investment') return 'Investment'
     return eventType
   }
 
   const getEventColor = (eventType) => {
-    if (eventType === 'distribution') return '#5b21b6'
-    if (eventType === 'contribution') return '#0369a1'
+    if (eventType === 'distribution' || eventType === 'monthly_distribution') return '#5b21b6'
+    if (eventType === 'contribution' || eventType === 'monthly_compounded') return '#0369a1'
     if (eventType === 'investment') return '#059669'
     return '#6b7280'
   }

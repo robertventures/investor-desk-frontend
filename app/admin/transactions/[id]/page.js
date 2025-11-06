@@ -130,15 +130,15 @@ export default function AdminTransactionDetailsPage() {
 
   const getTypeIcon = (type) => {
     if (type === 'investment') return '💰'
-    if (type === 'distribution') return '💸'
-    if (type === 'contribution') return '📈'
+    if (type === 'distribution' || type === 'monthly_distribution') return '💸'
+    if (type === 'contribution' || type === 'monthly_compounded') return '📈'
     return '📊'
   }
 
   const getTypeLabel = (type) => {
     if (type === 'investment') return 'Investment'
-    if (type === 'distribution') return 'Distribution'
-    if (type === 'contribution') return 'Contribution'
+    if (type === 'distribution' || type === 'monthly_distribution') return 'Distribution'
+    if (type === 'contribution' || type === 'monthly_compounded') return 'Contribution'
     return type
   }
 

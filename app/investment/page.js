@@ -147,24 +147,10 @@ function InvestmentPageContent() {
           return
         }
         
-        // Load user's account type and set as locked ONLY if user has confirmed investments
-        if (data.success && data.user) {
-          const confirmedInvestments = (data.user.investments || []).filter(inv => inv.status === 'confirmed' || inv.status === 'pending')
-          if (confirmedInvestments.length > 0 && data.user.accountType) {
-            // User has at least one confirmed/pending investment, lock the account type
-            setUserAccountType(data.user.accountType)
-            setLockedAccountType(data.user.accountType)
-            setSelectedAccountType(data.user.accountType)
-          } else if (data.user.accountType) {
-            // User has accountType but no confirmed investments yet - don't lock, just set the default
-            setUserAccountType(data.user.accountType)
-            setSelectedAccountType(data.user.accountType)
-          }
-        }
-        
-        // Load existing draft investment data if it exists
-        // Load draft investment data if resuming
+        // Load existing draft investment data first if it exists, then set account type constraints
         const investmentId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
+        let draftAccountType = null
+        
         if (data.success && investmentId) {
           try {
             // Fetch the specific investment from the investments endpoint
@@ -174,7 +160,8 @@ function InvestmentPageContent() {
               // Only load if it's a draft
               if (existingInvestment.status === 'draft') {
                 logger.log('Loading draft investment data:', existingInvestment)
-                if (existingInvestment.accountType) setSelectedAccountType(existingInvestment.accountType)
+                // Store draft accountType to use after checking user constraints
+                if (existingInvestment.accountType) draftAccountType = existingInvestment.accountType
                 if (typeof existingInvestment.amount === 'number') setInvestmentAmount(existingInvestment.amount)
                 if (existingInvestment.paymentFrequency) setInvestmentPaymentFrequency(existingInvestment.paymentFrequency)
                 if (existingInvestment.lockupPeriod) setInvestmentLockup(existingInvestment.lockupPeriod)
@@ -193,6 +180,28 @@ function InvestmentPageContent() {
             // Clear stale investment ID on error
             localStorage.removeItem('currentInvestmentId')
           }
+        }
+        
+        // Load user's account type and set as locked ONLY if user has confirmed investments
+        if (data.success && data.user) {
+          const confirmedInvestments = (data.user.investments || []).filter(inv => inv.status === 'confirmed' || inv.status === 'pending')
+          if (confirmedInvestments.length > 0 && data.user.accountType) {
+            // User has at least one confirmed/pending investment, lock the account type
+            setUserAccountType(data.user.accountType)
+            setLockedAccountType(data.user.accountType)
+            setSelectedAccountType(data.user.accountType)
+          } else if (data.user.accountType) {
+            // User has accountType but no confirmed investments yet - don't lock, just set the default
+            setUserAccountType(data.user.accountType)
+            // Use draft accountType if available, otherwise use user's accountType
+            setSelectedAccountType(draftAccountType || data.user.accountType)
+          } else if (draftAccountType) {
+            // No user accountType, use draft accountType
+            setSelectedAccountType(draftAccountType)
+          }
+        } else if (draftAccountType) {
+          // No user data but have draft accountType
+          setSelectedAccountType(draftAccountType)
         }
       } catch {}
     }

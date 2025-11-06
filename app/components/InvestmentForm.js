@@ -108,15 +108,16 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
 
   useEffect(() => {
     // Check if user is logged in (has session data)
-    if (disableAuthGuard) return
-    const userId = typeof window !== 'undefined' ? localStorage.getItem('currentUserId') : null
-    if (!userId) {
-      alert('Please complete the signup process first.')
-      router.push('/')
-      return
+    if (!disableAuthGuard) {
+      const userId = typeof window !== 'undefined' ? localStorage.getItem('currentUserId') : null
+      if (!userId) {
+        alert('Please complete the signup process first.')
+        router.push('/')
+        return
+      }
     }
 
-    // Load draft investment data if resuming
+    // Load draft investment data if resuming (always try to load draft data if currentInvestmentId exists)
     const loadDraftData = async () => {
       const investmentId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
       if (!investmentId) return

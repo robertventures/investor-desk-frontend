@@ -20,22 +20,66 @@ export default function MonthTransactionsPage() {
   const [showPendingOnly, setShowPendingOnly] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // Fetch users
+  // Fetch users and investments
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       try {
-        const data = await apiClient.getAllUsers()
-        if (data && data.success) {
-          setUsers(data.users || [])
-          setTimeMachineData(data.timeMachine || { appTime: null, isActive: false })
+        // Load users, investments, and time machine data in parallel
+        const [usersData, investmentsData, timeData] = await Promise.all([
+          apiClient.getAllUsers(),
+          apiClient.getAdminInvestments(),
+          apiClient.getAppTime()
+        ])
+        
+        // Process time machine data
+        if (timeData && (timeData.appTime || timeData.systemTime)) {
+          setTimeMachineData({
+            appTime: timeData.appTime,
+            isActive: !!timeData.isOverridden
+          })
+        }
+        
+        // Process users and investments
+        if (usersData && usersData.success) {
+          const usersList = usersData.users || []
+          const investmentsList = investmentsData && investmentsData.success 
+            ? (investmentsData.investments || []) 
+            : []
+          
+          // Group investments by userId
+          const investmentsByUser = {}
+          investmentsList.forEach(inv => {
+            const userId = inv.userId.toString()
+            if (!investmentsByUser[userId]) {
+              investmentsByUser[userId] = []
+            }
+            investmentsByUser[userId].push(inv)
+          })
+          
+          // Attach investments to users (handle both numeric and prefixed IDs)
+          const usersWithInvestments = usersList.map(user => {
+            let userIdStr = user.id.toString()
+            // Extract numeric part if user ID has a prefix (e.g., "USR-1025" -> "1025")
+            const numericMatch = userIdStr.match(/\d+$/)
+            const numericId = numericMatch ? numericMatch[0] : userIdStr
+            
+            const userInvestments = investmentsByUser[numericId] || investmentsByUser[userIdStr] || []
+            
+            return {
+              ...user,
+              investments: userInvestments
+            }
+          })
+          
+          setUsers(usersWithInvestments)
         }
       } catch (error) {
-        console.error('Error fetching users:', error)
+        console.error('Error fetching data:', error)
       } finally {
         setIsLoading(false)
       }
     }
-    fetchUsers()
+    fetchData()
   }, [])
 
   // Get the current app time from time machine
@@ -75,7 +119,7 @@ export default function MonthTransactionsPage() {
         // Add distribution and contribution transactions
         const transactions = Array.isArray(investment.transactions) ? investment.transactions : []
         transactions.forEach(tx => {
-          if (tx.type === 'distribution' || tx.type === 'contribution') {
+          if (tx.type === 'distribution' || tx.type === 'contribution' || tx.type === 'monthly_distribution' || tx.type === 'monthly_compounded') {
             const txDate = tx.date
             const txTime = txDate ? new Date(txDate).getTime() : 0
             
@@ -119,7 +163,16 @@ export default function MonthTransactionsPage() {
 
     // Filter by type
     if (filterType !== 'all') {
-      filtered = filtered.filter(event => event.type === filterType)
+      filtered = filtered.filter(event => {
+        // Group similar transaction types together
+        if (filterType === 'distribution') {
+          return event.type === 'distribution' || event.type === 'monthly_distribution'
+        }
+        if (filterType === 'contribution') {
+          return event.type === 'contribution' || event.type === 'monthly_compounded'
+        }
+        return event.type === filterType
+      })
     }
 
     // Filter by pending status
@@ -153,8 +206,8 @@ export default function MonthTransactionsPage() {
 
   // Calculate summary
   const summary = useMemo(() => {
-    const payouts = filteredTransactions.filter(e => e.type === 'distribution')
-    const compounded = filteredTransactions.filter(e => e.type === 'contribution')
+    const payouts = filteredTransactions.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
+    const compounded = filteredTransactions.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
     const investments = filteredTransactions.filter(e => e.type === 'investment')
     const pending = filteredTransactions.filter(e => e.status === 'pending')
     
@@ -184,22 +237,22 @@ export default function MonthTransactionsPage() {
   }, [monthKey])
 
   const getEventIcon = (eventType) => {
-    if (eventType === 'distribution') return '💸'
-    if (eventType === 'contribution') return '📈'
+    if (eventType === 'distribution' || eventType === 'monthly_distribution') return '💸'
+    if (eventType === 'contribution' || eventType === 'monthly_compounded') return '📈'
     if (eventType === 'investment') return '💰'
     return '📊'
   }
 
   const getEventTitle = (eventType) => {
-    if (eventType === 'distribution') return 'Distribution'
-    if (eventType === 'contribution') return 'Contribution'
+    if (eventType === 'distribution' || eventType === 'monthly_distribution') return 'Distribution'
+    if (eventType === 'contribution' || eventType === 'monthly_compounded') return 'Contribution'
     if (eventType === 'investment') return 'Investment'
     return eventType
   }
 
   const getEventColor = (eventType) => {
-    if (eventType === 'distribution') return '#5b21b6'
-    if (eventType === 'contribution') return '#0369a1'
+    if (eventType === 'distribution' || eventType === 'monthly_distribution') return '#5b21b6'
+    if (eventType === 'contribution' || eventType === 'monthly_compounded') return '#0369a1'
     if (eventType === 'investment') return '#059669'
     return '#6b7280'
   }

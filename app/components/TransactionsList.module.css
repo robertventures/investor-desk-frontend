@@ -6,7 +6,7 @@
 
 .feed { display: flex; flex-direction: column; gap: 12px; }
 
-.event { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; padding: 12px 8px; border-radius: 8px; border: 1px solid #f3f4f6; background: #ffffff; }
+.event { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: stretch; padding: 12px 8px; border-radius: 8px; border: 1px solid #f3f4f6; background: #ffffff; }
 .event:hover { background: #f9fafb; }
 
 .icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; }
@@ -25,6 +25,13 @@
 .investmentBadge { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
 .investmentBadge.clickable { cursor: pointer; }
 .investmentBadge.clickable:hover { background: #e5e7eb; }
+
+.resumeDraft { color: #2563eb; font-weight: 600; font-size: 13px; cursor: pointer; transition: color 0.2s; white-space: nowrap; }
+.resumeDraft:hover { color: #1d4ed8; }
+.deleteDraft { background: none; border: 1px solid #ef4444; color: #ef4444; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; margin-top: auto; }
+.deleteDraft:hover { background: #ef4444; color: white; }
+
+.rightColumn { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; justify-content: flex-start; }
 
 .amount { font-weight: 700; color: #111827; }
 .positive { color: #065f46; }

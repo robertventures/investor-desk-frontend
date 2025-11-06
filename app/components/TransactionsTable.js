@@ -106,7 +106,7 @@ export default function TransactionsTable() {
           
           // Build earnings tab from persisted monthly_distribution events
           const earningsData = investmentTransactions
-            .filter(tx => tx.type === 'distribution')
+            .filter(tx => tx.type === 'distribution' || tx.type === 'monthly_distribution' || tx.type === 'monthly_compounded')
             .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0))
             .map(ev => ({
               id: ev.id,
