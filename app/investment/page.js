@@ -32,6 +32,7 @@ function InvestmentPageContent() {
   const [investmentLockup, setInvestmentLockup] = useState('3-year')
   const [investmentSummary, setInvestmentSummary] = useState(null)
   const [identitySummary, setIdentitySummary] = useState(null)
+  const [isLoadingDraft, setIsLoadingDraft] = useState(true)
   const formattedInvestmentSummary = useMemo(() => {
     if (!investmentSummary) return []
     const accountTypeLabels = {
@@ -206,7 +207,13 @@ function InvestmentPageContent() {
           // No user data but have draft accountType
           setSelectedAccountType(draftAccountType)
         }
-      } catch {}
+        
+        // Mark loading as complete
+        setIsLoadingDraft(false)
+      } catch {
+        // Mark loading as complete even on error
+        setIsLoadingDraft(false)
+      }
     }
     if (userId) checkAdmin()
   }, [])
@@ -233,6 +240,14 @@ function InvestmentPageContent() {
     <main className={styles.main}>
       <Header showBackButton={true} />
       <div className={styles.container}>
+        {isLoadingDraft && (
+          <div className={styles.loadingOverlay}>
+            <div className={styles.loadingContent}>
+              <div className={styles.spinner}></div>
+              <p className={styles.loadingText}>Loading your investment information...</p>
+            </div>
+          </div>
+        )}
         <section className={`${stepStyles.card} ${isStep1Collapsed ? stepStyles.collapsed : ''}`}>
           <header className={stepStyles.cardHeader} onClick={() => { setActiveStep(1); setReviewModeStep1(false); setStep1Confirmed(false) }}>
             <div className={stepStyles.stepCircle}>1</div>

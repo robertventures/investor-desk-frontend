@@ -116,46 +116,6 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         return
       }
     }
-
-    // Load draft investment data if resuming (always try to load draft data if currentInvestmentId exists)
-    const loadDraftData = async () => {
-      const investmentId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
-      if (!investmentId) return
-
-      try {
-        // Fetch the specific investment from the investments endpoint
-        const data = await apiClient.getInvestment(investmentId)
-        if (data.success && data.investment) {
-          const investment = data.investment
-          // Only load if it's a draft
-          if (investment.status === 'draft') {
-            console.log('✅ Loading draft investment:', { id: investmentId, amount: investment.amount, lockup: investment.lockupPeriod })
-            // Load saved draft values
-            if (investment.amount !== undefined && investment.amount !== null) {
-              const amountNumber = typeof investment.amount === 'number' ? investment.amount : parseFloat(investment.amount) || 0
-              setFormData(prev => ({ ...prev, investmentAmount: amountNumber }))
-              setDisplayAmount(String(amountNumber))
-            }
-            if (investment.paymentFrequency) {
-              setFormData(prev => ({ ...prev, paymentFrequency: investment.paymentFrequency }))
-            }
-            if (investment.lockupPeriod) {
-              setSelectedLockup(investment.lockupPeriod)
-            }
-          } else {
-            // Investment is no longer a draft - clear it
-            console.log('⚠️ Investment is no longer a draft, clearing from localStorage')
-            localStorage.removeItem('currentInvestmentId')
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load draft investment:', error)
-        // Clear stale investment ID on error
-        localStorage.removeItem('currentInvestmentId')
-      }
-    }
-
-    loadDraftData()
   }, [router, disableAuthGuard])
 
   // Keep in sync if parent updates values

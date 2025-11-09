@@ -4,13 +4,23 @@ import BankConnectionModal from '../components/BankConnectionModal'
 import { apiClient } from '../../lib/apiClient'
 import styles from './page.module.css'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function FinalizeInvestmentPage() {
+  const router = useRouter()
+  
   return (
     <main className={styles.main}>
       <Header />
       <div className={styles.container}>
         <div className={styles.card}>
+          <button 
+            className={styles.backButton}
+            onClick={() => router.push('/investment')}
+            type="button"
+          >
+            ← Back to Edit Investment
+          </button>
           <h1 className={styles.title}>Finalize Your Investment</h1>
           <p className={styles.subtitle}>Confirm eligibility, complete documents, and choose a payment method to proceed.</p>
           <ClientContent />
