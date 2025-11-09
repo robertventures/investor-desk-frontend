@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '../contexts/UserContext'
+import { apiClient } from '../../lib/apiClient'
 import styles from './TransactionsList.module.css'
 import { formatCurrency } from '../../lib/formatters.js'
 import { formatDateForDisplay } from '../../lib/dateUtils.js'
@@ -24,14 +25,15 @@ function eventMeta(ev) {
       return { icon: '📝', iconClass: styles.created, title: 'Investment Updated' }
     case 'investment_info_confirmed':
       return { icon: '✅', iconClass: styles.confirmed, title: 'Investment Info Confirmed' }
+    // Distributions - all types of payouts/interest calculations
     case 'distribution':
-      return { icon: '💸', iconClass: styles.distribution, title: 'Distribution' }
     case 'monthly_distribution':
-      return { icon: '💸', iconClass: styles.distribution, title: 'Monthly Payout' }
+      return { icon: '💸', iconClass: styles.distribution, title: 'Distribution' }
+    // Contributions - all types of compounding/additions to principal
     case 'contribution':
-      return { icon: '📈', iconClass: styles.distribution, title: 'Contribution' }
+    case 'monthly_contribution':
     case 'monthly_compounded':
-      return { icon: '📈', iconClass: styles.distribution, title: 'Monthly Compounded' }
+      return { icon: '📈', iconClass: styles.distribution, title: 'Contribution' }
     case 'withdrawal_requested':
       return { icon: '🏦', iconClass: styles.withdrawal, title: 'Withdrawal Requested' }
     case 'withdrawal_notice_started':
@@ -62,7 +64,7 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
   const itemsPerPage = 5
   
   // PERFORMANCE FIX: Use UserContext instead of fetching user data again
-  const { userData: user, loading, refreshUser } = useUser()
+  const { userData: user, loading, refreshUser, loadInvestments, loadActivity } = useUser()
 
   useEffect(() => {
     setMounted(true)
@@ -174,22 +176,28 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
               
               const userId = localStorage.getItem('currentUserId')
               if (!userId) {
-                alert('User not found')
+                alert('User session not found')
                 return
               }
               
-              const res = await fetch(`/api/users/${userId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ _action: 'deleteInvestment', investmentId: ev.investmentId })
-              })
-              const data = await res.json()
+              const data = await apiClient.deleteInvestment(userId, ev.investmentId)
               if (!data.success) {
                 alert(data.error || 'Failed to delete draft')
                 return
               }
-              // Refresh user data to update the list
-              if (refreshUser) {
+              
+              // Clear from localStorage if this was the current investment
+              const currentInvestmentId = localStorage.getItem('currentInvestmentId')
+              if (currentInvestmentId === String(ev.investmentId)) {
+                localStorage.removeItem('currentInvestmentId')
+              }
+              
+              // Reload only investments and activity data (not full user profile)
+              // This prevents a full page rerender and is more efficient
+              if (loadInvestments && loadActivity) {
+                await Promise.all([loadInvestments(), loadActivity()])
+              } else if (refreshUser) {
+                // Fallback to full refresh if lazy loaders not available
                 await refreshUser()
               }
             } catch (e) {

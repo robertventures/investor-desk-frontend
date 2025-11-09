@@ -95,7 +95,10 @@ export interface paths {
         };
         /** Profile:Get */
         get: operations["profile_get_api_profile_get"];
-        /** Profile:Update */
+        /**
+         * Profile:Update
+         * @description Update user profile, allowing phone and address changes but blocking other fields for active investments.
+         */
         put: operations["profile_update_api_profile_put"];
         /**
          * Profile:Register
@@ -105,7 +108,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Profile:Patch */
+        /**
+         * Profile:Patch
+         * @description Patch user profile, blocking account type changes for active investments.
+         */
         patch: operations["profile_patch_api_profile_patch"];
         trace?: never;
     };

@@ -209,6 +209,7 @@
           "profile"
         ],
         "summary": "Profile:Update",
+        "description": "Update user profile, allowing phone and address changes but blocking other fields for active investments.",
         "operationId": "profile_update_api_profile_put",
         "requestBody": {
           "content": {
@@ -295,6 +296,7 @@
           "profile"
         ],
         "summary": "Profile:Patch",
+        "description": "Patch user profile, blocking account type changes for active investments.",
         "operationId": "profile_patch_api_profile_patch",
         "requestBody": {
           "content": {

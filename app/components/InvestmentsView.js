@@ -231,16 +231,23 @@ export default function InvestmentsView() {
                             if (typeof window === 'undefined') return
                             
                             const userId = localStorage.getItem('currentUserId')
-                            const res = await fetch(`/api/users/${userId}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ _action: 'deleteInvestment', investmentId: inv.id })
-                            })
-                            const data = await res.json()
+                            if (!userId) {
+                              alert('User session not found')
+                              return
+                            }
+                            
+                            const data = await apiClient.deleteInvestment(userId, inv.id)
                             if (!data.success) {
                               alert(data.error || 'Failed to delete draft')
                               return
                             }
+                            
+                            // Clear from localStorage if this was the current investment
+                            const currentInvestmentId = localStorage.getItem('currentInvestmentId')
+                            if (currentInvestmentId === inv.id) {
+                              localStorage.removeItem('currentInvestmentId')
+                            }
+                            
                             await loadData()
                           } catch (e) {
                             console.error('Failed to delete draft', e)

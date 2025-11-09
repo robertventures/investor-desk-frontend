@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { apiClient } from '@/lib/apiClient'
 import { useUser } from '@/app/contexts/UserContext'
 import styles from './TabbedResidentialIdentity.module.css'
@@ -179,7 +179,13 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     if (accountTypeProp) setAccountType(accountTypeProp)
   }, [accountTypeProp])
 
-  const { userData } = useUser()
+  const { userData, refreshUser } = useUser()
+  const hasLoadedUserDataRef = useRef(false)
+
+  // Refresh user data when component mounts to ensure we have the latest investor information
+  useEffect(() => {
+    refreshUser()
+  }, [refreshUser])
 
   useEffect(() => {
     if (!userData) return
@@ -201,16 +207,11 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     const savedAuthRepSsn = u.authorizedRepresentative?.ssn || ''
     const isAuthRepSsnOnFile = savedAuthRepSsn && (savedAuthRepSsn === '•••-••-••••' || savedAuthRepSsn.includes(':') || savedAuthRepSsn.length > 20)
 
-    console.log('=== Loading user data for investment form ===')
-    console.log('User object:', u)
-    console.log('- User ID:', u.id)
-    console.log('- User Email:', u.email)
-    console.log('- User SSN field exists:', 'ssn' in u)
-    console.log('- User SSN value:', u.ssn)
-    console.log('- Saved SSN value:', savedSsn)
-    console.log('- Is SSN on file:', isSsnOnFile)
-    console.log('- Will set form SSN to:', isSsnOnFile ? '•••-••-••••' : savedSsn)
-    console.log('===========================================')
+    // Only log once when data is first loaded to reduce console noise
+    if (!hasLoadedUserDataRef.current) {
+      console.log('✅ User data loaded for investment form:', { userId: u.id, email: u.email, hasSSN: !!u.ssn })
+      hasLoadedUserDataRef.current = true
+    }
 
     setForm(prev => ({
       ...prev,
@@ -255,6 +256,97 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       }
     }))
   }, [userData, accountTypeProp])
+
+  // Load investment-specific data when editing
+  useEffect(() => {
+    const loadInvestmentData = async () => {
+      if (typeof window === 'undefined') return
+      
+      const investmentId = localStorage.getItem('currentInvestmentId')
+      if (!investmentId) return
+      
+      try {
+        const response = await apiClient.getInvestment(investmentId)
+        if (!response.success || !response.investment) return
+        
+        const investment = response.investment
+        
+        // Only populate if this is a draft investment
+        if (investment.status !== 'draft') return
+        
+        console.log('✅ Investment-specific data loaded:', { investmentId, accountType: investment.accountType })
+        
+        // Populate form with investment-specific data if available
+        setForm(prev => {
+          const updated = { ...prev }
+          
+          // Entity-specific fields
+          if (investment.entity) {
+            if (investment.entity.name) updated.entityName = investment.entity.name
+            if (investment.entity.registrationDate) updated.dob = investment.entity.registrationDate
+            if (investment.entity.taxId) updated.ssn = investment.entity.taxId
+          }
+          
+          // Authorized representative for entity accounts
+          if (investment.authorizedRepresentative) {
+            const rep = investment.authorizedRepresentative
+            updated.authorizedRep = {
+              firstName: rep.firstName || prev.authorizedRep.firstName,
+              lastName: rep.lastName || prev.authorizedRep.lastName,
+              street1: rep.address?.street1 || prev.authorizedRep.street1,
+              street2: rep.address?.street2 || prev.authorizedRep.street2,
+              city: rep.address?.city || prev.authorizedRep.city,
+              state: toFullStateName(rep.address?.state) || prev.authorizedRep.state,
+              zip: rep.address?.zip || prev.authorizedRep.zip,
+              country: rep.address?.country || prev.authorizedRep.country,
+              dob: rep.dob || prev.authorizedRep.dob,
+              ssn: rep.ssn || prev.authorizedRep.ssn
+            }
+          }
+          
+          // Joint holder for joint accounts
+          if (investment.jointHolder) {
+            const joint = investment.jointHolder
+            updated.jointHolder = {
+              firstName: joint.firstName || prev.jointHolder.firstName,
+              lastName: joint.lastName || prev.jointHolder.lastName,
+              street1: joint.address?.street1 || prev.jointHolder.street1,
+              street2: joint.address?.street2 || prev.jointHolder.street2,
+              city: joint.address?.city || prev.jointHolder.city,
+              state: toFullStateName(joint.address?.state) || prev.jointHolder.state,
+              zip: joint.address?.zip || prev.jointHolder.zip,
+              country: joint.address?.country || prev.jointHolder.country,
+              dob: joint.dob || prev.jointHolder.dob,
+              ssn: joint.ssn || prev.jointHolder.ssn,
+              email: joint.email || prev.jointHolder.email,
+              phone: formatPhoneFromDB(joint.phone) || prev.jointHolder.phone
+            }
+            
+            // Check if joint holder has different address
+            if (joint.address && prev.street1) {
+              const isDifferent = joint.address.street1 !== prev.street1 ||
+                                joint.address.city !== prev.city ||
+                                joint.address.state !== prev.state
+              if (isDifferent) {
+                setJointUsePrimaryAddress(false)
+              }
+            }
+          }
+          
+          // Joint holding type
+          if (investment.jointHoldingType) {
+            updated.jointHoldingType = investment.jointHoldingType
+          }
+          
+          return updated
+        })
+      } catch (error) {
+        console.error('❌ Failed to load investment data:', error)
+      }
+    }
+    
+    loadInvestmentData()
+  }, [userData]) // Run after userData is loaded
 
   // Joint holding type should not be auto-defaulted - user must select explicitly
 

@@ -159,24 +159,27 @@ function InvestmentPageContent() {
               const existingInvestment = investmentResponse.investment
               // Only load if it's a draft
               if (existingInvestment.status === 'draft') {
-                logger.log('Loading draft investment data:', existingInvestment)
+                logger.log('✅ Loading draft investment:', { id: existingInvestment.id, accountType: existingInvestment.accountType })
                 // Store draft accountType to use after checking user constraints
                 if (existingInvestment.accountType) draftAccountType = existingInvestment.accountType
-                if (typeof existingInvestment.amount === 'number') setInvestmentAmount(existingInvestment.amount)
+                if (existingInvestment.amount !== undefined && existingInvestment.amount !== null) {
+                  const amountNumber = typeof existingInvestment.amount === 'number' ? existingInvestment.amount : parseFloat(existingInvestment.amount) || 0
+                  setInvestmentAmount(amountNumber)
+                }
                 if (existingInvestment.paymentFrequency) setInvestmentPaymentFrequency(existingInvestment.paymentFrequency)
                 if (existingInvestment.lockupPeriod) setInvestmentLockup(existingInvestment.lockupPeriod)
               } else {
                 // Investment is no longer a draft - clear it
-                logger.log('Investment is no longer a draft, clearing from localStorage:', investmentId)
+                logger.log('⚠️ Investment is no longer a draft, clearing from localStorage')
                 localStorage.removeItem('currentInvestmentId')
               }
             } else {
               // Investment not found - clear it from localStorage
-              logger.log('Investment not found, clearing from localStorage:', investmentId)
+              logger.log('⚠️ Investment not found, clearing from localStorage')
               localStorage.removeItem('currentInvestmentId')
             }
           } catch (err) {
-            logger.warn('Failed to load draft investment:', err)
+            logger.warn('❌ Failed to load draft investment:', err)
             // Clear stale investment ID on error
             localStorage.removeItem('currentInvestmentId')
           }

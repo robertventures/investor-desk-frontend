@@ -129,11 +129,12 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
           const investment = data.investment
           // Only load if it's a draft
           if (investment.status === 'draft') {
-            console.log('Loading draft investment data into form:', investment)
+            console.log('✅ Loading draft investment:', { id: investmentId, amount: investment.amount, lockup: investment.lockupPeriod })
             // Load saved draft values
-            if (investment.amount) {
-              setFormData(prev => ({ ...prev, investmentAmount: investment.amount }))
-              setDisplayAmount(investment.amount.toLocaleString())
+            if (investment.amount !== undefined && investment.amount !== null) {
+              const amountNumber = typeof investment.amount === 'number' ? investment.amount : parseFloat(investment.amount) || 0
+              setFormData(prev => ({ ...prev, investmentAmount: amountNumber }))
+              setDisplayAmount(String(amountNumber))
             }
             if (investment.paymentFrequency) {
               setFormData(prev => ({ ...prev, paymentFrequency: investment.paymentFrequency }))
@@ -143,7 +144,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             }
           } else {
             // Investment is no longer a draft - clear it
-            console.log('Investment is no longer a draft, clearing from localStorage')
+            console.log('⚠️ Investment is no longer a draft, clearing from localStorage')
             localStorage.removeItem('currentInvestmentId')
           }
         }
