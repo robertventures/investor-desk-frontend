@@ -103,6 +103,8 @@ export default function ProfileView() {
   const [showRepSSN, setShowRepSSN] = useState(false)
   const [showBankModal, setShowBankModal] = useState(false)
   const [isRemovingBank, setIsRemovingBank] = useState(null)
+  // Track if user has any joint investments to decide rendering the joint section
+  const [hasJointInvestments, setHasJointInvestments] = useState(false)
   // Single user address (horizontal form in Addresses tab)
   const [addressForm, setAddressForm] = useState({
     street1: '',
@@ -237,6 +239,57 @@ export default function ProfileView() {
           zip: data.user.address?.zip || '',
           country: data.user.address?.country || 'United States'
         })
+
+        // Additionally, load joint investment details when profile doesn't include them
+        try {
+          const investmentsResp = await apiClient.getInvestments()
+          const invs = investmentsResp?.investments || []
+          // Determine if the user has a joint investment (pending or active)
+          const jointCandidates = invs.filter(inv => inv.accountType === 'joint' && (inv.status === 'pending' || inv.status === 'active'))
+          setHasJointInvestments(jointCandidates.length > 0)
+          // If profile lacks jointHolder but we have a joint draft/pending/active investment, fetch its details
+          const preferred = jointCandidates
+            .sort((a, b) => {
+              // Prefer most recent by createdAt or by id as fallback
+              const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0
+              const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0
+              if (ad !== bd) return bd - ad
+              return (b.id || 0) - (a.id || 0)
+            })[0]
+          if (preferred && (!data.user.jointHolder || !data.user.jointHoldingType)) {
+            try {
+              const detail = await apiClient.getInvestment(preferred.id)
+              const inv = detail?.investment || {}
+              if (inv.jointHolder || inv.jointHoldingType) {
+                setFormData(prev => ({
+                  ...prev,
+                  jointHoldingType: prev.jointHoldingType || inv.jointHoldingType || '',
+                  jointHolder: {
+                    ...(prev.jointHolder || {}),
+                    firstName: prev.jointHolder?.firstName || inv.jointHolder?.firstName || '',
+                    lastName: prev.jointHolder?.lastName || inv.jointHolder?.lastName || '',
+                    email: prev.jointHolder?.email || inv.jointHolder?.email || '',
+                    phone: prev.jointHolder?.phone || (inv.jointHolder?.phone ? formatPhone(inv.jointHolder.phone) : ''),
+                    dob: prev.jointHolder?.dob || inv.jointHolder?.dob || '',
+                    ssn: prev.jointHolder?.ssn || inv.jointHolder?.ssn || '',
+                    address: {
+                      street1: prev.jointHolder?.address?.street1 || inv.jointHolder?.address?.street1 || '',
+                      street2: prev.jointHolder?.address?.street2 || inv.jointHolder?.address?.street2 || '',
+                      city: prev.jointHolder?.address?.city || inv.jointHolder?.address?.city || '',
+                      state: prev.jointHolder?.address?.state || inv.jointHolder?.address?.state || '',
+                      zip: prev.jointHolder?.address?.zip || inv.jointHolder?.address?.zip || '',
+                      country: prev.jointHolder?.address?.country || inv.jointHolder?.address?.country || 'United States'
+                    }
+                  }
+                }))
+              }
+            } catch (e) {
+              logger.warn('Failed to load joint investment detail', e)
+            }
+          }
+        } catch (e) {
+          logger.warn('Failed to load investments for joint prefill', e)
+        }
       }
       } catch (e) {
         logger.error('Failed to load user data', e)
@@ -611,7 +664,7 @@ export default function ProfileView() {
   // Only show account type sections if the account is locked to that type
   const hasPendingOrActiveJoint = Array.isArray(userData?.investments) && 
     userData.investments.some(inv => inv.accountType === 'joint' && (inv.status === 'pending' || inv.status === 'active'))
-  const showJointSection = userData?.accountType === 'joint' || hasPendingOrActiveJoint
+  const showJointSection = userData?.accountType === 'joint' || hasPendingOrActiveJoint || hasJointInvestments
   
   // Entity information should ONLY display when user has entity investments (not just accountType === 'entity')
   const hasEntityInvestments = Array.isArray(userData?.investments) && 

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
 import { fetchWithCsrf } from '../../../../lib/csrfClient'
@@ -7,12 +7,15 @@ import AdminHeader from '../../../components/AdminHeader'
 import InvestmentAdminHeader from '../../components/InvestmentAdminHeader'
 import { calculateInvestmentValue, formatCurrency, formatDate } from '../../../../lib/investmentCalculations.js'
 import { formatDateForDisplay, formatDateTime } from '../../../../lib/dateUtils.js'
+import { useUser } from '@/app/contexts/UserContext'
 import styles from './page.module.css'
 
-export default function AdminInvestmentDetailsPage() {
+function AdminInvestmentDetailsContent() {
   const router = useRouter()
   const params = useParams()
   const investmentId = params?.id
+  const { userData, loading: userLoading } = useUser()
+  const initializedRef = useRef(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [investment, setInvestment] = useState(null)
   const [user, setUser] = useState(null)
@@ -34,46 +37,161 @@ export default function AdminInvestmentDetailsPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (userLoading) return
+    if (!userData || !userData.isAdmin) {
+      console.log('[AdminInvestmentDetails] Not an admin, redirecting to dashboard')
+      console.log('[AdminInvestmentDetails] userData:', userData)
+      console.log('[AdminInvestmentDetails] userLoading:', userLoading)
+      router.push('/dashboard')
+      return
+    }
+    if (initializedRef.current) return
+    initializedRef.current = true
     
     const init = async () => {
       try {
-        const meId = localStorage.getItem('currentUserId')
-        if (!meId) {
-          router.push('/')
-          return
-        }
-        const meRes = await fetch(`/api/users/${meId}`)
-        const meData = await meRes.json()
-        if (!meData.success || !meData.user || !meData.user.isAdmin) {
-          router.push('/dashboard')
-          return
-        }
-        setCurrentUser(meData.user)
+        console.log('[AdminInvestmentDetails] Starting initialization, investmentId:', investmentId)
+        console.log('[AdminInvestmentDetails] User is admin, proceeding...')
+        setCurrentUser(userData)
 
-        // Load all users to find the investment
-        const usersData = await apiClient.getAllUsers()
+        // Load users and investments separately (they come from different endpoints)
+        const [usersData, investmentsData] = await Promise.all([
+          apiClient.getAllUsers(),
+          apiClient.getAdminInvestments()
+        ])
+        
         if (!usersData || !usersData.success) {
-          alert('Failed to load investment data')
+          console.error('[AdminInvestmentDetails] Failed to load users data')
+          alert('Failed to load users data')
           return
         }
 
-        // Find the investment and its owner
-        let foundInvestment = null
-        let foundUser = null
-        for (const u of usersData.users) {
-          const inv = (u.investments || []).find(i => i.id === investmentId)
-          if (inv) {
-            foundInvestment = inv
-            foundUser = u
-            break
-          }
+        if (!investmentsData || !investmentsData.success) {
+          console.error('[AdminInvestmentDetails] Failed to load investments data')
+          alert('Failed to load investments data')
+          return
         }
 
-        if (!foundInvestment || !foundUser) {
-          alert('Investment not found')
+        console.log('[AdminInvestmentDetails] Loaded users:', usersData.users?.length, 'users')
+        console.log('[AdminInvestmentDetails] Loaded investments:', investmentsData.investments?.length, 'investments')
+        console.log('[AdminInvestmentDetails] Looking for investment ID:', investmentId)
+
+        // Build investments by user map
+        const investmentsByUser = {}
+        const investmentsList = investmentsData.investments || []
+        investmentsList.forEach(inv => {
+          const userId = inv.userId.toString()
+          if (!investmentsByUser[userId]) {
+            investmentsByUser[userId] = []
+          }
+          investmentsByUser[userId].push(inv)
+        })
+
+        // Debug: Log all investment IDs
+        const allInvestmentIds = investmentsList.map(inv => ({
+          invId: inv.id,
+          userId: inv.userId,
+          invIdType: typeof inv.id
+        }))
+        console.log('[AdminInvestmentDetails] All investment IDs in system:', allInvestmentIds)
+
+        // Find the investment directly from the investments list
+        let foundInvestment = investmentsList.find(inv => {
+          // Handle both string and number comparisons, and different ID formats
+          const invId = String(inv.id)
+          const searchId = String(investmentId)
+          
+          // Try exact match
+          if (invId === searchId) return true
+          
+          // Try with INV- prefix
+          if (invId === `INV-${searchId}`) return true
+          if (`INV-${invId}` === searchId) return true
+          
+          // Try removing INV- prefix
+          if (invId.replace('INV-', '') === searchId) return true
+          if (searchId.replace('INV-', '') === invId) return true
+          
+          return false
+        })
+
+        if (!foundInvestment) {
+          console.error('[AdminInvestmentDetails] Investment not found!')
+          console.error('[AdminInvestmentDetails] Searched for:', investmentId)
+          console.error('[AdminInvestmentDetails] Available investments:', allInvestmentIds)
+          alert(`Investment not found. Looking for ID: ${investmentId}`)
           router.push('/admin?tab=transactions')
           return
         }
+
+        console.log('[AdminInvestmentDetails] ✓ Found investment:', foundInvestment.id)
+        console.log('[AdminInvestmentDetails] Investment object:', foundInvestment)
+        console.log('[AdminInvestmentDetails] Investment userId:', foundInvestment.userId)
+        console.log('[AdminInvestmentDetails] Available user IDs:', usersData.users.map(u => ({ id: u.id, email: u.email })))
+
+        // Find the user who owns this investment
+        // The investment might have userId as a string or number, or might not have it at all
+        let foundUser = null
+        
+        if (foundInvestment.userId) {
+          // Handle ID format differences (e.g., "1002" vs "USR-1002")
+          foundUser = usersData.users.find(u => {
+            const userId = u.id.toString()
+            const investmentUserId = foundInvestment.userId.toString()
+            
+            // Try exact match
+            if (userId === investmentUserId) return true
+            
+            // Try with USR- prefix
+            if (userId === `USR-${investmentUserId}`) return true
+            if (`USR-${userId}` === investmentUserId) return true
+            
+            // Try removing USR- prefix
+            if (userId.replace('USR-', '') === investmentUserId) return true
+            if (investmentUserId.replace('USR-', '') === userId) return true
+            
+            // Try numeric comparison (extract just the numbers)
+            const userIdNum = userId.replace(/\D/g, '')
+            const invUserIdNum = investmentUserId.replace(/\D/g, '')
+            if (userIdNum === invUserIdNum) return true
+            
+            return false
+          })
+          
+          if (foundUser) {
+            console.log('[AdminInvestmentDetails] Found user via direct userId match')
+          }
+        }
+        
+        // If userId doesn't work, try to find by looking through investments attached to users
+        if (!foundUser && investmentsByUser) {
+          for (const [userId, investments] of Object.entries(investmentsByUser)) {
+            if (investments.some(inv => inv.id.toString() === foundInvestment.id.toString())) {
+              foundUser = usersData.users.find(u => {
+                const uId = u.id.toString()
+                const searchId = userId.toString()
+                return uId === searchId || 
+                       uId.replace(/\D/g, '') === searchId.replace(/\D/g, '')
+              })
+              if (foundUser) {
+                console.log('[AdminInvestmentDetails] Found user via investmentsByUser mapping')
+                break
+              }
+            }
+          }
+        }
+        
+        if (!foundUser) {
+          console.error('[AdminInvestmentDetails] User not found for investment!')
+          console.error('[AdminInvestmentDetails] Investment userId:', foundInvestment.userId)
+          console.error('[AdminInvestmentDetails] Tried matching with users:', usersData.users.map(u => u.id))
+          alert('User not found for this investment')
+          router.push('/admin?tab=transactions')
+          return
+        }
+
+        console.log('[AdminInvestmentDetails] ✓ Found user:', foundUser.id, foundUser.email)
+        console.log('[AdminInvestmentDetails] Successfully loaded investment data')
 
         setInvestment(foundInvestment)
         setUser(foundUser)
@@ -99,7 +217,7 @@ export default function AdminInvestmentDetailsPage() {
       }
     }
     init()
-  }, [router, investmentId])
+  }, [router, investmentId, userData, userLoading])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -1039,5 +1157,22 @@ function getEventMeta(eventType) {
     default:
       return { icon: '•', title: eventType || 'Unknown Event', color: '#6b7280' }
   }
+}
+
+export default function AdminInvestmentDetailsPage() {
+  return (
+    <Suspense fallback={
+      <div className={styles.main}>
+        <AdminHeader activeTab="transactions" />
+        <div className={styles.container}>
+          <div className={styles.content}>
+            <div className={styles.loadingState}>Loading investment details...</div>
+          </div>
+        </div>
+      </div>
+    }>
+      <AdminInvestmentDetailsContent />
+    </Suspense>
+  )
 }
 

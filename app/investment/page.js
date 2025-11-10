@@ -161,6 +161,13 @@ function InvestmentPageContent() {
               // Only load if it's a draft
               if (existingInvestment.status === 'draft') {
                 logger.log('✅ Loading draft investment:', { id: existingInvestment.id, accountType: existingInvestment.accountType })
+                // Log raw investment object shape for debugging fields available from backend
+                try {
+                  logger.log('ℹ️ Draft investment payload (debug):', {
+                    keys: Object.keys(existingInvestment || {}),
+                    sample: existingInvestment
+                  })
+                } catch {}
                 // Store draft accountType to use after checking user constraints
                 if (existingInvestment.accountType) draftAccountType = existingInvestment.accountType
                 if (existingInvestment.amount !== undefined && existingInvestment.amount !== null) {
@@ -194,18 +201,26 @@ function InvestmentPageContent() {
             setUserAccountType(data.user.accountType)
             setLockedAccountType(data.user.accountType)
             setSelectedAccountType(data.user.accountType)
-          } else if (data.user.accountType) {
-            // User has accountType but no confirmed investments yet - don't lock, just set the default
-            setUserAccountType(data.user.accountType)
-            // Use draft accountType if available, otherwise use user's accountType
-            setSelectedAccountType(draftAccountType || data.user.accountType)
-          } else if (draftAccountType) {
-            // No user accountType, use draft accountType
-            setSelectedAccountType(draftAccountType)
+          } else {
+            // User has no confirmed investments yet - prioritize draft accountType if available
+            if (data.user.accountType) {
+              setUserAccountType(data.user.accountType)
+            }
+            if (draftAccountType && draftAccountType !== 'undefined') {
+              setSelectedAccountType(draftAccountType)
+              logger.log('✅ Restored draft accountType from investment:', draftAccountType)
+            } else if (data.user.accountType) {
+              setSelectedAccountType(data.user.accountType)
+              logger.log('✅ Using user profile accountType (no draft):', data.user.accountType)
+            } else {
+              setSelectedAccountType('individual')
+              logger.log('ℹ️ No accountType found, defaulting to individual')
+            }
           }
-        } else if (draftAccountType) {
+        } else if (draftAccountType && draftAccountType !== 'undefined') {
           // No user data but have draft accountType
           setSelectedAccountType(draftAccountType)
+          logger.log('✅ Restored draft accountType (no user data):', draftAccountType)
         }
         
         // Mark loading as complete
@@ -313,7 +328,7 @@ function InvestmentPageContent() {
             <h2 className={stepStyles.cardTitle}>Investor Information</h2>
             {step2Confirmed && <div className={stepStyles.checkmark}>✓</div>}
           </header>
-          {showStep2Edit && (
+          {step2Unlocked && showStep2Edit && (
             <div className={stepStyles.cardBody}>
               <TabbedResidentialIdentity
                 accountType={selectedAccountType}

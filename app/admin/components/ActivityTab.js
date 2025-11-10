@@ -14,10 +14,20 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
   const itemsPerPage = 20
 
   // Create a map of users by ID for quick lookup
+  // Handle both string IDs (e.g., "USR-1001") and numeric IDs (e.g., 1001)
   const usersById = useMemo(() => {
     const map = {}
     users.forEach(user => {
+      // Store by original ID
       map[user.id] = user
+      
+      // Also store by numeric ID to match activity event userId (which is numeric)
+      const userIdStr = user.id.toString()
+      const numericMatch = userIdStr.match(/\d+$/)
+      if (numericMatch) {
+        const numericId = parseInt(numericMatch[0], 10)
+        map[numericId] = user
+      }
     })
     return map
   }, [users])
@@ -40,6 +50,17 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
         console.error('Failed to parse event metadata:', e)
       }
 
+      // Try to get amount from metadata first, then from investment data if available
+      let amount = metadata.amount
+      
+      // If no amount in metadata and this is an investment-related event, look it up
+      if (amount == null && event.investmentId && user.investments) {
+        const investment = user.investments.find(inv => inv.id === event.investmentId)
+        if (investment) {
+          amount = investment.amount
+        }
+      }
+
       return {
         id: event.id,
         type: event.activityType,
@@ -47,7 +68,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
         userEmail: user.email || '-',
         userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || '-',
         investmentId: event.investmentId,
-        amount: metadata.amount,
+        amount: amount,
         date: event.eventDate,
         displayDate: event.eventDate,
         title: event.title,
@@ -250,12 +271,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
                       )}
                     </td>
                     <td>
-                      {event.amount != null && 
-                       event.type !== 'account_created' && 
-                       event.type !== 'investment_created' &&
-                       event.type !== 'investment_submitted' && 
-                       event.type !== 'investment_confirmed' && 
-                       event.type !== 'investment_rejected' ? (
+                      {event.amount != null && event.type !== 'account_created' ? (
                         <strong className={styles.amount}>{formatCurrency(event.amount)}</strong>
                       ) : (
                         <span className={styles.naText}>-</span>

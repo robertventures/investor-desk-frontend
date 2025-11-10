@@ -193,6 +193,20 @@ export default function ConfirmationPage() {
         } catch (e) {
           // ignore storage errors
         }
+        // Clear any stale investment-local state from prior sessions
+        try {
+          localStorage.removeItem('currentInvestmentId')
+          localStorage.removeItem('currentInvestmentAccountType')
+          // Remove any per-investment identity snapshots
+          const keysToRemove = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && key.startsWith('investmentIdentityDraft:')) {
+              keysToRemove.push(key)
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k))
+        } catch {}
         // Clear pending registration data
         localStorage.removeItem('pendingRegistration')
         localStorage.removeItem('pendingUserId')

@@ -235,6 +235,29 @@
   color: #1d4ed8;
 }
 
+.termsText {
+  font-size: 11px;
+  color: #9ca3af;
+  margin: 12px 0 0 0;
+  line-height: 1.4;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.termsText .linkButton {
+  font-size: 11px;
+  color: #6b7280;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+
+.termsText .linkButton:hover {
+  color: #374151;
+  border-bottom-color: #9ca3af;
+}
+
 @media (max-width: 768px) {
   .form {
     padding: 24px;
