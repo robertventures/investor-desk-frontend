@@ -90,6 +90,7 @@ const normalizePhoneForBackend = (value = '') => {
 const formatAddressForBackend = (address = {}) => {
   return {
     street1: address.street1 || '',
+    street2: address.street2 || '',
     city: address.city || '',
     state: address.state || '',
     zip: address.zip || ''

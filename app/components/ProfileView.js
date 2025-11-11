@@ -89,7 +89,7 @@ export default function ProfileView() {
   }
 
   const [mounted, setMounted] = useState(false)
-  const [activeTab, setActiveTab] = useState('investor-info')
+  const [activeTab, setActiveTab] = useState('primary-holder')
   const [userData, setUserData] = useState(null)
   const [formData, setFormData] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -123,20 +123,50 @@ export default function ProfileView() {
   // Handle tab from URL params
   useEffect(() => {
     const tab = searchParams?.get('tab')
-    if (tab && ['investor-info', 'entity-info', 'trusted-contact', 'addresses', 'banking', 'security'].includes(tab)) {
-      // If trying to access entity-info tab but user doesn't have entity investments, redirect to investor-info
-      if (tab === 'entity-info' && userData) {
+    if (tab) {
+      // Backward compatibility: map old 'investor-info' and removed 'addresses' to 'primary-holder'
+      const remapped = tab === 'investor-info' || tab === 'addresses' ? 'primary-holder' : tab
+      
+      // Compute joint availability locally
+      let localShowJoint = false
+      if (userData) {
+        const hasPendingOrActiveJointLocal = Array.isArray(userData?.investments) && 
+          userData.investments.some(inv => inv.accountType === 'joint' && (inv.status === 'pending' || inv.status === 'active'))
+        localShowJoint = userData?.accountType === 'joint' || hasPendingOrActiveJointLocal || hasJointInvestments
+      }
+
+      const allowed = ['primary-holder', 'joint-holder', 'entity-info', 'trusted-contact', 'banking', 'security']
+      let resolved = allowed.includes(remapped) ? remapped : 'primary-holder'
+
+      // Guard: entity tab requires entity investments
+      if (resolved === 'entity-info' && userData) {
         const hasEntityInvestments = Array.isArray(userData?.investments) && 
           userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
         if (!hasEntityInvestments) {
           const params = new URLSearchParams(searchParams.toString())
-          params.set('tab', 'investor-info')
+          params.set('tab', 'primary-holder')
           router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
-          setActiveTab('investor-info')
+          setActiveTab('primary-holder')
           return
         }
       }
-      setActiveTab(tab)
+
+      // Guard: joint-holder tab only when joint is available
+      if (resolved === 'joint-holder' && !localShowJoint) {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('tab', 'primary-holder')
+        router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
+        setActiveTab('primary-holder')
+        return
+      }
+
+      // Apply mapping if changed
+      if (remapped !== tab) {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('tab', remapped)
+        router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
+      }
+      setActiveTab(resolved)
     }
   }, [searchParams, userData, router])
 
@@ -457,64 +487,78 @@ export default function ProfileView() {
 
   const validate = () => {
     const newErrors = {}
-    if (!formData.firstName.trim()) newErrors.firstName = 'Required'
-    if (!formData.lastName.trim()) newErrors.lastName = 'Required'
-    if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email'
-    if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Required'
-    else if (!isValidUSPhoneDigits(formData.phoneNumber)) newErrors.phoneNumber = 'Enter a valid US phone (10 digits; area code 2-9)'
-    if (formData.dob && !isAdultDob(formData.dob)) newErrors.dob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
+    // Primary Holder validations (only on Primary tab)
+    if (activeTab === 'primary-holder') {
+      if (!formData.firstName.trim()) newErrors.firstName = 'Required'
+      if (!formData.lastName.trim()) newErrors.lastName = 'Required'
+      if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email'
+      if (!formData.phoneNumber.trim()) newErrors.phoneNumber = 'Required'
+      else if (!isValidUSPhoneDigits(formData.phoneNumber)) newErrors.phoneNumber = 'Enter a valid US phone (10 digits; area code 2-9)'
+      if (formData.dob && !isAdultDob(formData.dob)) newErrors.dob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
+      // Address required when saving on Primary tab
+      if (!addressForm.street1.trim()) newErrors.addressStreet1 = 'Required'
+      if (!addressForm.city.trim()) newErrors.addressCity = 'Required'
+      if (!addressForm.state.trim()) newErrors.addressState = 'Required'
+      if (!addressForm.zip.trim()) newErrors.addressZip = 'Required'
+    }
 
     const hasPendingOrActiveEntity = Array.isArray(userData?.investments) && 
       userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
-    // Entity validation only when user has entity investments
-    if (hasPendingOrActiveEntity && formData.entity) {
-      if (!formData.entity.name.trim()) newErrors.entityName = 'Required'
-      if (!formData.entity.registrationDate) newErrors.entityRegistrationDate = 'Required'
-      if (!formData.entity.taxId.trim()) newErrors.entityTaxId = 'Required'
-      if (formData.entity.address) {
-        if (!formData.entity.address.street1.trim()) newErrors.entityStreet1 = 'Required'
-        if (!formData.entity.address.city.trim()) newErrors.entityCity = 'Required'
-        else if (/[0-9]/.test(formData.entity.address.city)) newErrors.entityCity = 'No numbers allowed'
-        if (!formData.entity.address.state) newErrors.entityState = 'Required'
-        if (!formData.entity.address.zip.trim()) newErrors.entityZip = 'Required'
+    // Entity validation only when user has entity investments and on the entity tab
+    if (activeTab === 'entity-info') {
+      if (hasPendingOrActiveEntity && formData.entity) {
+        if (!formData.entity.name.trim()) newErrors.entityName = 'Required'
+        if (!formData.entity.registrationDate) newErrors.entityRegistrationDate = 'Required'
+        if (!formData.entity.taxId.trim()) newErrors.entityTaxId = 'Required'
+        if (formData.entity.address) {
+          if (!formData.entity.address.street1.trim()) newErrors.entityStreet1 = 'Required'
+          if (!formData.entity.address.city.trim()) newErrors.entityCity = 'Required'
+          else if (/[0-9]/.test(formData.entity.address.city)) newErrors.entityCity = 'No numbers allowed'
+          if (!formData.entity.address.state) newErrors.entityState = 'Required'
+          if (!formData.entity.address.zip.trim()) newErrors.entityZip = 'Required'
+        }
       }
     }
 
     if (hasPendingOrActiveEntity && formData.authorizedRepresentative) {
-      if (!formData.authorizedRepresentative.dob || !isAdultDob(formData.authorizedRepresentative.dob)) newErrors.repDob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
-      if (!formData.authorizedRepresentative.ssn.trim()) newErrors.repSsn = 'Required'
-      if (formData.authorizedRepresentative.address) {
-        if (!formData.authorizedRepresentative.address.street1.trim()) newErrors.repStreet1 = 'Required'
-        if (!formData.authorizedRepresentative.address.city.trim()) newErrors.repCity = 'Required'
-        else if (/[0-9]/.test(formData.authorizedRepresentative.address.city)) newErrors.repCity = 'No numbers allowed'
-        if (!formData.authorizedRepresentative.address.state) newErrors.repState = 'Required'
-        if (!formData.authorizedRepresentative.address.zip.trim()) newErrors.repZip = 'Required'
+      if (activeTab === 'entity-info') {
+        if (!formData.authorizedRepresentative.dob || !isAdultDob(formData.authorizedRepresentative.dob)) newErrors.repDob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
+        if (!formData.authorizedRepresentative.ssn.trim()) newErrors.repSsn = 'Required'
+        if (formData.authorizedRepresentative.address) {
+          if (!formData.authorizedRepresentative.address.street1.trim()) newErrors.repStreet1 = 'Required'
+          if (!formData.authorizedRepresentative.address.city.trim()) newErrors.repCity = 'Required'
+          else if (/[0-9]/.test(formData.authorizedRepresentative.address.city)) newErrors.repCity = 'No numbers allowed'
+          if (!formData.authorizedRepresentative.address.state) newErrors.repState = 'Required'
+          if (!formData.authorizedRepresentative.address.zip.trim()) newErrors.repZip = 'Required'
+        }
       }
     }
 
     const hasPendingOrActiveJoint = Array.isArray(userData?.investments) && 
       userData.investments.some(inv => inv.accountType === 'joint' && (inv.status === 'pending' || inv.status === 'active'))
     const showJoint = userData?.accountType === 'joint' || hasPendingOrActiveJoint
-    if (showJoint && formData.jointHolder) {
-      if (!formData.jointHoldingType?.trim()) newErrors.jointHoldingType = 'Required'
-      if (!formData.jointHolder.firstName.trim()) newErrors.jointFirstName = 'Required'
-      if (!formData.jointHolder.lastName.trim()) newErrors.jointLastName = 'Required'
-      if (!formData.jointHolder.email.trim() || !/\S+@\S+\.\S+/.test(formData.jointHolder.email)) newErrors.jointEmail = 'Valid email required'
-      if (!formData.jointHolder.phone.trim()) newErrors.jointPhone = 'Required'
-      else if (!isValidUSPhoneDigits(formData.jointHolder.phone)) newErrors.jointPhone = 'Enter a valid US phone (10 digits; area code 2-9)'
-      if (!formData.jointHolder.dob || !isAdultDob(formData.jointHolder.dob)) newErrors.jointDob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
-      if (!formData.jointHolder.ssn.trim()) newErrors.jointSsn = 'Required'
-      if (formData.jointHolder.address) {
-        if (!formData.jointHolder.address.street1.trim()) newErrors.jointStreet1 = 'Required'
-        if (!formData.jointHolder.address.city.trim()) newErrors.jointCity = 'Required'
-        else if (/[0-9]/.test(formData.jointHolder.address.city)) newErrors.jointCity = 'No numbers allowed'
-        if (!formData.jointHolder.address.state) newErrors.jointState = 'Required'
-        if (!formData.jointHolder.address.zip.trim()) newErrors.jointZip = 'Required'
+    if (activeTab === 'joint-holder') {
+      if (showJoint && formData.jointHolder) {
+        if (!formData.jointHoldingType?.trim()) newErrors.jointHoldingType = 'Required'
+        if (!formData.jointHolder.firstName.trim()) newErrors.jointFirstName = 'Required'
+        if (!formData.jointHolder.lastName.trim()) newErrors.jointLastName = 'Required'
+        if (!formData.jointHolder.email.trim() || !/\S+@\S+\.\S+/.test(formData.jointHolder.email)) newErrors.jointEmail = 'Valid email required'
+        if (!formData.jointHolder.phone.trim()) newErrors.jointPhone = 'Required'
+        else if (!isValidUSPhoneDigits(formData.jointHolder.phone)) newErrors.jointPhone = 'Enter a valid US phone (10 digits; area code 2-9)'
+        if (!formData.jointHolder.dob || !isAdultDob(formData.jointHolder.dob)) newErrors.jointDob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
+        if (!formData.jointHolder.ssn.trim()) newErrors.jointSsn = 'Required'
+        if (formData.jointHolder.address) {
+          if (!formData.jointHolder.address.street1.trim()) newErrors.jointStreet1 = 'Required'
+          if (!formData.jointHolder.address.city.trim()) newErrors.jointCity = 'Required'
+          else if (/[0-9]/.test(formData.jointHolder.address.city)) newErrors.jointCity = 'No numbers allowed'
+          if (!formData.jointHolder.address.state) newErrors.jointState = 'Required'
+          if (!formData.jointHolder.address.zip.trim()) newErrors.jointZip = 'Required'
+        }
       }
     }
 
     // Validate trusted contact (optional but if filled, validate format)
-    if (formData.trustedContact) {
+    if (activeTab === 'trusted-contact' && formData.trustedContact) {
       if (formData.trustedContact.email && !/\S+@\S+\.\S+/.test(formData.trustedContact.email)) {
         newErrors.trustedEmail = 'Invalid email format'
       }
@@ -536,25 +580,74 @@ export default function ProfileView() {
       if (typeof window === 'undefined') return
       
       const userId = localStorage.getItem('currentUserId')
-      // Check if user has entity investments (for saving entity data)
-      const hasEntityInvestments = Array.isArray(userData?.investments) && 
-        userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
-      
-      // Only send fields supported by the backend ProfileUpdateRequest
-      const data = await apiClient.updateUser(userId, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: normalizePhoneForDB(formData.phoneNumber),
-        dob: formData.dob,
-        ssn: formData.ssn,
-        address: {
-          street1: formData.address?.street1 || '',
-          street2: formData.address?.street2 || '',
-          city: formData.address?.city || '',
-          state: formData.address?.state || '',
-          zip: formData.address?.zip || ''
+      // Build payload based on active tab
+      let payload = {}
+      if (activeTab === 'primary-holder') {
+        payload = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: normalizePhoneForDB(formData.phoneNumber),
+          dob: formData.dob,
+          ssn: formData.ssn,
+          address: {
+            street1: addressForm.street1 || '',
+            street2: addressForm.street2 || '',
+            city: addressForm.city || '',
+            state: addressForm.state || '',
+            zip: addressForm.zip || ''
+          }
         }
-      })
+      } else if (activeTab === 'joint-holder') {
+        payload = {
+          jointHoldingType: formData.jointHoldingType,
+          jointHolder: {
+            firstName: formData.jointHolder?.firstName || '',
+            lastName: formData.jointHolder?.lastName || '',
+            email: formData.jointHolder?.email || '',
+            phone: normalizePhoneForDB(formData.jointHolder?.phone || ''),
+            dob: formData.jointHolder?.dob || '',
+            ssn: formData.jointHolder?.ssn || '',
+            address: {
+              street1: formData.jointHolder?.address?.street1 || '',
+              street2: formData.jointHolder?.address?.street2 || '',
+              city: formData.jointHolder?.address?.city || '',
+              state: formData.jointHolder?.address?.state || '',
+              zip: formData.jointHolder?.address?.zip || ''
+            }
+          }
+        }
+      } else if (activeTab === 'entity-info') {
+        // Keep existing limited payload behavior for entity tab (no change to backend contract here)
+        payload = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: normalizePhoneForDB(formData.phoneNumber),
+          dob: formData.dob,
+          ssn: formData.ssn
+        }
+      } else if (activeTab === 'trusted-contact') {
+        payload = {
+          trustedContact: {
+            firstName: formData.trustedContact?.firstName || '',
+            lastName: formData.trustedContact?.lastName || '',
+            email: formData.trustedContact?.email || '',
+            phone: normalizePhoneForDB(formData.trustedContact?.phone || ''),
+            relationship: formData.trustedContact?.relationship || ''
+          }
+        }
+      } else {
+        // Fallback - keep previous behavior
+        payload = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: normalizePhoneForDB(formData.phoneNumber),
+          dob: formData.dob,
+          ssn: formData.ssn
+        }
+      }
+
+      // Only send fields supported by the backend ProfileUpdateRequest
+      const data = await apiClient.updateUser(userId, payload)
       if (data.success && data.user) {
         setUserData(data.user)
         setSaveSuccess(true)
@@ -631,30 +724,16 @@ export default function ProfileView() {
     }
   }
 
-  // Save address via users.profile (single source of truth)
-  const handleSaveAddress = async () => {
-    const errorsLocal = {}
-    if (!addressForm.street1.trim()) errorsLocal.addressStreet1 = 'Required'
-    if (!addressForm.city.trim()) errorsLocal.addressCity = 'Required'
-    if (!addressForm.state.trim()) errorsLocal.addressState = 'Required'
-    if (!addressForm.zip.trim()) errorsLocal.addressZip = 'Required'
-    if (Object.keys(errorsLocal).length) {
-      setErrors(prev => ({ ...prev, ...errorsLocal }))
-      return
+  // Primary address change handler (moved from Address tab)
+  const handleAddressFormChange = (e) => {
+    const { name, value } = e.target
+    let formattedValue = value
+    if (name === 'city') {
+      formattedValue = formatCity(value)
+    } else if (name === 'street1' || name === 'street2') {
+      formattedValue = formatStreet(value)
     }
-    try {
-      if (typeof window === 'undefined') return
-      const data = await apiClient.updateUserProfile({ address: addressForm })
-      if (!data || !data.success) {
-        alert(data?.error || 'Failed to save address')
-        return
-      }
-      await loadUser()
-      setSaveSuccess(true)
-    } catch (e) {
-      logger.error('Failed to save address', e)
-      alert('An error occurred. Please try again.')
-    }
+    setAddressForm(prev => ({ ...prev, [name]: formattedValue }))
   }
 
   if (!userData || !formData || !mounted) {
@@ -675,10 +754,10 @@ export default function ProfileView() {
     userData.investments.some(inv => ['pending', 'active', 'withdrawn'].includes(inv.status))
 
   const tabs = [
-    { id: 'investor-info', label: 'Investor Info' },
+    { id: 'primary-holder', label: 'Primary Holder' },
+    ...(showJointSection ? [{ id: 'joint-holder', label: 'Joint Holder' }] : []),
     ...(hasEntityInvestments ? [{ id: 'entity-info', label: 'Entity Information' }] : []),
     { id: 'trusted-contact', label: 'Trusted Contact' },
-    { id: 'addresses', label: 'Address' },
     { id: 'banking', label: 'Banking Information' },
     { id: 'security', label: 'Security' }
   ]
@@ -705,20 +784,17 @@ export default function ProfileView() {
 
       {/* Tab Content */}
       <div className={styles.tabContent}>
-        {activeTab === 'investor-info' && (
-          <InvestorInfoTab
+        {activeTab === 'primary-holder' && (
+          <PrimaryHolderTab
             formData={formData}
             userData={userData}
             errors={errors}
-            showJointSection={showJointSection}
             showSSN={showSSN}
-            showJointSSN={showJointSSN}
             setShowSSN={setShowSSN}
-            setShowJointSSN={setShowJointSSN}
             maskSSN={maskSSN}
             handleChange={handleChange}
-            handleJointHolderChange={handleJointHolderChange}
-            handleJointAddressChange={handleJointAddressChange}
+            addressForm={addressForm}
+            handleAddressFormChange={handleAddressFormChange}
             handleSave={handleSave}
             isSaving={isSaving}
             saveSuccess={saveSuccess}
@@ -726,6 +802,23 @@ export default function ProfileView() {
             maxDob={maxDob}
             maxToday={maxToday}
             hasInvestments={hasInvestments}
+          />
+        )}
+
+        {activeTab === 'joint-holder' && showJointSection && (
+          <JointHolderTab
+            formData={formData}
+            errors={errors}
+            showJointSSN={showJointSSN}
+            setShowJointSSN={setShowJointSSN}
+            maskSSN={maskSSN}
+            handleJointHolderChange={handleJointHolderChange}
+            handleJointAddressChange={handleJointAddressChange}
+            handleSave={handleSave}
+            isSaving={isSaving}
+            saveSuccess={saveSuccess}
+            MIN_DOB={MIN_DOB}
+            maxDob={maxDob}
           />
         )}
 
@@ -756,19 +849,6 @@ export default function ProfileView() {
             errors={errors}
             handleTrustedContactChange={handleTrustedContactChange}
             handleSave={handleSave}
-            isSaving={isSaving}
-            saveSuccess={saveSuccess}
-          />
-        )}
-
-        {activeTab === 'addresses' && (
-          <AddressTab
-            addressForm={addressForm}
-            setAddressForm={setAddressForm}
-            formatCity={formatCity}
-            formatStreet={formatStreet}
-            errors={errors}
-            onSaveAddress={handleSaveAddress}
             isSaving={isSaving}
             saveSuccess={saveSuccess}
           />
@@ -809,7 +889,7 @@ export default function ProfileView() {
 }
 
 // Individual Tab Components
-function InvestorInfoTab({ formData, userData, errors, showJointSection, showSSN, showJointSSN, setShowSSN, setShowJointSSN, maskSSN, handleChange, handleJointHolderChange, handleJointAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments }) {
+function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
@@ -878,88 +958,177 @@ function InvestorInfoTab({ formData, userData, errors, showJointSection, showSSN
         </div>
       </section>
 
-      {showJointSection && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Joint Holder</h2>
+      {/* Primary Address */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Address</h2>
+        <div className={styles.subCard}>
+          <h3 className={styles.subSectionTitle}>Primary Address</h3>
+          <div className={styles.compactGrid}>
+            <div className={styles.field}>
+              <label className={styles.label}>Street Address 1</label>
+              <input
+                className={`${styles.input} ${errors.addressStreet1 ? styles.inputError : ''}`}
+                name="street1"
+                value={addressForm.street1}
+                onChange={handleAddressFormChange}
+                placeholder="123 Main St"
+              />
+              {errors.addressStreet1 && <span className={styles.errorText}>{errors.addressStreet1}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Street Address 2</label>
+              <input
+                className={styles.input}
+                name="street2"
+                value={addressForm.street2}
+                onChange={handleAddressFormChange}
+                placeholder="Apt, Suite, etc. (Optional)"
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>City</label>
+              <input
+                className={`${styles.input} ${errors.addressCity ? styles.inputError : ''}`}
+                name="city"
+                value={addressForm.city}
+                onChange={handleAddressFormChange}
+                placeholder="New York"
+              />
+              {errors.addressCity && <span className={styles.errorText}>{errors.addressCity}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>State</label>
+              <input
+                className={`${styles.input} ${errors.addressState ? styles.inputError : ''}`}
+                name="state"
+                value={addressForm.state}
+                onChange={handleAddressFormChange}
+                placeholder="NY"
+              />
+              {errors.addressState && <span className={styles.errorText}>{errors.addressState}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>ZIP Code</label>
+              <input
+                className={`${styles.input} ${errors.addressZip ? styles.inputError : ''}`}
+                name="zip"
+                value={addressForm.zip}
+                onChange={handleAddressFormChange}
+                placeholder="10001"
+                maxLength={5}
+              />
+              {errors.addressZip && <span className={styles.errorText}>{errors.addressZip}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Country</label>
+              <input
+                className={styles.input}
+                name="country"
+                value={addressForm.country}
+                disabled
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
-          <div className={styles.subCard}>
-            <h3 className={styles.subSectionTitle}>Joint Details</h3>
-            <div className={styles.compactGrid}>
-              <div className={`${styles.field} ${styles.fullRow}`}>
-                <label className={styles.label}>Joint Holder Relationship</label>
-                <select
-                  className={`${styles.input} ${errors.jointHoldingType ? styles.inputError : ''}`}
-                  name="jointHoldingType"
-                  value={formData.jointHoldingType || ''}
-                  onChange={handleChange}
+
+      <div className={styles.actions}>
+        <button
+          className={styles.saveButton}
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </button>
+        {saveSuccess && <span className={styles.success}>Saved!</span>}
+      </div>
+    </div>
+  )
+}
+
+function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskSSN, handleJointHolderChange, handleJointAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob }) {
+  return (
+    <div className={styles.content}>
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Joint Holder</h2>
+
+        <div className={styles.subCard}>
+          <h3 className={styles.subSectionTitle}>Joint Details</h3>
+          <div className={styles.compactGrid}>
+            <div className={`${styles.field} ${styles.fullRow}`}>
+              <label className={styles.label}>Joint Holder Relationship</label>
+              <select
+                className={`${styles.input} ${errors.jointHoldingType ? styles.inputError : ''}`}
+                name="jointHoldingType"
+                value={formData.jointHoldingType || ''}
+                onChange={handleJointHolderChange}
+              >
+                <option value="">Select relationship to primary holder</option>
+                <option value="spouse">Spouse</option>
+                <option value="sibling">Sibling</option>
+                <option value="domestic_partner">Domestic Partner</option>
+                <option value="business_partner">Business Partner</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>First Name</label>
+              <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Last Name</label>
+              <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Email</label>
+              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Phone</label>
+              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Date of Birth</label>
+              <input className={`${styles.input} ${errors.jointDob ? styles.inputError : ''}`} type="date" name="dob" value={formData.jointHolder?.dob || ''} onChange={handleJointHolderChange} min={MIN_DOB} max={maxDob} />
+              {errors.jointDob && <span className={styles.errorText}>{errors.jointDob}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>SSN</label>
+              <div className={styles.inputWrapper}>
+                <input 
+                  className={`${styles.input} ${styles.inputWithToggle} ${errors.jointSsn ? styles.inputError : ''}`}
+                  type="text"
+                  name="ssn" 
+                  value={showJointSSN ? (formData.jointHolder?.ssn || '') : maskSSN(formData.jointHolder?.ssn || '')} 
+                  onChange={handleJointHolderChange}
+                  readOnly={!showJointSSN}
+                />
+                <button
+                  type="button"
+                  className={styles.toggleButton}
+                  onClick={() => setShowJointSSN(!showJointSSN)}
+                  aria-label={showJointSSN ? 'Hide SSN' : 'Show SSN'}
                 >
-                  <option value="">Select relationship to primary holder</option>
-                  <option value="spouse">Spouse</option>
-                  <option value="sibling">Sibling</option>
-                  <option value="domestic_partner">Domestic Partner</option>
-                  <option value="business_partner">Business Partner</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>First Name</label>
-                <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Last Name</label>
-                <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Email</label>
-                <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Phone</label>
-                <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Date of Birth</label>
-                <input className={`${styles.input} ${errors.jointDob ? styles.inputError : ''}`} type="date" name="dob" value={formData.jointHolder?.dob || ''} onChange={handleJointHolderChange} min={MIN_DOB} max={maxDob} />
-                {errors.jointDob && <span className={styles.errorText}>{errors.jointDob}</span>}
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>SSN</label>
-                <div className={styles.inputWrapper}>
-                  <input 
-                    className={`${styles.input} ${styles.inputWithToggle} ${errors.jointSsn ? styles.inputError : ''}`}
-                    type="text"
-                    name="ssn" 
-                    value={showJointSSN ? (formData.jointHolder?.ssn || '') : maskSSN(formData.jointHolder?.ssn || '')} 
-                    onChange={handleJointHolderChange}
-                    readOnly={!showJointSSN}
-                  />
-                  <button
-                    type="button"
-                    className={styles.toggleButton}
-                    onClick={() => setShowJointSSN(!showJointSSN)}
-                    aria-label={showJointSSN ? 'Hide SSN' : 'Show SSN'}
-                  >
-                    {showJointSSN ? 'Hide' : 'Show'}
-                  </button>
-                </div>
+                  {showJointSSN ? 'Hide' : 'Show'}
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className={styles.subCard}>
-            <h3 className={styles.subSectionTitle}>Legal Address</h3>
-            <div className={styles.compactGrid}>
-              <div className={styles.field}><label className={styles.label}>Street 1</label><input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} /></div>
-              <div className={styles.field}><label className={styles.label}>Street 2</label><input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} /></div>
-              <div className={styles.field}><label className={styles.label}>City</label><input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} /></div>
-              <div className={styles.field}><label className={styles.label}>State</label><input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} /></div>
-              <div className={styles.field}><label className={styles.label}>ZIP Code</label><input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} /></div>
-              <div className={styles.field}><label className={styles.label}>Country</label><input className={styles.input} name="country" value={formData.jointHolder?.address?.country || 'United States'} disabled /></div>
-            </div>
+        <div className={styles.subCard}>
+          <h3 className={styles.subSectionTitle}>Legal Address</h3>
+          <div className={styles.compactGrid}>
+            <div className={styles.field}><label className={styles.label}>Street 1</label><input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} /></div>
+            <div className={styles.field}><label className={styles.label}>Street 2</label><input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} /></div>
+            <div className={styles.field}><label className={styles.label}>City</label><input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} /></div>
+            <div className={styles.field}><label className={styles.label}>State</label><input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} /></div>
+            <div className={styles.field}><label className={styles.label}>ZIP Code</label><input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} /></div>
+            <div className={styles.field}><label className={styles.label}>Country</label><input className={styles.input} name="country" value={formData.jointHolder?.address?.country || 'United States'} disabled /></div>
           </div>
-        </section>
-      )}
-
+        </div>
+      </section>
 
       <div className={styles.actions}>
         <button
