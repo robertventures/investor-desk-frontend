@@ -427,6 +427,41 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     }))
   }, [accountType, jointUsePrimaryAddress, form.street1, form.street2, form.city, form.state, form.zip, form.country])
 
+  // Handlers to toggle joint address mode
+  const handleDifferentAddress = () => {
+    setJointUsePrimaryAddress(false)
+    // Clear joint holder address fields so user starts with empty inputs
+    setForm(prev => ({
+      ...prev,
+      jointHolder: {
+        ...prev.jointHolder,
+        street1: '',
+        street2: '',
+        city: '',
+        state: '',
+        zip: '',
+        country: 'United States'
+      }
+    }))
+  }
+
+  const handleUseSameAddress = () => {
+    setJointUsePrimaryAddress(true)
+    // Immediately mirror primary address for better UX (effect also ensures sync)
+    setForm(prev => ({
+      ...prev,
+      jointHolder: {
+        ...prev.jointHolder,
+        street1: prev.street1,
+        street2: prev.street2,
+        city: prev.city,
+        state: prev.state,
+        zip: prev.zip,
+        country: prev.country
+      }
+    }))
+  }
+
   const setFieldValue = (name, value) => {
     if (name.startsWith('jointHolder.')) {
       const fieldName = name.replace('jointHolder.', '')
@@ -670,18 +705,28 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
       // No longer persist client-side snapshots; rely solely on backend as source of truth
 
-      // Use apiClient to call Python backend (background save)
-      // For joint accounts, send full joint payload per backend spec
+      // Use apiClient to call backend (background save). If profile is locked (403), silently ignore.
       apiClient.updateUser(userId, userData)
         .then(userResponse => {
           if (!userResponse.success) {
-            console.error('Failed to update user profile:', userResponse.error)
+            // If backend returned structured failure, only warn when actionable
+            const msg = String(userResponse.error || '').toLowerCase()
+            if (msg.includes('profile is complete') || msg.includes('cannot be modified')) {
+              console.log('ℹ️ Profile is complete; skipping profile update.')
+            } else {
+              console.error('Failed to update user profile:', userResponse.error)
+            }
           } else {
             console.log('✅ User profile updated successfully')
           }
         })
         .catch(e => {
-          console.error('Failed saving user data', e)
+          const msg = String(e?.message || '').toLowerCase()
+          if (e?.statusCode === 403 || msg.includes('profile is complete') || msg.includes('cannot be modified')) {
+            console.log('ℹ️ Profile is complete; skipping profile update.')
+          } else {
+            console.error('Failed saving user data', e)
+          }
         })
 
       // Prepare address data for saving (defined BEFORE usage below)
@@ -1108,11 +1153,11 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
           <div style={{ margin: '16px 0 12px 0' }}>
             {jointUsePrimaryAddress ? (
-              <button type="button" onClick={() => setJointUsePrimaryAddress(false)} className={styles.secondaryButton}>
+              <button type="button" onClick={handleDifferentAddress} className={styles.secondaryButton}>
                 The joint holder has a different address
               </button>
             ) : (
-              <button type="button" onClick={() => setJointUsePrimaryAddress(true)} className={styles.secondaryButton}>
+              <button type="button" onClick={handleUseSameAddress} className={styles.secondaryButton}>
                 Use same address as primary
               </button>
             )}
