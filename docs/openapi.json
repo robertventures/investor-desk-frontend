@@ -12,13 +12,49 @@
           "auth"
         ],
         "summary": "Auth:Token",
-        "description": "Authenticate with email and password to receive JWT access and refresh tokens.",
+        "description": "Authenticate with email and password.",
         "operationId": "auth_token_api_auth_token_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TokenRequest"
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "title": "Email",
+                    "description": "User's email address"
+                  },
+                  "password": {
+                    "type": "string",
+                    "title": "Password",
+                    "description": "User's password"
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "title": "TokenRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ]
               }
             }
           },
@@ -31,16 +67,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -344,6 +370,7 @@
           "profile"
         ],
         "summary": "Profile:Confirm",
+        "description": "Verify email with token and auto-login user.",
         "operationId": "profile_confirm_api_profile_confirm__user_id__put",
         "parameters": [
           {
@@ -507,6 +534,72 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      }
+    },
+    "/api/investments/attestations": {
+      "get": {
+        "tags": [
+          "investments",
+          "investments"
+        ],
+        "summary": "Investments:List-Attestations",
+        "operationId": "investments_list_attestations_api_investments_attestations_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size",
+              "default": 50,
+              "title": "Size"
+            },
+            "description": "Page size"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_AccreditationAttestationResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/investments/{investment_id}": {
@@ -795,6 +888,111 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WithdrawalDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/investments/{investment_id}/agreement": {
+      "get": {
+        "tags": [
+          "investments",
+          "investments"
+        ],
+        "summary": "Investments:Get-Agreement",
+        "description": "Retrieve the investment agreement PDF document.\n\nFor investments in draft status, the PDF will be generated on the fly using the bond document\ntemplate. For investments that have been submitted or processed, the saved PDF will be loaded\nfrom storage if it exists.",
+        "operationId": "investments_get_agreement_api_investments__investment_id__agreement_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "investment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Investment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/investments/{investment_id}/attestations": {
+      "post": {
+        "tags": [
+          "investments",
+          "investments"
+        ],
+        "summary": "Investments:Create-Attestation",
+        "operationId": "investments_create_attestation_api_investments__investment_id__attestations_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "investment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Investment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccreditationAttestationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccreditationAttestationDetailResponse"
                 }
               }
             }
@@ -1842,6 +2040,33 @@
         ]
       }
     },
+    "/api/plaid/link-token": {
+      "post": {
+        "tags": [
+          "plaid",
+          "plaid"
+        ],
+        "summary": "Plaid:Create-Link-Token",
+        "operationId": "plaid_create_link_token_api_plaid_link_token_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkTokenResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -1880,6 +2105,120 @@
           "ira"
         ],
         "title": "AccountType"
+      },
+      "AccreditationAttestationCreateRequest": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AccreditationStatus"
+          },
+          "accreditedType": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccreditedType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tenPercentLimitConfirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenpercentlimitconfirmed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "AccreditationAttestationCreateRequest"
+      },
+      "AccreditationAttestationDetailResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "attestation": {
+            "$ref": "#/components/schemas/AccreditationAttestationResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attestation"
+        ],
+        "title": "AccreditationAttestationDetailResponse"
+      },
+      "AccreditationAttestationResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userId": {
+            "type": "string",
+            "title": "Userid"
+          },
+          "investmentId": {
+            "type": "string",
+            "title": "Investmentid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AccreditationStatus"
+          },
+          "accreditedType": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccreditedType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tenPercentLimitConfirmed": {
+            "type": "boolean",
+            "title": "Tenpercentlimitconfirmed"
+          },
+          "attestedAt": {
+            "type": "string",
+            "title": "Attestedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "investmentId",
+          "status",
+          "accreditedType",
+          "tenPercentLimitConfirmed",
+          "attestedAt"
+        ],
+        "title": "AccreditationAttestationResponse"
+      },
+      "AccreditationStatus": {
+        "type": "string",
+        "enum": [
+          "accredited",
+          "not_accredited"
+        ],
+        "title": "AccreditationStatus"
+      },
+      "AccreditedType": {
+        "type": "string",
+        "enum": [
+          "assets",
+          "income"
+        ],
+        "title": "AccreditedType"
       },
       "AccrualSegmentResponse": {
         "properties": {
@@ -2170,6 +2509,90 @@
         ],
         "title": "AppTimeResponse"
       },
+      "AuthorizedRepresentativeDetail": {
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "title": "Firstname"
+          },
+          "lastName": {
+            "type": "string",
+            "title": "Lastname"
+          },
+          "dob": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dob"
+          },
+          "ssn": {
+            "type": "string",
+            "title": "Ssn"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "dob",
+          "ssn",
+          "address"
+        ],
+        "title": "AuthorizedRepresentativeDetail"
+      },
+      "AuthorizedRepresentativeUpdateRequest": {
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Firstname"
+          },
+          "lastName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Lastname"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date",
+            "title": "Dob"
+          },
+          "ssn": {
+            "type": "string",
+            "maxLength": 11,
+            "title": "Ssn"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "dob",
+          "ssn",
+          "address"
+        ],
+        "title": "AuthorizedRepresentativeUpdateRequest"
+      },
       "CalculationDetails": {
         "properties": {
           "totalPeriods": {
@@ -2236,6 +2659,46 @@
         ],
         "title": "ChangePasswordResponse"
       },
+      "ComplianceInfo": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AccreditationStatus"
+          },
+          "accreditedType": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccreditedType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tenPercentLimitConfirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenpercentlimitconfirmed"
+          },
+          "attestedAt": {
+            "type": "string",
+            "title": "Attestedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "accreditedType",
+          "tenPercentLimitConfirmed",
+          "attestedAt"
+        ],
+        "title": "ComplianceInfo"
+      },
       "ConfirmAccountRequest": {
         "properties": {
           "verificationCode": {
@@ -2283,6 +2746,106 @@
           "refresh_token"
         ],
         "title": "ConfirmAccountResponse"
+      },
+      "EntityDetail": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "registrationDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registrationdate"
+          },
+          "taxId": {
+            "type": "string",
+            "title": "Taxid"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "registrationDate",
+          "taxId"
+        ],
+        "title": "EntityDetail"
+      },
+      "EntityUpdateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "registrationDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Registrationdate"
+          },
+          "taxId": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Taxid"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "registrationDate",
+          "taxId"
+        ],
+        "title": "EntityUpdateRequest"
       },
       "HTTPValidationError": {
         "properties": {
@@ -2503,6 +3066,10 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Amount"
           },
+          "bonds": {
+            "type": "integer",
+            "title": "Bonds"
+          },
           "status": {
             "$ref": "#/components/schemas/InvestmentStatus"
           },
@@ -2566,6 +3133,16 @@
               }
             ],
             "title": "Updatedat"
+          },
+          "compliance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComplianceInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -2573,6 +3150,7 @@
           "id",
           "userId",
           "amount",
+          "bonds",
           "status",
           "lockupPeriod",
           "paymentFrequency",
@@ -2651,6 +3229,130 @@
         "type": "object",
         "title": "InvestmentUpdateRequest"
       },
+      "JointHolderDetail": {
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "title": "Firstname"
+          },
+          "lastName": {
+            "type": "string",
+            "title": "Lastname"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "dob": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dob"
+          },
+          "ssn": {
+            "type": "string",
+            "title": "Ssn"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "email",
+          "phone",
+          "dob",
+          "ssn",
+          "address"
+        ],
+        "title": "JointHolderDetail"
+      },
+      "JointHolderUpdateRequest": {
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Firstname"
+          },
+          "lastName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Lastname"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Phone"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date",
+            "title": "Dob"
+          },
+          "ssn": {
+            "type": "string",
+            "maxLength": 11,
+            "title": "Ssn"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "email",
+          "phone",
+          "dob",
+          "ssn",
+          "address"
+        ],
+        "title": "JointHolderUpdateRequest"
+      },
+      "LinkTokenResponse": {
+        "properties": {
+          "link_token": {
+            "type": "string",
+            "title": "Link Token"
+          },
+          "expiration": {
+            "type": "string",
+            "title": "Expiration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "link_token",
+          "expiration"
+        ],
+        "title": "LinkTokenResponse"
+      },
       "LockupPeriod": {
         "type": "string",
         "enum": [
@@ -2658,6 +3360,46 @@
           "3-year"
         ],
         "title": "LockupPeriod"
+      },
+      "Page_AccreditationAttestationResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccreditationAttestationResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Size"
+          },
+          "pages": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size",
+          "pages"
+        ],
+        "title": "Page[AccreditationAttestationResponse]"
       },
       "Page_ActivityEventResponse_": {
         "properties": {
@@ -3025,6 +3767,48 @@
                 "type": "null"
               }
             ]
+          },
+          "jointHoldingType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jointholdingtype"
+          },
+          "jointHolder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JointHolderUpdateRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EntityUpdateRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorizedRepresentative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuthorizedRepresentativeUpdateRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -3150,27 +3934,6 @@
           "offsetDisplay"
         ],
         "title": "TimeMachineStatusResponse"
-      },
-      "TokenRequest": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email",
-            "title": "Email",
-            "description": "User's email address"
-          },
-          "password": {
-            "type": "string",
-            "title": "Password",
-            "description": "User's password"
-          }
-        },
-        "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
-        "title": "TokenRequest"
       },
       "TokenResponse": {
         "properties": {
@@ -3327,6 +4090,47 @@
             "anyOf": [
               {
                 "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "jointHoldingType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jointholdingtype"
+          },
+          "jointHolder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JointHolderDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EntityDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorizedRepresentative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuthorizedRepresentativeDetail"
               },
               {
                 "type": "null"

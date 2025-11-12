@@ -8,9 +8,9 @@
 }
 
 .container {
-  max-width: 1200px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 var(--container-padding-x);
 }
 
 .leftSection {
@@ -60,7 +60,7 @@
 
 @media (max-width: 768px) {
   .container {
-    padding: 0 16px;
+    padding: 0 var(--container-padding-x-mobile);
   }
   
   .leftSection {

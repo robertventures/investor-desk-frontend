@@ -8,9 +8,9 @@
 }
 
 .container {
-  max-width: 1400px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
-  padding: 0 var(--space-5);
+  padding: 0 var(--container-padding-x);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -79,7 +79,7 @@
 
 @media (max-width: 768px) {
   .container {
-    padding: 0 var(--space-3);
+    padding: 0 var(--container-padding-x-mobile);
     flex-wrap: wrap;
     gap: var(--space-3);
   }
@@ -113,7 +113,7 @@
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   }
   .mobileNav {
-    max-width: 1400px;
+    max-width: var(--container-max-width);
     margin: 0 auto;
     padding: var(--space-1) var(--space-3) var(--space-3) var(--space-3);
     display: grid;

@@ -33,7 +33,7 @@
 
 .documentsList {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--container-max-width);
   margin-bottom: 40px;
   text-align: left;
 }

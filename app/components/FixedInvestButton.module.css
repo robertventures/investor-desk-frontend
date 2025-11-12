@@ -1,11 +1,11 @@
 .fixedButtonContainer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--color-surface); border-top: 1px solid var(--color-border); padding: var(--space-3) var(--space-5); z-index: 1000; box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.1); }
 
-.investButton { width: 100%; max-width: 1400px; margin: 0 auto; background: var(--color-brand); color: #ffffff; border: none; padding: var(--space-3) var(--space-5); border-radius: var(--radius-md); font-size: var(--text-md); font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: block; }
+.investButton { width: 100%; max-width: var(--container-max-width); margin: 0 auto; background: #152429; color: #D3FBD8; border: none; padding: var(--space-3) var(--space-5); border-radius: var(--radius-md); font-size: 20px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: block; }
 
 .investButton:hover {
-  background: #1d4ed8;
+  background: #1e3439;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(30, 64, 175, 0.3);
+  box-shadow: 0 4px 8px rgba(21, 36, 41, 0.3);
 }
 
 .investButton:active {

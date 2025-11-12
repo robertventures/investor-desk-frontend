@@ -118,7 +118,7 @@ const isAdultDob = (value = '') => {
 // Map state abbreviations to full names to ensure select pre-fills correctly
 const STATE_ABBR_TO_NAME = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
-  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia',
   HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas',
   KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts',
   MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana',
@@ -140,7 +140,7 @@ const toFullStateName = (value = '') => {
 
 export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary, accountType: accountTypeProp }) {
   const US_STATES = [
-    'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'
+    'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','District of Columbia','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'
   ]
   const [form, setForm] = useState({
     firstName: '',
@@ -191,8 +191,16 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   const [showAuthorizedRepSsnHelp, setShowAuthorizedRepSsnHelp] = useState(false)
   const [showJointSsnHelp, setShowJointSsnHelp] = useState(false)
   const [hasActiveInvestments, setHasActiveInvestments] = useState(false)
+  
+  // Get user data first before using it
+  const { userData, refreshUser } = useUser()
+  const hasLoadedUserDataRef = useRef(false)
+  
   const idLabel = accountType === 'entity' ? 'EIN or TIN' : 'SSN'
   const dateLabel = accountType === 'entity' ? 'Registration Date' : 'Date of Birth'
+  const primaryFullName = [form.firstName, form.lastName].filter(Boolean).join(' ').trim() || null
+  const governingStateDisplay = form.state || (userData?.address?.state || 'their state of residence')
+  const nameSegment = primaryFullName ? `, ${primaryFullName},` : ''
 
   const maxAdultDob = useMemo(() => {
     const now = new Date()
@@ -207,9 +215,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   useEffect(() => {
     if (accountTypeProp) setAccountType(accountTypeProp)
   }, [accountTypeProp])
-
-  const { userData, refreshUser } = useUser()
-  const hasLoadedUserDataRef = useRef(false)
 
   // Refresh user data when component mounts to ensure we have the latest investor information
   useEffect(() => {
@@ -805,6 +810,11 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             email: form.jointHolder.email,
             phone: normalizePhoneForBackend(form.jointHolder.phone)
           }
+          // Record acknowledgement at time of completing identity step
+          investmentFields.jointHolderAcknowledgement = {
+            accepted: true,
+            acceptedAt: new Date().toISOString()
+          }
         }
 
         try {
@@ -1207,6 +1217,10 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               </div>
             </div>
           )}
+
+          <p className={styles.acknowledgement} style={{ marginTop: '12px' }}>
+            By clicking "Continue" I{nameSegment} confirm that I have informed my Joint Holder of the terms of the Subscription Agreement, including the investment risks and amount, and my Joint Holder consents to and authorizes me to enter into it on our behalf with respect to any such interests, waiving any challenge based on lack of joint holder consent under the laws of {governingStateDisplay}.
+          </p>
         </>
       )}
 

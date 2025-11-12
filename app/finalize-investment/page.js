@@ -783,6 +783,38 @@ function ClientContent() {
                 return
               }
               console.log('Investment updated successfully!')
+
+              // Create accreditation attestation BEFORE submitting (immutable once created)
+              try {
+                const alreadyAttested = Boolean(investment?.compliance?.attestedAt || investment?.compliance?.status)
+                if (!alreadyAttested) {
+                  const attestationPayload = {
+                    status: accredited,
+                    accreditedType: accredited === 'accredited' ? accreditedType : null,
+                    tenPercentLimitConfirmed: accredited === 'not_accredited' ? !!tenPercentConfirmed : null
+                  }
+                  console.log('Creating accreditation attestation with payload:', attestationPayload)
+                  await apiClient.createAttestation(investmentId, attestationPayload)
+                  console.log('Accreditation attestation created successfully')
+                } else {
+                  console.log('Accreditation attestation already exists for this investment; skipping creation')
+                }
+              } catch (attErr) {
+                const msg = (attErr && attErr.message) ? attErr.message : 'Unknown error'
+                const detail = attErr?.responseData?.detail
+                const detailStr = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : '')
+                const combined = detailStr || msg
+                // If backend indicates the attestation already exists, proceed; otherwise block
+                const lower = (combined || '').toLowerCase()
+                const isAlreadyExists = attErr?.statusCode === 409 || lower.includes('already') || lower.includes('exists')
+                if (!isAlreadyExists) {
+                  console.error('Creating accreditation attestation failed:', attErr)
+                  setSubmitError(`Failed to save accreditation attestation: ${combined}`)
+                  return
+                } else {
+                  console.log('Attestation appears to already exist; proceeding with submission.')
+                }
+              }
               
               // Submit the investment to move it from DRAFT to PENDING status
               console.log('Submitting investment...')
@@ -817,8 +849,7 @@ function ClientContent() {
               }
               
               // Store finalization data in localStorage for future reference
-              // Note: The API doesn't support storing compliance, banking, and document data yet
-              // so we store it client-side for now
+              // Note: Compliance data is now stored via backend attestation; we also keep a local snapshot
               const finalizationData = {
                 investmentId,
                 timestamp: appTime,

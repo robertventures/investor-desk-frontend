@@ -115,6 +115,22 @@ export default function ProfileView() {
     country: 'United States'
   })
 
+  // Build and replace dashboard URL with a single section=profile and optional tab
+  const replaceProfileUrl = (options = {}) => {
+    const next = new URLSearchParams()
+    // Copy existing params except section, from, and optionally tab (if provided)
+    for (const [key, value] of searchParams.entries()) {
+      if (key === 'section' || key === 'from') continue
+      if (options.tab !== undefined && key === 'tab') continue
+      next.append(key, value)
+    }
+    next.set('section', 'profile')
+    if (options.tab !== undefined) {
+      next.set('tab', options.tab)
+    }
+    router.replace(`/dashboard?${next.toString()}`, { scroll: false })
+  }
+
   useEffect(() => {
     setMounted(true)
     loadUser()
@@ -143,9 +159,7 @@ export default function ProfileView() {
         const hasEntityInvestments = Array.isArray(userData?.investments) && 
           userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
         if (!hasEntityInvestments) {
-          const params = new URLSearchParams(searchParams.toString())
-          params.set('tab', 'primary-holder')
-          router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
+          replaceProfileUrl({ tab: 'primary-holder' })
           setActiveTab('primary-holder')
           return
         }
@@ -153,18 +167,14 @@ export default function ProfileView() {
 
       // Guard: joint-holder tab only when joint is available
       if (resolved === 'joint-holder' && !localShowJoint) {
-        const params = new URLSearchParams(searchParams.toString())
-        params.set('tab', 'primary-holder')
-        router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
+        replaceProfileUrl({ tab: 'primary-holder' })
         setActiveTab('primary-holder')
         return
       }
 
       // Apply mapping if changed
       if (remapped !== tab) {
-        const params = new URLSearchParams(searchParams.toString())
-        params.set('tab', remapped)
-        router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
+        replaceProfileUrl({ tab: remapped })
       }
       setActiveTab(resolved)
     }
@@ -328,9 +338,7 @@ export default function ProfileView() {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab)
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', tab)
-    router.replace(`/dashboard?section=profile&${params.toString()}`, { scroll: false })
+    replaceProfileUrl({ tab })
   }
 
   const handleChange = (e) => {
@@ -1072,6 +1080,12 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                 <option value="other">Other</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        <div className={styles.subCard}>
+          <h3 className={styles.subSectionTitle}>Personal Information</h3>
+          <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>First Name</label>
               <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} />
@@ -1081,20 +1095,12 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
               <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Email</label>
-              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Phone</label>
-              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" />
-            </div>
-            <div className={styles.field}>
               <label className={styles.label}>Date of Birth</label>
               <input className={`${styles.input} ${errors.jointDob ? styles.inputError : ''}`} type="date" name="dob" value={formData.jointHolder?.dob || ''} onChange={handleJointHolderChange} min={MIN_DOB} max={maxDob} />
               {errors.jointDob && <span className={styles.errorText}>{errors.jointDob}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>SSN</label>
+              <label className={styles.label}>Social Security Number</label>
               <div className={styles.inputWrapper}>
                 <input 
                   className={`${styles.input} ${styles.inputWithToggle} ${errors.jointSsn ? styles.inputError : ''}`}
@@ -1103,6 +1109,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                   value={showJointSSN ? (formData.jointHolder?.ssn || '') : maskSSN(formData.jointHolder?.ssn || '')} 
                   onChange={handleJointHolderChange}
                   readOnly={!showJointSSN}
+                  placeholder="123-45-6789"
                 />
                 <button
                   type="button"
@@ -1118,14 +1125,54 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
         </div>
 
         <div className={styles.subCard}>
+          <h3 className={styles.subSectionTitle}>Contact Information</h3>
+          <div className={styles.compactGrid}>
+            <div className={styles.field}>
+              <label className={styles.label}>Email</label>
+              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Phone</label>
+              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Joint Holder Address */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Address</h2>
+        <div className={styles.subCard}>
           <h3 className={styles.subSectionTitle}>Legal Address</h3>
           <div className={styles.compactGrid}>
-            <div className={styles.field}><label className={styles.label}>Street 1</label><input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} /></div>
-            <div className={styles.field}><label className={styles.label}>Street 2</label><input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} /></div>
-            <div className={styles.field}><label className={styles.label}>City</label><input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} /></div>
-            <div className={styles.field}><label className={styles.label}>State</label><input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} /></div>
-            <div className={styles.field}><label className={styles.label}>ZIP Code</label><input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} /></div>
-            <div className={styles.field}><label className={styles.label}>Country</label><input className={styles.input} name="country" value={formData.jointHolder?.address?.country || 'United States'} disabled /></div>
+            <div className={styles.field}>
+              <label className={styles.label}>Street Address 1</label>
+              <input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} placeholder="123 Main St" />
+              {errors.jointStreet1 && <span className={styles.errorText}>{errors.jointStreet1}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Street Address 2</label>
+              <input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} placeholder="Apt, Suite, etc. (Optional)" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>City</label>
+              <input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} placeholder="New York" />
+              {errors.jointCity && <span className={styles.errorText}>{errors.jointCity}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>State</label>
+              <input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} placeholder="NY" />
+              {errors.jointState && <span className={styles.errorText}>{errors.jointState}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>ZIP Code</label>
+              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" maxLength={5} />
+              {errors.jointZip && <span className={styles.errorText}>{errors.jointZip}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Country</label>
+              <input className={styles.input} name="country" value={formData.jointHolder?.address?.country || 'United States'} disabled />
+            </div>
           </div>
         </div>
       </section>

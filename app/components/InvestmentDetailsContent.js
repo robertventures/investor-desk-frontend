@@ -111,6 +111,25 @@ export default function InvestmentDetailsContent({ investmentId }) {
     }
   }, [investmentId, router, userData, userLoading])
 
+  // Log investment data when it becomes available and fetch fresh details for debugging
+  useEffect(() => {
+    if (!investmentData) return
+    try {
+      console.log('[InvestmentDetails] Investment (from list):', investmentData)
+      // Also fetch the latest state from backend for verification
+      apiClient.getInvestment(investmentData.id)
+        .then((res) => {
+          const latest = res?.investment || res
+          console.log('[InvestmentDetails] Investment (fresh from API):', latest)
+        })
+        .catch((err) => {
+          console.error('[InvestmentDetails] Failed fetching latest investment from API:', err)
+        })
+    } catch (e) {
+      // noop
+    }
+  }, [investmentData])
+
   const handleWithdrawalClick = () => {
     setShowWithdrawConfirm(true)
   }
@@ -174,6 +193,14 @@ export default function InvestmentDetailsContent({ investmentId }) {
     monthlyEarnings = calculation.monthlyInterestAmount
   }
   const monthsElapsed = calculation.monthsElapsed
+  // Derive bonds when missing in historical records (assume $10 face value per bond)
+  const computedBonds = (() => {
+    const explicit = Number(investmentData.bonds)
+    if (!Number.isNaN(explicit) && explicit > 0) return explicit
+    const amount = Number(investmentData.amount)
+    if (!Number.isNaN(amount) && amount > 0) return Math.round(amount / 10)
+    return 0
+  })()
 
   const formatDate = (dateString) => {
     if (!dateString) return '-'
@@ -333,7 +360,7 @@ export default function InvestmentDetailsContent({ investmentId }) {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>BONDS</span>
-                  <span className={styles.detailValue}>{investmentData.bonds || '0'}</span>
+                  <span className={styles.detailValue}>{computedBonds.toLocaleString()}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>BOND ISSUED</span>

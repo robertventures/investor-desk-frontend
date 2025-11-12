@@ -11,9 +11,9 @@
 }
 
 .container {
-  max-width: 1400px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
-  padding: var(--space-6) var(--space-5);
+  padding: var(--space-6) var(--container-padding-x);
 }
 
 .content {
@@ -525,7 +525,7 @@
 
 @media (max-width: 768px) {
   .container {
-    padding: 16px;
+    padding: 16px var(--container-padding-x-mobile);
   }
 
   .content {
@@ -595,7 +595,7 @@
 
 @media (max-width: 480px) {
   .container {
-    padding: 8px;
+    padding: 8px var(--container-padding-x-mobile);
   }
 
   .content {

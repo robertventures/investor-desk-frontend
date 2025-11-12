@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Auth:Token
-         * @description Authenticate with email and password to receive JWT access and refresh tokens.
+         * @description Authenticate with email and password.
          */
         post: operations["auth_token_api_auth_token_post"];
         delete?: never;
@@ -123,7 +123,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Profile:Confirm */
+        /**
+         * Profile:Confirm
+         * @description Verify email with token and auto-login user.
+         */
         put: operations["profile_confirm_api_profile_confirm__user_id__put"];
         post?: never;
         delete?: never;
@@ -161,6 +164,23 @@ export interface paths {
         put?: never;
         /** Investments:Create */
         post: operations["investments_create_api_investments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/investments/attestations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Investments:List-Attestations */
+        get: operations["investments_list_attestations_api_investments_attestations_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -231,6 +251,47 @@ export interface paths {
         put?: never;
         /** Investments:Withdraw */
         post: operations["investments_withdraw_api_investments__investment_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/investments/{investment_id}/agreement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Investments:Get-Agreement
+         * @description Retrieve the investment agreement PDF document.
+         *
+         *     For investments in draft status, the PDF will be generated on the fly using the bond document
+         *     template. For investments that have been submitted or processed, the saved PDF will be loaded
+         *     from storage if it exists.
+         */
+        get: operations["investments_get_agreement_api_investments__investment_id__agreement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/investments/{investment_id}/attestations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Investments:Create-Attestation */
+        post: operations["investments_create_attestation_api_investments__investment_id__attestations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -493,6 +554,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plaid/link-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plaid:Create-Link-Token */
+        post: operations["plaid_create_link_token_api_plaid_link_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -522,6 +600,47 @@ export interface components {
          * @enum {string}
          */
         AccountType: "individual" | "joint" | "entity" | "ira";
+        /** AccreditationAttestationCreateRequest */
+        AccreditationAttestationCreateRequest: {
+            status: components["schemas"]["AccreditationStatus"];
+            accreditedType?: components["schemas"]["AccreditedType"] | null;
+            /** Tenpercentlimitconfirmed */
+            tenPercentLimitConfirmed?: boolean | null;
+        };
+        /** AccreditationAttestationDetailResponse */
+        AccreditationAttestationDetailResponse: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            attestation: components["schemas"]["AccreditationAttestationResponse"];
+        };
+        /** AccreditationAttestationResponse */
+        AccreditationAttestationResponse: {
+            /** Id */
+            id: number;
+            /** Userid */
+            userId: string;
+            /** Investmentid */
+            investmentId: string;
+            status: components["schemas"]["AccreditationStatus"];
+            accreditedType: components["schemas"]["AccreditedType"] | null;
+            /** Tenpercentlimitconfirmed */
+            tenPercentLimitConfirmed: boolean;
+            /** Attestedat */
+            attestedAt: string;
+        };
+        /**
+         * AccreditationStatus
+         * @enum {string}
+         */
+        AccreditationStatus: "accredited" | "not_accredited";
+        /**
+         * AccreditedType
+         * @enum {string}
+         */
+        AccreditedType: "assets" | "income";
         /** AccrualSegmentResponse */
         AccrualSegmentResponse: {
             /** Segmenttype */
@@ -604,6 +723,33 @@ export interface components {
             /** Apptime */
             appTime: string;
         };
+        /** AuthorizedRepresentativeDetail */
+        AuthorizedRepresentativeDetail: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /** Dob */
+            dob: string | null;
+            /** Ssn */
+            ssn: string;
+            address: components["schemas"]["AddressDetail"] | null;
+        };
+        /** AuthorizedRepresentativeUpdateRequest */
+        AuthorizedRepresentativeUpdateRequest: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /**
+             * Dob
+             * Format: date
+             */
+            dob: string;
+            /** Ssn */
+            ssn: string;
+            address: components["schemas"]["AddressDetail"];
+        };
         /** CalculationDetails */
         CalculationDetails: {
             /** Totalperiods */
@@ -635,6 +781,15 @@ export interface components {
             success: boolean;
             user: components["schemas"]["UserResponse"];
         };
+        /** ComplianceInfo */
+        ComplianceInfo: {
+            status: components["schemas"]["AccreditationStatus"];
+            accreditedType: components["schemas"]["AccreditedType"] | null;
+            /** Tenpercentlimitconfirmed */
+            tenPercentLimitConfirmed: boolean | null;
+            /** Attestedat */
+            attestedAt: string;
+        };
         /** ConfirmAccountRequest */
         ConfirmAccountRequest: {
             /**
@@ -660,6 +815,33 @@ export interface components {
              * @default true
              */
             auto_logged_in: boolean;
+        };
+        /** EntityDetail */
+        EntityDetail: {
+            /** Name */
+            name: string;
+            /** Registrationdate */
+            registrationDate: string | null;
+            /** Taxid */
+            taxId: string;
+            /** Phone */
+            phone?: string | null;
+            address?: components["schemas"]["AddressDetail"] | null;
+        };
+        /** EntityUpdateRequest */
+        EntityUpdateRequest: {
+            /** Name */
+            name: string;
+            /**
+             * Registrationdate
+             * Format: date
+             */
+            registrationDate: string;
+            /** Taxid */
+            taxId: string;
+            /** Phone */
+            phone?: string | null;
+            address?: components["schemas"]["AddressDetail"] | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -739,6 +921,8 @@ export interface components {
             userId: number;
             /** Amount */
             amount: string;
+            /** Bonds */
+            bonds: number;
             status: components["schemas"]["InvestmentStatus"];
             lockupPeriod: components["schemas"]["LockupPeriod"];
             paymentFrequency: components["schemas"]["PaymentFrequency"];
@@ -755,6 +939,7 @@ export interface components {
             createdAt: string | null;
             /** Updatedat */
             updatedAt: string | null;
+            compliance?: components["schemas"]["ComplianceInfo"] | null;
         };
         /**
          * InvestmentStatus
@@ -772,11 +957,69 @@ export interface components {
             /** @description Supported values: ('ach', 'wire') */
             paymentMethod?: components["schemas"]["PaymentMethod"] | null;
         };
+        /** JointHolderDetail */
+        JointHolderDetail: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /** Email */
+            email: string;
+            /** Phone */
+            phone: string;
+            /** Dob */
+            dob: string | null;
+            /** Ssn */
+            ssn: string;
+            address: components["schemas"]["AddressDetail"] | null;
+        };
+        /** JointHolderUpdateRequest */
+        JointHolderUpdateRequest: {
+            /** Firstname */
+            firstName: string;
+            /** Lastname */
+            lastName: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Phone */
+            phone: string;
+            /**
+             * Dob
+             * Format: date
+             */
+            dob: string;
+            /** Ssn */
+            ssn: string;
+            address: components["schemas"]["AddressDetail"];
+        };
+        /** LinkTokenResponse */
+        LinkTokenResponse: {
+            /** Link Token */
+            link_token: string;
+            /** Expiration */
+            expiration: string;
+        };
         /**
          * LockupPeriod
          * @enum {string}
          */
         LockupPeriod: "1-year" | "3-year";
+        /** Page[AccreditationAttestationResponse] */
+        Page_AccreditationAttestationResponse_: {
+            /** Items */
+            items: components["schemas"]["AccreditationAttestationResponse"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
+            /** Pages */
+            pages: number;
+        };
         /** Page[ActivityEventResponse] */
         Page_ActivityEventResponse_: {
             /** Items */
@@ -898,6 +1141,11 @@ export interface components {
             ssn?: string | null;
             address?: components["schemas"]["AddressUpdateRequest"] | null;
             accountType?: components["schemas"]["AccountType"] | null;
+            /** Jointholdingtype */
+            jointHoldingType?: string | null;
+            jointHolder?: components["schemas"]["JointHolderUpdateRequest"] | null;
+            entity?: components["schemas"]["EntityUpdateRequest"] | null;
+            authorizedRepresentative?: components["schemas"]["AuthorizedRepresentativeUpdateRequest"] | null;
         };
         /** ProfileUpdateResponse */
         ProfileUpdateResponse: {
@@ -959,20 +1207,6 @@ export interface components {
             offsetSeconds: number;
             /** Offsetdisplay */
             offsetDisplay: string;
-        };
-        /** TokenRequest */
-        TokenRequest: {
-            /**
-             * Email
-             * Format: email
-             * @description User's email address
-             */
-            email: string;
-            /**
-             * Password
-             * @description User's password
-             */
-            password: string;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -1037,6 +1271,11 @@ export interface components {
             ssn?: string | null;
             address?: components["schemas"]["AddressDetail"] | null;
             accountType?: string | null;
+            /** Jointholdingtype */
+            jointHoldingType?: string | null;
+            jointHolder?: components["schemas"]["JointHolderDetail"] | null;
+            entity?: components["schemas"]["EntityDetail"] | null;
+            authorizedRepresentative?: components["schemas"]["AuthorizedRepresentativeDetail"] | null;
             /** Createdat */
             createdAt?: string | null;
             /** Updatedat */
@@ -1196,7 +1435,24 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TokenRequest"];
+                "application/json": {
+                    /**
+                     * Email
+                     * Format: email
+                     * @description User's email address
+                     */
+                    email: string;
+                    /**
+                     * Password
+                     * @description User's password
+                     */
+                    password: string;
+                };
+                "application/x-www-form-urlencoded": {
+                    /** Format: email */
+                    username: string;
+                    password: string;
+                };
             };
         };
         responses: {
@@ -1207,15 +1463,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1559,6 +1806,40 @@ export interface operations {
             };
         };
     };
+    investments_list_attestations_api_investments_attestations_get: {
+        parameters: {
+            query?: {
+                /** @description Page number */
+                page?: number;
+                /** @description Page size */
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AccreditationAttestationResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     investments_get_api_investments__investment_id__get: {
         parameters: {
             query?: never;
@@ -1736,6 +2017,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WithdrawalDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    investments_get_agreement_api_investments__investment_id__agreement_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                investment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    investments_create_attestation_api_investments__investment_id__attestations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                investment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccreditationAttestationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccreditationAttestationDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2232,6 +2579,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TimeMachineStatusResponse"];
+                };
+            };
+        };
+    };
+    plaid_create_link_token_api_plaid_link_token_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkTokenResponse"];
                 };
             };
         };

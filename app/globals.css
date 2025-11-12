@@ -55,13 +55,17 @@ body {
   --text-xl: 22px;
   --text-2xl: 24px;
   --text-3xl: 28px;
+  /* Container tokens */
+  --container-max-width: 1400px;
+  --container-padding-x: var(--space-5);
+  --container-padding-x-mobile: var(--space-3);
 }
 
 /* Wireframe utilities */
 .container {
-  max-width: 1200px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
-  padding: 0 var(--space-5);
+  padding: 0 var(--container-padding-x);
 }
 
 .wireframe-border {
