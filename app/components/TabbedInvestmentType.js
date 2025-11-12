@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { apiClient } from '@/lib/apiClient'
 import styles from './TabbedInvestmentType.module.css'
 
 const options = [
@@ -27,87 +28,39 @@ export default function TabbedInvestmentType({ onCompleted, showContinueButton =
     setSelected(key)
     if (typeof onChange === 'function') onChange(key)
 
-    // Don't save account type to user record until investment is confirmed
-    // Just update the local state and draft investment
+    // Save a local draft fallback for resume scenarios
+    try {
+      if (typeof window !== 'undefined') {
+        const invId = localStorage.getItem('currentInvestmentId')
+        const storageKey = invId ? `investment_${invId}_accountType` : 'investment_draft_accountType'
+        localStorage.setItem(storageKey, key)
+      }
+    } catch {}
 
+    // Don't auto-save to backend on select unless explicitly enabled
     if (!autoSaveOnSelect) return
+    
+    // If auto-save is enabled, update the profile immediately
     try {
       if (typeof window === 'undefined') return
-
       const userId = localStorage.getItem('currentUserId')
-      const investmentId = localStorage.getItem('currentInvestmentId')
-      if (!userId || !investmentId) return
+      if (!userId) return
+      
       setIsSaving(true)
-      const res = await fetch(`/api/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ _action: 'updateInvestment', investmentId, fields: { accountType: key } })
-      })
-      const data = await res.json()
-      if (data.success && typeof onCompleted === 'function') onCompleted(key)
+      await apiClient.patchUserProfile({ accountType: key })
+      console.log(`✅ Auto-saved account type to profile: ${key}`)
+      if (typeof onCompleted === 'function') onCompleted(key)
     } catch (e) {
-      console.error('Failed to set account type', e)
+      // Silently ignore if profile is locked or backend rejects
+      console.log('Account type auto-save skipped/failed:', e?.message || e)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleContinue = async () => {
-    const userId = localStorage.getItem('currentUserId')
-    if (!userId) return
-
-    // First, ensure the user's account type is set
-    try {
-      const userRes = await fetch(`/api/users/${userId}`)
-      const userData = await userRes.json()
-
-      if (userData.success && !userData.user.accountType) {
-        console.log(`Setting user ${userId} account type to ${selected}`, {
-          currentAccountType: userData.user.accountType,
-          newAccountType: selected
-        })
-
-        const res = await fetch(`/api/users/${userId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountType: selected })
-        })
-
-        const updateResponse = await res.json()
-
-        if (!res.ok || !updateResponse.success) {
-          console.error('Failed to set user account type:', updateResponse?.error || 'Unknown error')
-        } else {
-          console.log(`✅ Successfully set user account type to ${selected}`)
-        }
-      } else {
-        console.log(`User ${userId} already has account type: ${userData.user.accountType}`)
-      }
-    } catch (e) {
-      console.error('Failed to set user account type', e)
-    }
-
-    const investmentId = localStorage.getItem('currentInvestmentId')
-    if (!investmentId) {
-      setIsSaving(true)
-      return
-    }
-
-    setIsSaving(true)
-    try {
-      const res = await fetch(`/api/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ _action: 'updateInvestment', investmentId, fields: { accountType: selected } })
-      })
-      const data = await res.json()
-      if (data.success) {
-        if (typeof onCompleted === 'function') onCompleted(selected)
-      }
-    } catch (e) {
-      console.error('Failed to set account type', e)
-    } finally {
-      setIsSaving(false)
+    if (typeof onCompleted === 'function') {
+      onCompleted(selected)
     }
   }
 

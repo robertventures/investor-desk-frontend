@@ -204,11 +204,21 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         return
       }
 
+      // Persist selected account type to user profile early (backend will lock if not allowed)
+      if (accountType) {
+        try {
+          await apiClient.patchUserProfile({ accountType })
+          console.log(`✅ Account type saved to profile: ${accountType}`)
+        } catch (e) {
+          // Silently ignore if profile is locked or backend rejects partial data
+          console.log('Account type profile update skipped/failed:', e?.message || e)
+        }
+      }
+
       const investmentPayload = {
         amount: formData.investmentAmount,
         paymentFrequency: formData.paymentFrequency,
-        lockupPeriod,
-        accountType
+        lockupPeriod
       }
 
       console.log('Creating investment with payload:', investmentPayload)
@@ -234,10 +244,6 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             // Save new investment id
             if (data.investment?.id) {
               localStorage.setItem('currentInvestmentId', data.investment.id)
-              if (accountType) {
-                apiClient.updateInvestment(userId, data.investment.id, { accountType })
-                  .catch(err => console.error('Account type update failed:', err))
-              }
             }
             notifyCompletion(data.investment?.id, lockupPeriod)
             return
@@ -245,54 +251,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
           alert(data.error || 'Failed to update investment')
           return
         }
-        
-        // If account type was already chosen, update it (wait for completion)
-        if (accountType) {
-          try {
-            const resp = await apiClient.updateInvestment(userId, existingInvestmentId, { accountType })
-            console.log('✅ Account type update attempt (investment):', {
-              requestedAccountType: accountType,
-              success: resp?.success,
-              returnedAccountType: resp?.investment?.accountType
-            })
-            // Fallback: if backend didn't echo accountType on investment, persist on user profile
-            if (!resp?.success || !resp?.investment || !resp.investment.accountType) {
-              // Only fallback to user profile for 'individual' where no extra fields are required
-              if (accountType === 'individual') {
-                console.log('⚠️ Investment update missing accountType, falling back to user profile for individual')
-                try {
-                  const userResp = await apiClient.updateUser(userId, { accountType })
-                  console.log('✅ Fallback: User profile accountType updated:', {
-                    success: userResp?.success,
-                    accountType
-                  })
-                } catch (e) {
-                  console.error('❌ Fallback user accountType update failed:', e)
-                }
-              } else {
-                console.log('ℹ️ Skipping profile fallback for non-individual accountType until identity step provides required fields')
-              }
-            }
-          } catch (err) {
-            console.error('❌ Investment accountType update failed (likely 401):', err)
-            // Fallback: Save accountType to user profile instead
-            if (accountType === 'individual') {
-              console.log('⚠️ Attempting fallback: saving accountType to user profile (individual)')
-              try {
-                const userResp = await apiClient.updateUser(userId, { accountType })
-                console.log('✅ Fallback: User profile accountType updated:', {
-                  success: userResp?.success,
-                  accountType
-                })
-              } catch (e) {
-                console.error('❌ Fallback user accountType update also failed:', e)
-              }
-            } else {
-              console.log('ℹ️ Skipping profile fallback for non-individual accountType after failure')
-            }
-          }
-        }
-        
+
         notifyCompletion(existingInvestmentId, lockupPeriod)
       } else {
         // Create new draft investment (API requires paymentMethod, use 'ach' as default)
@@ -306,51 +265,6 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         // Save current investment id for next steps
         if (data.investment?.id) {
           localStorage.setItem('currentInvestmentId', data.investment.id)
-          // If account type was already chosen earlier in the step, persist it now (wait for completion)
-          if (accountType) {
-            try {
-              const resp = await apiClient.updateInvestment(userId, data.investment.id, { accountType })
-              console.log('✅ Account type save attempt (investment):', {
-                requestedAccountType: accountType,
-                success: resp?.success,
-                returnedAccountType: resp?.investment?.accountType
-              })
-              // Fallback: if backend didn't echo accountType on investment, persist on user profile
-              if (!resp?.success || !resp?.investment || !resp.investment.accountType) {
-                if (accountType === 'individual') {
-                  console.log('⚠️ Investment creation missing accountType, falling back to user profile for individual')
-                  try {
-                    const userResp = await apiClient.updateUser(userId, { accountType })
-                    console.log('✅ Fallback: User profile accountType updated:', {
-                      success: userResp?.success,
-                      accountType
-                    })
-                  } catch (e) {
-                    console.error('❌ Fallback user accountType update failed:', e)
-                  }
-                } else {
-                  console.log('ℹ️ Skipping profile fallback for non-individual accountType until identity step provides required fields')
-                }
-              }
-            } catch (err) {
-              console.error('❌ Investment accountType save failed (likely 401):', err)
-              // Fallback: Save accountType to user profile instead
-              if (accountType === 'individual') {
-                console.log('⚠️ Attempting fallback: saving accountType to user profile (individual)')
-                try {
-                  const userResp = await apiClient.updateUser(userId, { accountType })
-                  console.log('✅ Fallback: User profile accountType updated:', {
-                    success: userResp?.success,
-                    accountType
-                  })
-                } catch (e) {
-                  console.error('❌ Fallback user accountType update also failed:', e)
-                }
-              } else {
-                console.log('ℹ️ Skipping profile fallback for non-individual accountType after failure')
-              }
-            }
-          }
         }
         notifyCompletion(data.investment?.id, lockupPeriod)
       }

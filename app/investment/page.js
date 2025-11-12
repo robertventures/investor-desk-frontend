@@ -168,8 +168,6 @@ function InvestmentPageContent() {
                     sample: existingInvestment
                   })
                 } catch {}
-                // Store draft accountType to use after checking user constraints
-                if (existingInvestment.accountType) draftAccountType = existingInvestment.accountType
                 if (existingInvestment.amount !== undefined && existingInvestment.amount !== null) {
                   const amountNumber = typeof existingInvestment.amount === 'number' ? existingInvestment.amount : parseFloat(existingInvestment.amount) || 0
                   setInvestmentAmount(amountNumber)
@@ -202,25 +200,43 @@ function InvestmentPageContent() {
             setLockedAccountType(data.user.accountType)
             setSelectedAccountType(data.user.accountType)
           } else {
-            // User has no confirmed investments yet - prioritize draft accountType if available
+            // User has no confirmed investments yet - use profile accountType if available; otherwise use local draft fallback
+            if (data.user.accountType) setUserAccountType(data.user.accountType)
+            const localFallback = (() => {
+              try {
+                const key = investmentId ? `investment_${investmentId}_accountType` : 'investment_draft_accountType'
+                const val = localStorage.getItem(key)
+                return val && val !== 'undefined' ? val : null
+              } catch {
+                return null
+              }
+            })()
             if (data.user.accountType) {
-              setUserAccountType(data.user.accountType)
-            }
-            if (draftAccountType && draftAccountType !== 'undefined') {
-              setSelectedAccountType(draftAccountType)
-              logger.log('✅ Restored draft accountType from investment:', draftAccountType)
-            } else if (data.user.accountType) {
               setSelectedAccountType(data.user.accountType)
-              logger.log('✅ Using user profile accountType (no draft):', data.user.accountType)
+              logger.log('✅ Using user profile accountType:', data.user.accountType)
+            } else if (localFallback) {
+              setSelectedAccountType(localFallback)
+              logger.log('✅ Restored draft accountType from local storage:', localFallback)
             } else {
               setSelectedAccountType('individual')
               logger.log('ℹ️ No accountType found, defaulting to individual')
             }
           }
-        } else if (draftAccountType && draftAccountType !== 'undefined') {
-          // No user data but have draft accountType
-          setSelectedAccountType(draftAccountType)
-          logger.log('✅ Restored draft accountType (no user data):', draftAccountType)
+        } else {
+          // Fallback for missing user data: try local storage only
+          const localFallback = (() => {
+            try {
+              const key = investmentId ? `investment_${investmentId}_accountType` : 'investment_draft_accountType'
+              const val = localStorage.getItem(key)
+              return val && val !== 'undefined' ? val : null
+            } catch {
+              return null
+            }
+          })()
+          if (localFallback) {
+            setSelectedAccountType(localFallback)
+            logger.log('✅ Restored draft accountType (no user data):', localFallback)
+          }
         }
         
         // Mark loading as complete

@@ -220,10 +220,10 @@ function ClientContent() {
 
   // Force wire transfer for IRA accounts (must be declared before any conditional return)
   useEffect(() => {
-    if (investment?.accountType === 'ira' && fundingMethod !== 'wire-transfer') {
+    if ((investment?.accountType || user?.accountType) === 'ira' && fundingMethod !== 'wire-transfer') {
       setFundingMethod('wire-transfer')
     }
-  }, [investment?.accountType, fundingMethod])
+  }, [investment?.accountType, user?.accountType, fundingMethod])
 
   // Force wire transfer for investments above $100,000
   useEffect(() => {
@@ -242,7 +242,7 @@ function ClientContent() {
   // Prevent hydration mismatch
   if (!mounted || !user) return <div className={styles.loading}>Loading...</div>
 
-  const isIra = investment?.accountType === 'ira'
+  const isIra = (investment?.accountType || user?.accountType) === 'ira'
   const requiresWireTransfer = investment?.amount > 100000
 
   const generateIdempotencyKey = () => {
