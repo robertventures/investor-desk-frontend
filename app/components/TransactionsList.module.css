@@ -16,6 +16,7 @@
 .icon.rejected { background: #fee2e2; color: #991b1b; }
 .icon.distribution { background: #ede9fe; color: #5b21b6; }
 .icon.withdrawal { background: #fee2e2; color: #991b1b; }
+.icon.draft { background: #e5e7eb; color: #374151; }
 
 .content { display: flex; flex-direction: column; gap: 4px; }
 .primary { font-weight: 600; color: #111827; font-size: 14px; }

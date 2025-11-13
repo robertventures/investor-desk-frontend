@@ -7,14 +7,21 @@ import styles from './TransactionsList.module.css'
 import { formatCurrency } from '../../lib/formatters.js'
 import { formatDateForDisplay } from '../../lib/dateUtils.js'
 
-function eventMeta(ev) {
+function eventMeta(ev, { isDraftInvestment = false } = {}) {
+  const normalizedStatus = (ev.status || '').toString().toLowerCase()
   switch (ev.type) {
     case 'account_created':
       return { icon: '👤', iconClass: styles.created, title: 'Account Created' }
     case 'investment':
       return { icon: '🧾', iconClass: styles.created, title: 'Investment' }
     case 'investment_created':
-      return { icon: '⏳', iconClass: styles.pending, title: 'Investment Pending' }
+      if (isDraftInvestment || normalizedStatus === 'draft') {
+        return { icon: '📝', iconClass: styles.draft, title: 'Investment Draft' }
+      }
+      if (normalizedStatus === 'pending' || normalizedStatus === 'submitted') {
+        return { icon: '⏳', iconClass: styles.pending, title: 'Investment Pending' }
+      }
+      return { icon: '🧾', iconClass: styles.created, title: 'Investment Created' }
     case 'investment_submitted':
       return { icon: '⏳', iconClass: styles.pending, title: 'Investment Pending' }
     case 'investment_confirmed':
@@ -139,7 +146,6 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
           <div className={styles.empty}>No activity yet</div>
         )}
         {visibleEvents.map(ev => {
-          const meta = eventMeta(ev)
           const date = ev.date ? formatDateForDisplay(ev.date) : '-'
           const isDistribution = ev.type === 'distribution' || ev.type === 'monthly_distribution'
           const isWithdrawal = ev.type === 'withdrawal_requested' || ev.type === 'redemption'
@@ -155,6 +161,8 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
           const isDraftInvestment = ev.investmentId && user?.investments?.some(inv => 
             String(inv.id) === String(ev.investmentId) && inv.status === 'draft'
           )
+
+          const meta = eventMeta(ev, { isDraftInvestment })
           
           const handleResumeDraft = (e) => {
             e.stopPropagation()
