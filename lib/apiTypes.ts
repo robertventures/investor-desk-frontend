@@ -891,8 +891,8 @@ export interface components {
             lockupPeriod: components["schemas"]["LockupPeriod"];
             /** @description Supported values: ('monthly', 'compounding') */
             paymentFrequency: components["schemas"]["PaymentFrequency"];
-            /** @description Supported values: ('ach', 'wire') */
-            paymentMethod: components["schemas"]["PaymentMethod"];
+            /** @description Supported values: ('ach', 'wire'). Optional during draft creation. */
+            paymentMethod?: components["schemas"]["PaymentMethod"] | null;
         };
         /** InvestmentDetailResponse */
         InvestmentDetailResponse: {
@@ -926,7 +926,7 @@ export interface components {
             status: components["schemas"]["InvestmentStatus"];
             lockupPeriod: components["schemas"]["LockupPeriod"];
             paymentFrequency: components["schemas"]["PaymentFrequency"];
-            paymentMethod: components["schemas"]["PaymentMethod"];
+            paymentMethod: components["schemas"]["PaymentMethod"] | null;
             /** Autoapproved */
             autoApproved: boolean;
             /** Requiresmanualapproval */

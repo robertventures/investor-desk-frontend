@@ -3000,16 +3000,22 @@
             "description": "Supported values: ('monthly', 'compounding')"
           },
           "paymentMethod": {
-            "$ref": "#/components/schemas/PaymentMethod",
-            "description": "Supported values: ('ach', 'wire')"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Supported values: ('ach', 'wire'). Optional during draft creation."
           }
         },
         "type": "object",
         "required": [
           "amount",
           "lockupPeriod",
-          "paymentFrequency",
-          "paymentMethod"
+          "paymentFrequency"
         ],
         "title": "InvestmentCreateRequest"
       },
@@ -3080,7 +3086,14 @@
             "$ref": "#/components/schemas/PaymentFrequency"
           },
           "paymentMethod": {
-            "$ref": "#/components/schemas/PaymentMethod"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "autoApproved": {
             "type": "boolean",

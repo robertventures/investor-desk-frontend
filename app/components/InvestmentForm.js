@@ -2,6 +2,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
+import {
+  DRAFT_PAYMENT_METHOD_KEY,
+  clearStoredPaymentMethod,
+  determineDraftPaymentMethod,
+  investmentPaymentMethodKey,
+  persistDraftPaymentMethod
+} from '../../lib/paymentMethodPreferences'
 import styles from './InvestmentForm.module.css'
 
 export default function InvestmentForm({ onCompleted, onReviewSummary, disableAuthGuard = false, accountType, initialAmount, initialPaymentFrequency, initialLockup, onValuesChange }) {
@@ -218,8 +225,12 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
       const investmentPayload = {
         amount: formData.investmentAmount,
         paymentFrequency: formData.paymentFrequency,
-        lockupPeriod
+        lockupPeriod,
+        ...(accountType ? { accountType } : {})
       }
+
+      const draftPaymentMethod = determineDraftPaymentMethod(accountType, formData.investmentAmount)
+      persistDraftPaymentMethod(DRAFT_PAYMENT_METHOD_KEY, draftPaymentMethod)
 
       console.log('Creating investment with payload:', investmentPayload)
 
@@ -235,7 +246,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             console.log('Investment not found, clearing stale ID and creating new investment')
             localStorage.removeItem('currentInvestmentId')
             // Create new investment with payment method
-            const createPayload = { ...investmentPayload, paymentMethod: 'ach' }
+            const createPayload = { ...investmentPayload }
             data = await apiClient.createInvestment(userId, createPayload)
             if (!data.success) {
               alert(data.error || 'Failed to start investment')
@@ -244,6 +255,11 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             // Save new investment id
             if (data.investment?.id) {
               localStorage.setItem('currentInvestmentId', data.investment.id)
+              persistDraftPaymentMethod(
+                investmentPaymentMethodKey(data.investment.id),
+                draftPaymentMethod
+              )
+              clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
             }
             notifyCompletion(data.investment?.id, lockupPeriod)
             return
@@ -252,10 +268,15 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
           return
         }
 
+        persistDraftPaymentMethod(
+          investmentPaymentMethodKey(existingInvestmentId),
+          draftPaymentMethod
+        )
+        clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
         notifyCompletion(existingInvestmentId, lockupPeriod)
       } else {
-        // Create new draft investment (API requires paymentMethod, use 'ach' as default)
-        const createPayload = { ...investmentPayload, paymentMethod: 'ach' }
+        // Create new draft investment; payment method is deferred to finalization
+        const createPayload = { ...investmentPayload }
         const data = await apiClient.createInvestment(userId, createPayload)
         if (!data.success) {
           alert(data.error || 'Failed to start investment')
@@ -265,6 +286,11 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         // Save current investment id for next steps
         if (data.investment?.id) {
           localStorage.setItem('currentInvestmentId', data.investment.id)
+          persistDraftPaymentMethod(
+            investmentPaymentMethodKey(data.investment.id),
+            draftPaymentMethod
+          )
+          clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
         }
         notifyCompletion(data.investment?.id, lockupPeriod)
       }

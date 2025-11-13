@@ -2,6 +2,14 @@
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
 import { apiClient } from '../../lib/apiClient'
+import {
+  DRAFT_PAYMENT_METHOD_KEY,
+  clearStoredPaymentMethod,
+  determineDraftPaymentMethod,
+  investmentPaymentMethodKey,
+  persistDraftPaymentMethod,
+  readStoredPaymentMethod
+} from '../../lib/paymentMethodPreferences'
 import styles from './page.module.css'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -38,6 +46,7 @@ function ClientContent() {
   const [accreditedType, setAccreditedType] = useState('')
   const [tenPercentConfirmed, setTenPercentConfirmed] = useState(false)
   const [fundingMethod, setFundingMethod] = useState('')
+  const [fundingMethodInitialized, setFundingMethodInitialized] = useState(false)
   const [payoutMethod, setPayoutMethod] = useState('bank-account')
   const [isSaving, setIsSaving] = useState(false)
   const [validationErrors, setValidationErrors] = useState([])
@@ -201,7 +210,7 @@ function ClientContent() {
   // Load banking details from user account
   useEffect(() => {
     if (user?.banking) {
-      setFundingMethod(user.banking.fundingMethod || '')
+      setFundingMethod((current) => current || user.banking.fundingMethod || '')
       setPayoutMethod(user.banking.payoutMethod || 'bank-account')
       if (user.banking.defaultBankAccountId) {
         setSelectedBankId(user.banking.defaultBankAccountId)
@@ -211,12 +220,54 @@ function ClientContent() {
     }
   }, [user?.banking])
 
+  useEffect(() => {
+    if (!investment || fundingMethodInitialized) return
+
+    const accountTypeForDefault = investment.accountType || user?.accountType || null
+
+    let resolvedMethod = investment.paymentMethod
+    if (!resolvedMethod && investment?.id) {
+      resolvedMethod = readStoredPaymentMethod(investmentPaymentMethodKey(investment.id))
+    }
+    if (!resolvedMethod) {
+      resolvedMethod = readStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
+    }
+    if (!resolvedMethod) {
+      resolvedMethod = determineDraftPaymentMethod(accountTypeForDefault, investment.amount)
+    }
+
+    if (resolvedMethod === 'wire') {
+      setFundingMethod('wire-transfer')
+    } else if (resolvedMethod === 'ach') {
+      setFundingMethod('bank-transfer')
+    }
+
+    if (investment?.id && resolvedMethod) {
+      persistDraftPaymentMethod(investmentPaymentMethodKey(investment.id), resolvedMethod)
+    }
+
+    clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
+    setFundingMethodInitialized(true)
+  }, [investment, user?.accountType, fundingMethodInitialized])
+
   // Enforce payout method when monthly payments are selected
   useEffect(() => {
     if (investment?.paymentFrequency === 'monthly' && payoutMethod !== 'bank-account') {
       setPayoutMethod('bank-account')
     }
   }, [investment?.paymentFrequency, payoutMethod])
+  useEffect(() => {
+    if (!investment?.id) return
+    const method =
+      fundingMethod === 'wire-transfer'
+        ? 'wire'
+        : fundingMethod === 'bank-transfer'
+          ? 'ach'
+          : null
+    if (!method) return
+    persistDraftPaymentMethod(investmentPaymentMethodKey(investment.id), method)
+    clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
+  }, [fundingMethod, investment?.id])
 
   // Force wire transfer for IRA accounts (must be declared before any conditional return)
   useEffect(() => {

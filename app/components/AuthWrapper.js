@@ -74,10 +74,12 @@ export default function AuthWrapper({ children }) {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [pathname, router, isPublicRoute])
 
+  const userProviderKey = isAuthenticated ? 'auth' : 'guest'
+
   // Show loading state while checking authentication
   // For public routes, still provide UserContext so pages can safely call useUser
   if (isLoading && isPublicRoute) {
-    return <UserProvider>{children}</UserProvider>
+    return <UserProvider key={`${userProviderKey}-loading`}>{children}</UserProvider>
   }
   
   if (isLoading) {
@@ -90,5 +92,5 @@ export default function AuthWrapper({ children }) {
   }
 
   // Always provide UserContext; protected routes are still blocked above
-  return <UserProvider>{children}</UserProvider>
+  return <UserProvider key={`${userProviderKey}-ready`}>{children}</UserProvider>
 }
