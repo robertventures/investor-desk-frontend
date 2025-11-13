@@ -571,6 +571,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plaid/link-success": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plaid:Link-Success */
+        post: operations["plaid_link_success_api_plaid_link_success_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plaid/sandbox/create-test-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plaid:Create-Test-Token */
+        post: operations["plaid_create_test_token_api_plaid_sandbox_create_test_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -599,7 +633,12 @@ export interface components {
          * AccountType
          * @enum {string}
          */
-        AccountType: "individual" | "joint" | "entity" | "ira";
+        "AccountType-Input": "individual" | "joint" | "entity" | "ira";
+        /**
+         * AccountType
+         * @enum {string}
+         */
+        "AccountType-Output": "checking" | "savings";
         /** AccreditationAttestationCreateRequest */
         AccreditationAttestationCreateRequest: {
             status: components["schemas"]["AccreditationStatus"];
@@ -723,33 +762,6 @@ export interface components {
             /** Apptime */
             appTime: string;
         };
-        /** AuthorizedRepresentativeDetail */
-        AuthorizedRepresentativeDetail: {
-            /** Firstname */
-            firstName: string;
-            /** Lastname */
-            lastName: string;
-            /** Dob */
-            dob: string | null;
-            /** Ssn */
-            ssn: string;
-            address: components["schemas"]["AddressDetail"] | null;
-        };
-        /** AuthorizedRepresentativeUpdateRequest */
-        AuthorizedRepresentativeUpdateRequest: {
-            /** Firstname */
-            firstName: string;
-            /** Lastname */
-            lastName: string;
-            /**
-             * Dob
-             * Format: date
-             */
-            dob: string;
-            /** Ssn */
-            ssn: string;
-            address: components["schemas"]["AddressDetail"];
-        };
         /** CalculationDetails */
         CalculationDetails: {
             /** Totalperiods */
@@ -816,12 +828,40 @@ export interface components {
              */
             auto_logged_in: boolean;
         };
+        /** CreateTestTokenRequest */
+        CreateTestTokenRequest: {
+            /**
+             * Institution Id
+             * @description Plaid institution identifier (sandbox default: First Plaid Bank)
+             * @default ins_109508
+             * @example ins_109508
+             * @example ins_4
+             */
+            institution_id: string;
+            /**
+             * Initial Products
+             * @description Plaid products to enable (auth required for ACH)
+             * @default [
+             *       "auth"
+             *     ]
+             */
+            initial_products: "auth"[];
+        };
+        /** CreateTestTokenResponse */
+        CreateTestTokenResponse: {
+            /** Public Token */
+            public_token: string;
+            /** Institution Id */
+            institution_id: string;
+            /** Account Id */
+            account_id: string;
+        };
         /** EntityDetail */
         EntityDetail: {
             /** Name */
             name: string;
-            /** Registrationdate */
-            registrationDate: string | null;
+            /** Formationdate */
+            formationDate: string | null;
             /** Taxid */
             taxId: string;
             /** Phone */
@@ -833,10 +873,10 @@ export interface components {
             /** Name */
             name: string;
             /**
-             * Registrationdate
+             * Formationdate
              * Format: date
              */
-            registrationDate: string;
+            formationDate: string;
             /** Taxid */
             taxId: string;
             /** Phone */
@@ -847,6 +887,23 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InstitutionInfo */
+        InstitutionInfo: {
+            /**
+             * Id
+             * @description Plaid institution identifier
+             * @example ins_109508
+             */
+            id: string;
+            /**
+             * Name
+             * @description Bank or financial institution name
+             * @example Chase
+             * @example Bank of America
+             * @example Wells Fargo
+             */
+            name: string;
         };
         /** InvestmentCalculationData */
         InvestmentCalculationData: {
@@ -891,8 +948,9 @@ export interface components {
             lockupPeriod: components["schemas"]["LockupPeriod"];
             /** @description Supported values: ('monthly', 'compounding') */
             paymentFrequency: components["schemas"]["PaymentFrequency"];
-            /** @description Supported values: ('ach', 'wire'). Optional during draft creation. */
+            /** @description Supported values: ('ach', 'wire') */
             paymentMethod?: components["schemas"]["PaymentMethod"] | null;
+            jointHolderAcknowledgement?: components["schemas"]["JointHolderAcknowledgementPayload"] | null;
         };
         /** InvestmentDetailResponse */
         InvestmentDetailResponse: {
@@ -924,6 +982,8 @@ export interface components {
             /** Bonds */
             bonds: number;
             status: components["schemas"]["InvestmentStatus"];
+            /** State */
+            state?: string | null;
             lockupPeriod: components["schemas"]["LockupPeriod"];
             paymentFrequency: components["schemas"]["PaymentFrequency"];
             paymentMethod: components["schemas"]["PaymentMethod"] | null;
@@ -950,12 +1010,22 @@ export interface components {
         InvestmentUpdateRequest: {
             /** Amount */
             amount?: number | string | null;
+            /** State */
+            state?: string | null;
             /** @description Supported values: ('1-year', '3-year') */
             lockupPeriod?: components["schemas"]["LockupPeriod"] | null;
             /** @description Supported values: ('monthly', 'compounding') */
             paymentFrequency?: components["schemas"]["PaymentFrequency"] | null;
             /** @description Supported values: ('ach', 'wire') */
             paymentMethod?: components["schemas"]["PaymentMethod"] | null;
+            jointHolderAcknowledgement?: components["schemas"]["JointHolderAcknowledgementPayload"] | null;
+        };
+        /** JointHolderAcknowledgementPayload */
+        JointHolderAcknowledgementPayload: {
+            /** Accepted */
+            accepted: boolean;
+            /** Acceptedat */
+            acceptedAt?: string | null;
         };
         /** JointHolderDetail */
         JointHolderDetail: {
@@ -994,6 +1064,48 @@ export interface components {
             /** Ssn */
             ssn: string;
             address: components["schemas"]["AddressDetail"];
+        };
+        /** LinkSuccessRequest */
+        LinkSuccessRequest: {
+            /**
+             * Public Token
+             * @description Temporary token received from Plaid Link after user completes authentication
+             * @example public-sandbox-12345
+             */
+            public_token: string;
+            /**
+             * Account Id
+             * @description Plaid account identifier for the selected bank account
+             * @example acc_123abc
+             */
+            account_id: string;
+            institution: components["schemas"]["InstitutionInfo"];
+            /**
+             * Account Mask
+             * @description Last 4 digits of the bank account
+             * @example 1234
+             */
+            account_mask: string;
+            /**
+             * Account Name
+             * @enum {string}
+             */
+            account_name: "Checking" | "Savings";
+            /**
+             * Save For Reuse
+             * @default true
+             */
+            save_for_reuse: boolean;
+            /**
+             * Idempotency Key
+             * @description Unique identifier to prevent duplicate payment method creation (UUID v4 recommended)
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            idempotency_key: string;
+        };
+        /** LinkSuccessResponse */
+        LinkSuccessResponse: {
+            payment_method: components["schemas"]["PaymentMethodResponse"];
         };
         /** LinkTokenResponse */
         LinkTokenResponse: {
@@ -1111,12 +1223,58 @@ export interface components {
          * @enum {string}
          */
         PaymentMethod: "ach" | "wire";
+        /** PaymentMethodResponse */
+        PaymentMethodResponse: {
+            /** Id */
+            id: string;
+            /** @description Payment method type */
+            type: components["schemas"]["PaymentMethodType"];
+            /**
+             * Display Name
+             * @description Human-readable display name
+             * @example Chase Checking ••1234
+             */
+            display_name: string;
+            /**
+             * Bank Name
+             * @description Financial institution name
+             * @example Chase
+             * @example Bank of America
+             */
+            bank_name: string;
+            /** @description Bank account type */
+            account_type: components["schemas"]["AccountType-Output"];
+            /**
+             * Last4
+             * @description Last 4 digits of account
+             * @example 1234
+             */
+            last4: string;
+            /** @description Payment method verification status */
+            status: components["schemas"]["PaymentMethodStatus"];
+            /**
+             * Created At
+             * @description ISO 8601 timestamp
+             * @example 2024-01-15T10:30:00-05:00
+             */
+            created_at: string;
+        };
+        /**
+         * PaymentMethodStatus
+         * @enum {string}
+         */
+        PaymentMethodStatus: "ready" | "verification_pending";
+        /**
+         * PaymentMethodType
+         * @enum {string}
+         */
+        PaymentMethodType: "bank_ach";
         /** ProfilePatchRequest */
         ProfilePatchRequest: {
             /** Phone */
             phone?: string | null;
             address?: components["schemas"]["AddressUpdateRequest"] | null;
-            accountType?: components["schemas"]["AccountType"] | null;
+            accountType?: components["schemas"]["AccountType-Input"] | null;
         };
         /** ProfilePatchResponse */
         ProfilePatchResponse: {
@@ -1140,12 +1298,11 @@ export interface components {
             /** Ssn */
             ssn?: string | null;
             address?: components["schemas"]["AddressUpdateRequest"] | null;
-            accountType?: components["schemas"]["AccountType"] | null;
+            accountType?: components["schemas"]["AccountType-Input"] | null;
             /** Jointholdingtype */
             jointHoldingType?: string | null;
             jointHolder?: components["schemas"]["JointHolderUpdateRequest"] | null;
             entity?: components["schemas"]["EntityUpdateRequest"] | null;
-            authorizedRepresentative?: components["schemas"]["AuthorizedRepresentativeUpdateRequest"] | null;
         };
         /** ProfileUpdateResponse */
         ProfileUpdateResponse: {
@@ -1275,7 +1432,6 @@ export interface components {
             jointHoldingType?: string | null;
             jointHolder?: components["schemas"]["JointHolderDetail"] | null;
             entity?: components["schemas"]["EntityDetail"] | null;
-            authorizedRepresentative?: components["schemas"]["AuthorizedRepresentativeDetail"] | null;
             /** Createdat */
             createdAt?: string | null;
             /** Updatedat */
@@ -2599,6 +2755,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LinkTokenResponse"];
+                };
+            };
+        };
+    };
+    plaid_link_success_api_plaid_link_success_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-forwarded-for"?: string | null;
+                "x-real-ip"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkSuccessRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkSuccessResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plaid_create_test_token_api_plaid_sandbox_create_test_token_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTestTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateTestTokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

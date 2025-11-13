@@ -2067,6 +2067,134 @@
         ]
       }
     },
+    "/api/plaid/link-success": {
+      "post": {
+        "tags": [
+          "plaid",
+          "plaid"
+        ],
+        "summary": "Plaid:Link-Success",
+        "operationId": "plaid_link_success_api_plaid_link_success_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-forwarded-for",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Forwarded-For"
+            }
+          },
+          {
+            "name": "x-real-ip",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Real-Ip"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkSuccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkSuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/plaid/sandbox/create-test-token": {
+      "post": {
+        "tags": [
+          "plaid",
+          "plaid"
+        ],
+        "summary": "Plaid:Create-Test-Token",
+        "operationId": "plaid_create_test_token_api_plaid_sandbox_create_test_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTestTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTestTokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -2096,13 +2224,21 @@
   },
   "components": {
     "schemas": {
-      "AccountType": {
+      "AccountType-Input": {
         "type": "string",
         "enum": [
           "individual",
           "joint",
           "entity",
           "ira"
+        ],
+        "title": "AccountType"
+      },
+      "AccountType-Output": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "savings"
         ],
         "title": "AccountType"
       },
@@ -2509,90 +2645,6 @@
         ],
         "title": "AppTimeResponse"
       },
-      "AuthorizedRepresentativeDetail": {
-        "properties": {
-          "firstName": {
-            "type": "string",
-            "title": "Firstname"
-          },
-          "lastName": {
-            "type": "string",
-            "title": "Lastname"
-          },
-          "dob": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dob"
-          },
-          "ssn": {
-            "type": "string",
-            "title": "Ssn"
-          },
-          "address": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AddressDetail"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "firstName",
-          "lastName",
-          "dob",
-          "ssn",
-          "address"
-        ],
-        "title": "AuthorizedRepresentativeDetail"
-      },
-      "AuthorizedRepresentativeUpdateRequest": {
-        "properties": {
-          "firstName": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Firstname"
-          },
-          "lastName": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Lastname"
-          },
-          "dob": {
-            "type": "string",
-            "format": "date",
-            "title": "Dob"
-          },
-          "ssn": {
-            "type": "string",
-            "maxLength": 11,
-            "title": "Ssn"
-          },
-          "address": {
-            "$ref": "#/components/schemas/AddressDetail"
-          }
-        },
-        "type": "object",
-        "required": [
-          "firstName",
-          "lastName",
-          "dob",
-          "ssn",
-          "address"
-        ],
-        "title": "AuthorizedRepresentativeUpdateRequest"
-      },
       "CalculationDetails": {
         "properties": {
           "totalPeriods": {
@@ -2747,13 +2799,64 @@
         ],
         "title": "ConfirmAccountResponse"
       },
+      "CreateTestTokenRequest": {
+        "properties": {
+          "institution_id": {
+            "type": "string",
+            "title": "Institution Id",
+            "description": "Plaid institution identifier (sandbox default: First Plaid Bank)",
+            "default": "ins_109508",
+            "examples": [
+              "ins_109508",
+              "ins_4"
+            ]
+          },
+          "initial_products": {
+            "items": {
+              "type": "string",
+              "const": "auth"
+            },
+            "type": "array",
+            "title": "Initial Products",
+            "description": "Plaid products to enable (auth required for ACH)",
+            "default": [
+              "auth"
+            ]
+          }
+        },
+        "type": "object",
+        "title": "CreateTestTokenRequest"
+      },
+      "CreateTestTokenResponse": {
+        "properties": {
+          "public_token": {
+            "type": "string",
+            "title": "Public Token"
+          },
+          "institution_id": {
+            "type": "string",
+            "title": "Institution Id"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_token",
+          "institution_id",
+          "account_id"
+        ],
+        "title": "CreateTestTokenResponse"
+      },
       "EntityDetail": {
         "properties": {
           "name": {
             "type": "string",
             "title": "Name"
           },
-          "registrationDate": {
+          "formationDate": {
             "anyOf": [
               {
                 "type": "string"
@@ -2762,7 +2865,7 @@
                 "type": "null"
               }
             ],
-            "title": "Registrationdate"
+            "title": "Formationdate"
           },
           "taxId": {
             "type": "string",
@@ -2793,7 +2896,7 @@
         "type": "object",
         "required": [
           "name",
-          "registrationDate",
+          "formationDate",
           "taxId"
         ],
         "title": "EntityDetail"
@@ -2806,10 +2909,10 @@
             "minLength": 1,
             "title": "Name"
           },
-          "registrationDate": {
+          "formationDate": {
             "type": "string",
             "format": "date",
-            "title": "Registrationdate"
+            "title": "Formationdate"
           },
           "taxId": {
             "type": "string",
@@ -2842,7 +2945,7 @@
         "type": "object",
         "required": [
           "name",
-          "registrationDate",
+          "formationDate",
           "taxId"
         ],
         "title": "EntityUpdateRequest"
@@ -2859,6 +2962,34 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "InstitutionInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Plaid institution identifier",
+            "examples": [
+              "ins_109508"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Bank or financial institution name",
+            "examples": [
+              "Chase",
+              "Bank of America",
+              "Wells Fargo"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "InstitutionInfo"
       },
       "InvestmentCalculationData": {
         "properties": {
@@ -3008,7 +3139,17 @@
                 "type": "null"
               }
             ],
-            "description": "Supported values: ('ach', 'wire'). Optional during draft creation."
+            "description": "Supported values: ('ach', 'wire')"
+          },
+          "jointHolderAcknowledgement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JointHolderAcknowledgementPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -3078,6 +3219,17 @@
           },
           "status": {
             "$ref": "#/components/schemas/InvestmentStatus"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
           },
           "lockupPeriod": {
             "$ref": "#/components/schemas/LockupPeriod"
@@ -3205,6 +3357,17 @@
             ],
             "title": "Amount"
           },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
           "lockupPeriod": {
             "anyOf": [
               {
@@ -3237,10 +3400,45 @@
               }
             ],
             "description": "Supported values: ('ach', 'wire')"
+          },
+          "jointHolderAcknowledgement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JointHolderAcknowledgementPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "title": "InvestmentUpdateRequest"
+      },
+      "JointHolderAcknowledgementPayload": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          },
+          "acceptedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "title": "JointHolderAcknowledgementPayload"
       },
       "JointHolderDetail": {
         "properties": {
@@ -3347,6 +3545,82 @@
           "address"
         ],
         "title": "JointHolderUpdateRequest"
+      },
+      "LinkSuccessRequest": {
+        "properties": {
+          "public_token": {
+            "type": "string",
+            "title": "Public Token",
+            "description": "Temporary token received from Plaid Link after user completes authentication",
+            "examples": [
+              "public-sandbox-12345"
+            ]
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id",
+            "description": "Plaid account identifier for the selected bank account",
+            "examples": [
+              "acc_123abc"
+            ]
+          },
+          "institution": {
+            "$ref": "#/components/schemas/InstitutionInfo"
+          },
+          "account_mask": {
+            "type": "string",
+            "maxLength": 4,
+            "minLength": 4,
+            "title": "Account Mask",
+            "description": "Last 4 digits of the bank account",
+            "examples": [
+              "1234"
+            ]
+          },
+          "account_name": {
+            "type": "string",
+            "enum": [
+              "Checking",
+              "Savings"
+            ],
+            "title": "Account Name"
+          },
+          "save_for_reuse": {
+            "type": "boolean",
+            "title": "Save For Reuse",
+            "default": true
+          },
+          "idempotency_key": {
+            "type": "string",
+            "title": "Idempotency Key",
+            "description": "Unique identifier to prevent duplicate payment method creation (UUID v4 recommended)",
+            "examples": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_token",
+          "account_id",
+          "institution",
+          "account_mask",
+          "account_name",
+          "idempotency_key"
+        ],
+        "title": "LinkSuccessRequest"
+      },
+      "LinkSuccessResponse": {
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "title": "LinkSuccessResponse"
       },
       "LinkTokenResponse": {
         "properties": {
@@ -3644,6 +3918,88 @@
         ],
         "title": "PaymentMethod"
       },
+      "PaymentMethodResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/PaymentMethodType",
+            "description": "Payment method type"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "description": "Human-readable display name",
+            "examples": [
+              "Chase Checking ••1234"
+            ]
+          },
+          "bank_name": {
+            "type": "string",
+            "title": "Bank Name",
+            "description": "Financial institution name",
+            "examples": [
+              "Chase",
+              "Bank of America"
+            ]
+          },
+          "account_type": {
+            "$ref": "#/components/schemas/AccountType-Output",
+            "description": "Bank account type"
+          },
+          "last4": {
+            "type": "string",
+            "maxLength": 4,
+            "minLength": 4,
+            "title": "Last4",
+            "description": "Last 4 digits of account",
+            "examples": [
+              "1234"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentMethodStatus",
+            "description": "Payment method verification status"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "description": "ISO 8601 timestamp",
+            "examples": [
+              "2024-01-15T10:30:00-05:00"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "display_name",
+          "bank_name",
+          "account_type",
+          "last4",
+          "status",
+          "created_at"
+        ],
+        "title": "PaymentMethodResponse"
+      },
+      "PaymentMethodStatus": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "verification_pending"
+        ],
+        "title": "PaymentMethodStatus"
+      },
+      "PaymentMethodType": {
+        "type": "string",
+        "enum": [
+          "bank_ach"
+        ],
+        "title": "PaymentMethodType"
+      },
       "ProfilePatchRequest": {
         "properties": {
           "phone": {
@@ -3671,7 +4027,7 @@
           "accountType": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AccountType"
+                "$ref": "#/components/schemas/AccountType-Input"
               },
               {
                 "type": "null"
@@ -3774,7 +4130,7 @@
           "accountType": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AccountType"
+                "$ref": "#/components/schemas/AccountType-Input"
               },
               {
                 "type": "null"
@@ -3807,16 +4163,6 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/EntityUpdateRequest"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "authorizedRepresentative": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AuthorizedRepresentativeUpdateRequest"
               },
               {
                 "type": "null"
@@ -4134,16 +4480,6 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/EntityDetail"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "authorizedRepresentative": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AuthorizedRepresentativeDetail"
               },
               {
                 "type": "null"
