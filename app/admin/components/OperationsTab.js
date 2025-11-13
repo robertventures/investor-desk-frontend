@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { apiClient } from '../../../lib/apiClient'
 import SectionCard from './SectionCard'
 import TimeMachineTab from './TimeMachineTab'
-import ImportInvestorsTab from './ImportInvestorsTab'
 import DocumentManagerSection from './DocumentManagerSection'
 import styles from './OperationsTab.module.css'
 
@@ -165,19 +164,6 @@ export default function OperationsTab({
         <DocumentManagerSection 
           currentUser={currentUser}
           onUploadComplete={onImportComplete}
-        />
-      </SectionCard>
-
-      {/* Import Investors Section */}
-      <SectionCard title="Import Investors">
-        <div className={styles.sectionHeader}>
-          <p className={styles.sectionDescription}>
-            Import investors from Wealthblock or other platforms. Upload CSV, map fields, review data, and send welcome emails.
-          </p>
-        </div>
-        <ImportInvestorsTab 
-          currentUser={currentUser}
-          onImportComplete={onImportComplete}
         />
       </SectionCard>
 

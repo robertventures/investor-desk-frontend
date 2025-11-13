@@ -6,6 +6,11 @@ import styles from './TabbedResidentialIdentity.module.css'
 
 const MIN_DOB = '1900-01-01'
 
+// Feature flag: use server-side identity drafts (default true)
+const USE_SERVER_IDENTITY_DRAFTS = typeof process !== 'undefined'
+  ? (process.env.NEXT_PUBLIC_USE_SERVER_IDENTITY_DRAFTS !== 'false')
+  : true
+
 const formatZip = (value = '') => value.replace(/\D/g, '').slice(0, 5)
 
 const formatPhone = (value = '') => {
@@ -65,6 +70,25 @@ const formatSsn = (value = '') => {
 
 const isCompleteSsn = (value = '') => value.replace(/\D/g, '').length === 9
 
+// Format EIN/TIN for entity: XX-XXXXXXX (2 digits, dash, 7 digits)
+const formatTaxId = (value = '') => {
+  const digits = value.replace(/\D/g, '').slice(0, 9)
+  if (digits.length <= 2) return digits
+  return `${digits.slice(0, 2)}-${digits.slice(2)}`
+}
+
+const isCompleteTaxId = (value = '') => value.replace(/\D/g, '').length === 9
+
+// Convert Tax ID from DB (9 digits) back to display format (XX-XXXXXXX)
+const formatTaxIdFromDB = (value = '') => {
+  if (!value) return ''
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 9) {
+    return formatTaxId(digits)
+  }
+  return value // Return original if format is unexpected
+}
+
 // Names: Allow only letters, spaces, hyphens, apostrophes, and periods
 const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
 
@@ -93,7 +117,8 @@ const formatAddressForBackend = (address = {}) => {
     street2: address.street2 || '',
     city: address.city || '',
     state: address.state || '',
-    zip: address.zip || ''
+    zip: address.zip || '',
+    ...(address.country ? { country: address.country } : {})
   }
 }
 
@@ -145,7 +170,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
-    entityName: '',
     phone: '',
     street1: '',
     street2: '',
@@ -173,6 +197,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     authorizedRep: {
       firstName: '',
       lastName: '',
+      phone: '',
       street1: '',
       street2: '',
       city: '',
@@ -181,6 +206,18 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       country: 'United States',
       dob: '',
       ssn: ''
+    },
+    entity: {
+      name: '',
+      phone: '',
+      street1: '',
+      street2: '',
+      city: '',
+      state: '',
+      zip: '',
+      country: 'United States',
+      registrationDate: '',
+      taxId: ''
     }
   })
   const [errors, setErrors] = useState({})
@@ -198,8 +235,14 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   
   const idLabel = accountType === 'entity' ? 'EIN or TIN' : 'SSN'
   const dateLabel = accountType === 'entity' ? 'Registration Date' : 'Date of Birth'
-  const primaryFullName = [form.firstName, form.lastName].filter(Boolean).join(' ').trim() || null
-  const governingStateDisplay = form.state || (userData?.address?.state || 'their state of residence')
+  const primaryFullName = (
+    accountType === 'entity'
+      ? [form.authorizedRep.firstName, form.authorizedRep.lastName]
+      : [form.firstName, form.lastName]
+  ).filter(Boolean).join(' ').trim() || null
+  const governingStateDisplay = accountType === 'entity'
+    ? (form.entity.state || form.authorizedRep.state || userData?.entity?.address?.state || userData?.address?.state || 'their state of residence')
+    : (form.state || (userData?.address?.state || 'their state of residence'))
   const nameSegment = primaryFullName ? `, ${primaryFullName},` : ''
 
   const maxAdultDob = useMemo(() => {
@@ -214,6 +257,30 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
   useEffect(() => {
     if (accountTypeProp) setAccountType(accountTypeProp)
+  }, [accountTypeProp])
+
+  // Load local snapshot as early fallback so Edit shows previous entries even if backend fails
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const invId = localStorage.getItem('currentInvestmentId')
+      const snapshotKey = invId ? `investmentIdentityDraft:${invId}` : 'investmentIdentityDraft'
+      const raw = localStorage.getItem(snapshotKey)
+      if (!raw) return
+      const snap = JSON.parse(raw)
+      if (snap?.accountType && !accountTypeProp) {
+        setAccountType(snap.accountType)
+      }
+      if (snap?.form) {
+        setForm(prev => ({
+          ...prev,
+          ...snap.form,
+          jointHolder: { ...prev.jointHolder, ...(snap.form.jointHolder || {}) },
+          authorizedRep: { ...prev.authorizedRep, ...(snap.form.authorizedRep || {}) },
+          entity: { ...prev.entity, ...(snap.form.entity || {}) }
+        }))
+      }
+    } catch {}
   }, [accountTypeProp])
 
   // Refresh user data when component mounts to ensure we have the latest investor information
@@ -243,13 +310,12 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
     // Only log once when data is first loaded to reduce console noise
     if (!hasLoadedUserDataRef.current) {
-      console.log('✅ User data loaded for investment form:', { userId: u.id, email: u.email, hasSSN: !!u.ssn })
+      console.log('✅ User data loaded for investment form:', { userId: u.id, hasSSN: !!u.ssn })
       hasLoadedUserDataRef.current = true
     }
 
     setForm(prev => {
       const updated = { ...prev }
-      if (u.entityName) updated.entityName = u.entityName
       if (u.firstName) updated.firstName = u.firstName
       if (u.lastName) updated.lastName = u.lastName
       if (u.phoneNumber) updated.phone = formatPhoneFromDB(u.phoneNumber)
@@ -279,20 +345,46 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         ...(j.email ? { email: j.email } : {}),
         ...(j.phone ? { phone: formatPhoneFromDB(j.phone) } : {})
       }
+      // Entity profile information
+      const entityProfile = u.entity || {}
+      const savedEntityTaxId = entityProfile.taxId || u.entityTaxId || ''
+      const isEntityTaxIdOnFile = savedEntityTaxId && (savedEntityTaxId === '•••-••-••••' || savedEntityTaxId.includes(':') || savedEntityTaxId.length > 20)
+      updated.entity = {
+        ...prev.entity,
+        ...(u.entityName ? { name: u.entityName } : {}),
+        ...(entityProfile.name ? { name: entityProfile.name } : {}),
+        ...(entityProfile.phone ? { phone: formatPhoneFromDB(entityProfile.phone) } : {}),
+        ...(entityProfile.address?.street1 ? { street1: entityProfile.address.street1 } : {}),
+        ...(entityProfile.address?.street2 ? { street2: entityProfile.address.street2 } : {}),
+        ...(entityProfile.address?.city ? { city: entityProfile.address.city } : {}),
+        ...(entityProfile.address?.state ? { state: toFullStateName(entityProfile.address.state) } : {}),
+        ...(entityProfile.address?.zip ? { zip: entityProfile.address.zip } : {}),
+        ...(entityProfile.address?.country ? { country: entityProfile.address.country } : {}),
+        ...(entityProfile.registrationDate ? { registrationDate: entityProfile.registrationDate } : {}),
+        ...(entityProfile.formationDate ? { registrationDate: entityProfile.formationDate } : {}),
+        ...(savedEntityTaxId ? { taxId: isEntityTaxIdOnFile ? '•••-••-••••' : formatTaxIdFromDB(savedEntityTaxId) } : {}),
+        // Allow fallback to investment-level registration date if stored on user legacy fields
+        ...(u.entityRegistrationDate && !entityProfile.registrationDate && !entityProfile.formationDate ? { registrationDate: u.entityRegistrationDate } : {})
+      }
+
       // Authorized Representative
       const r = u.authorizedRepresentative || {}
+      const repAddress = r.address || u.address || {}
+      const repSsnSource = savedAuthRepSsn || (u.accountType === 'entity' ? savedSsn : '')
+      const repSsnMasked = savedAuthRepSsn ? isAuthRepSsnOnFile : (repSsnSource ? isSsnOnFile : false)
       updated.authorizedRep = {
         ...prev.authorizedRep,
-        ...(r.firstName ? { firstName: r.firstName } : {}),
-        ...(r.lastName ? { lastName: r.lastName } : {}),
-        ...(r.address?.street1 ? { street1: r.address.street1 } : {}),
-        ...(r.address?.street2 ? { street2: r.address.street2 } : {}),
-        ...(r.address?.city ? { city: r.address.city } : {}),
-        ...(r.address?.state ? { state: toFullStateName(r.address.state) } : {}),
-        ...(r.address?.zip ? { zip: r.address.zip } : {}),
-        ...(r.address?.country ? { country: r.address.country } : {}),
-        ...(r.dob ? { dob: r.dob } : {}),
-        ...(savedAuthRepSsn ? { ssn: isAuthRepSsnOnFile ? '•••-••-••••' : savedAuthRepSsn } : {})
+        ...(r.firstName || u.firstName ? { firstName: r.firstName || u.firstName } : {}),
+        ...(r.lastName || u.lastName ? { lastName: r.lastName || u.lastName } : {}),
+        ...((r.phone || u.phoneNumber) ? { phone: formatPhoneFromDB(r.phone || u.phoneNumber) } : {}),
+        ...(repAddress.street1 ? { street1: repAddress.street1 } : {}),
+        ...(repAddress.street2 ? { street2: repAddress.street2 } : {}),
+        ...(repAddress.city ? { city: repAddress.city } : {}),
+        ...(repAddress.state ? { state: toFullStateName(repAddress.state) } : {}),
+        ...(repAddress.zip ? { zip: repAddress.zip } : {}),
+        ...(repAddress.country ? { country: repAddress.country } : {}),
+        ...(r.dob || u.dob ? { dob: r.dob || u.dob } : {}),
+        ...(repSsnSource ? { ssn: repSsnMasked ? '•••-••-••••' : repSsnSource } : {})
       }
       return updated
     })
@@ -326,11 +418,22 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         setForm(prev => {
           const updated = { ...prev }
           
-          // Entity-specific fields
+          // Entity-specific fields (no EIN/TIN hydration from investment)
           if (investment.entity) {
-            if (investment.entity.name) updated.entityName = investment.entity.name
-            if (investment.entity.registrationDate) updated.dob = investment.entity.registrationDate
-            if (investment.entity.taxId) updated.ssn = investment.entity.taxId
+            const entity = investment.entity
+            updated.entity = {
+              ...prev.entity,
+              ...(entity.name ? { name: entity.name } : {}),
+              ...(entity.phone ? { phone: formatPhoneFromDB(entity.phone) } : {}),
+              ...(entity.address?.street1 ? { street1: entity.address.street1 } : {}),
+              ...(entity.address?.street2 ? { street2: entity.address.street2 } : {}),
+              ...(entity.address?.city ? { city: entity.address.city } : {}),
+              ...(entity.address?.state ? { state: toFullStateName(entity.address.state) } : {}),
+              ...(entity.address?.zip ? { zip: entity.address.zip } : {}),
+              ...(entity.address?.country ? { country: entity.address.country } : {}),
+              ...(entity.registrationDate ? { registrationDate: entity.registrationDate } : {}),
+              ...(entity.formationDate ? { registrationDate: entity.formationDate } : {})
+            }
           }
           
           // Authorized representative for entity accounts
@@ -339,14 +442,14 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             updated.authorizedRep = {
               firstName: rep.firstName || prev.authorizedRep.firstName,
               lastName: rep.lastName || prev.authorizedRep.lastName,
+              phone: formatPhoneFromDB(rep.phone) || prev.authorizedRep.phone,
               street1: rep.address?.street1 || prev.authorizedRep.street1,
               street2: rep.address?.street2 || prev.authorizedRep.street2,
               city: rep.address?.city || prev.authorizedRep.city,
               state: toFullStateName(rep.address?.state) || prev.authorizedRep.state,
               zip: rep.address?.zip || prev.authorizedRep.zip,
               country: rep.address?.country || prev.authorizedRep.country,
-              dob: rep.dob || prev.authorizedRep.dob,
-              ssn: rep.ssn || prev.authorizedRep.ssn
+              dob: rep.dob || prev.authorizedRep.dob
             }
           }
           
@@ -359,7 +462,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               hasEmail: !!joint.email,
               hasPhone: !!joint.phone,
               hasDob: !!joint.dob,
-              hasSsn: !!joint.ssn,
               hasAddress: !!joint.address
             })
             updated.jointHolder = {
@@ -372,7 +474,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               zip: joint.address?.zip || prev.jointHolder.zip,
               country: joint.address?.country || prev.jointHolder.country,
               dob: joint.dob || prev.jointHolder.dob,
-              ssn: joint.ssn || prev.jointHolder.ssn,
               email: joint.email || prev.jointHolder.email,
               phone: formatPhoneFromDB(joint.phone) || prev.jointHolder.phone
             }
@@ -392,6 +493,23 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           if (investment.jointHoldingType) {
             updated.jointHoldingType = investment.jointHoldingType
             console.log('✅ Loaded joint holding type:', investment.jointHoldingType)
+          }
+          
+          // Individual draft (identityDraft.holder)
+          const holderDraft = investment.identityDraft?.holder
+          if (holderDraft) {
+            updated.firstName = holderDraft.firstName || updated.firstName
+            updated.lastName = holderDraft.lastName || updated.lastName
+            updated.phone = formatPhoneFromDB(holderDraft.phone) || updated.phone
+            if (holderDraft.address) {
+              updated.street1 = holderDraft.address.street1 || updated.street1
+              updated.street2 = holderDraft.address.street2 || updated.street2
+              updated.city = holderDraft.address.city || updated.city
+              updated.state = toFullStateName(holderDraft.address.state) || updated.state
+              updated.zip = holderDraft.address.zip || updated.zip
+              updated.country = holderDraft.address.country || updated.country
+            }
+            updated.dob = holderDraft.dob || updated.dob
           }
           
           return updated
@@ -476,6 +594,13 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         jointHolder: { ...prev.jointHolder, [fieldName]: value }
       }))
       if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
+    } else if (name.startsWith('entity.')) {
+      const fieldName = name.replace('entity.', '')
+      setForm(prev => ({
+        ...prev,
+        entity: { ...prev.entity, [fieldName]: value }
+      }))
+      if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
     } else if (name.startsWith('authorizedRep.')) {
       const fieldName = name.replace('authorizedRep.', '')
       setForm(prev => ({
@@ -495,7 +620,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       setFieldValue(name, formatName(value))
       return
     }
-    if (name === 'entityName') {
+    if (name === 'entity.name') {
       setFieldValue(name, formatName(value))
       return
     }
@@ -519,39 +644,60 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       setFieldValue(name, formatSsn(value))
       return
     }
+    if (name === 'entity.taxId') {
+      setFieldValue(name, formatTaxId(value))
+      return
+    }
     setFieldValue(name, value)
   }
 
   const validate = () => {
     const newErrors = {}
+
     if (accountType === 'entity') {
-      if (!form.entityName.trim()) newErrors.entityName = 'Required'
-    }
-    if (accountType !== 'entity') {
+      if (!form.entity.name.trim()) newErrors['entity.name'] = 'Required'
+      if (!form.entity.phone.trim()) newErrors['entity.phone'] = 'Required'
+      else if (!isValidUSPhone(form.entity.phone)) newErrors['entity.phone'] = 'Enter a valid US phone (10 digits; area code 2-9)'
+      if (!form.entity.street1.trim()) newErrors['entity.street1'] = 'Required'
+      if (!form.entity.city.trim()) newErrors['entity.city'] = 'Required'
+      else if (/[0-9]/.test(form.entity.city)) newErrors['entity.city'] = 'No numbers allowed'
+      if (!form.entity.state.trim()) newErrors['entity.state'] = 'Required'
+      if (!form.entity.zip.trim()) newErrors['entity.zip'] = 'Required'
+      else if (form.entity.zip.length !== 5) newErrors['entity.zip'] = 'Enter 5 digits'
+      if (!form.entity.registrationDate) {
+        newErrors['entity.registrationDate'] = 'Required'
+      } else {
+        const [y, m, d] = form.entity.registrationDate.split('-').map(Number)
+        const date = new Date(y, m - 1, d)
+        const today = new Date()
+        const [minY, minM, minD] = MIN_DOB.split('-').map(Number)
+        const min = new Date(minY, minM - 1, minD)
+        if (!(date >= min && date <= today)) {
+          newErrors['entity.registrationDate'] = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Cannot be in the future.`
+        }
+      }
+      if (!form.entity.taxId.trim()) newErrors['entity.taxId'] = 'Required'
+      else if (!isCompleteTaxId(form.entity.taxId)) newErrors['entity.taxId'] = 'Enter full EIN/TIN (9 digits)'
+    } else {
       if (!form.firstName.trim()) newErrors.firstName = 'Required'
       if (!form.lastName.trim()) newErrors.lastName = 'Required'
+      if (!form.phone.trim()) newErrors.phone = 'Required'
+      else if (!isValidUSPhone(form.phone)) newErrors.phone = 'Enter a valid US phone (10 digits; area code 2-9)'
+      if (!form.street1.trim()) newErrors.street1 = 'Required'
+      if (!form.city.trim()) newErrors.city = 'Required'
+      else if (/[0-9]/.test(form.city)) newErrors.city = 'No numbers allowed'
+      if (!form.state.trim()) newErrors.state = 'Required'
+      if (!form.zip.trim()) newErrors.zip = 'Required'
+      else if (form.zip.length !== 5) newErrors.zip = 'Enter 5 digits'
+      if (!form.dob) newErrors.dob = 'Required'
+      else if (!isAdultDob(form.dob)) {
+        newErrors.dob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
+      }
+      // Skip SSN validation if it's masked (already on file)
+      if (!form.ssn.trim()) newErrors.ssn = 'Required'
+      else if (form.ssn !== '•••-••-••••' && !isCompleteSsn(form.ssn)) newErrors.ssn = 'Enter full SSN'
     }
-    if (!form.phone.trim()) newErrors.phone = 'Required'
-    else if (!isValidUSPhone(form.phone)) newErrors.phone = 'Enter a valid US phone (10 digits; area code 2-9)'
-    if (!form.street1.trim()) newErrors.street1 = 'Required'
-    if (!form.city.trim()) newErrors.city = 'Required'
-    else if (/[0-9]/.test(form.city)) newErrors.city = 'No numbers allowed'
-    if (!form.state.trim()) newErrors.state = 'Required'
-  if (!form.zip.trim()) newErrors.zip = 'Required'
-  else if (form.zip.length !== 5) newErrors.zip = 'Enter 5 digits'
-  if (!form.dob) newErrors.dob = 'Required'
-  else if (accountType === 'entity') {
-    const date = (() => { const [y,m,d] = form.dob.split('-').map(Number); return new Date(y, m-1, d) })()
-    const today = new Date()
-    const min = (() => { const [y,m,d] = MIN_DOB.split('-').map(Number); return new Date(y, m-1, d) })()
-    if (!(date >= min && date <= today)) newErrors.dob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Cannot be in the future.`
-  } else if (!isAdultDob(form.dob)) {
-    newErrors.dob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
-  }
-  // Skip SSN validation if it's masked (already on file)
-  if (!form.ssn.trim()) newErrors.ssn = 'Required'
-  else if (form.ssn !== '•••-••-••••' && !isCompleteSsn(form.ssn)) newErrors.ssn = 'Enter full SSN'
-    
+
     // Validate joint holder fields if account type is joint
     if (accountType === 'joint') {
       if (!form.jointHoldingType.trim()) newErrors.jointHoldingType = 'Required'
@@ -571,10 +717,13 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       if (!form.jointHolder.phone.trim()) newErrors['jointHolder.phone'] = 'Required'
       else if (!isValidUSPhone(form.jointHolder.phone)) newErrors['jointHolder.phone'] = 'Enter a valid US phone (10 digits; area code 2-9)'
     }
+
     if (accountType === 'entity') {
       // Authorized representative must also be provided
       if (!form.authorizedRep.firstName.trim()) newErrors['authorizedRep.firstName'] = 'Required'
       if (!form.authorizedRep.lastName.trim()) newErrors['authorizedRep.lastName'] = 'Required'
+      if (!form.authorizedRep.phone.trim()) newErrors['authorizedRep.phone'] = 'Required'
+      else if (!isValidUSPhone(form.authorizedRep.phone)) newErrors['authorizedRep.phone'] = 'Enter a valid US phone (10 digits; area code 2-9)'
       if (!form.authorizedRep.street1.trim()) newErrors['authorizedRep.street1'] = 'Required'
       if (!form.authorizedRep.city.trim()) newErrors['authorizedRep.city'] = 'Required'
       else if (/[0-9]/.test(form.authorizedRep.city)) newErrors['authorizedRep.city'] = 'No numbers allowed'
@@ -606,6 +755,24 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       if (!userId) return
 
       // Update user profile
+      const primaryAddress = accountType === 'entity'
+        ? {
+            street1: form.authorizedRep.street1,
+            street2: form.authorizedRep.street2,
+            city: form.authorizedRep.city,
+            state: form.authorizedRep.state,
+            zip: form.authorizedRep.zip,
+            country: form.authorizedRep.country
+          }
+        : {
+            street1: form.street1,
+            street2: form.street2,
+            city: form.city,
+            state: form.state,
+            zip: form.zip,
+            country: form.country
+          }
+
       const jointAddress = jointUsePrimaryAddress ? {
         street1: form.street1,
         street2: form.street2,
@@ -622,15 +789,28 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         country: form.jointHolder.country
       }
 
+      const entityAddress = {
+        street1: form.entity.street1,
+        street2: form.entity.street2,
+        city: form.entity.city,
+        state: form.entity.state,
+        zip: form.entity.zip,
+        country: form.entity.country
+      }
+
       // Don't send masked SSN values - they're already on file
       const isSsnMasked = form.ssn === '•••-••-••••'
       const isAuthRepSsnMasked = form.authorizedRep.ssn === '•••-••-••••'
-      
+
+      const primaryPhoneDisplay = accountType === 'entity' ? form.authorizedRep.phone : form.phone
+      const normalizedPrimaryPhone = normalizePhoneForDB((primaryPhoneDisplay || '').trim())
+      const normalizedAuthorizedRepPhone = normalizePhoneForBackend(form.authorizedRep.phone)
+      const normalizedEntityPhone = form.entity.phone ? normalizePhoneForBackend(form.entity.phone) : ''
+
       const userData = {
-        ...(accountType !== 'entity' ? {
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim()
-        } : {}),
+        phoneNumber: normalizedPrimaryPhone,
+        // Always update user's single address with latest values (match backend schema)
+        address: formatAddressForBackend(primaryAddress),
         ...(accountType === 'joint' ? {
           // Declare joint profile with holding type and holder details
           accountType: 'joint',
@@ -646,40 +826,56 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             address: formatAddressForBackend(jointAddress)
           }
         } : {}),
-        phoneNumber: normalizePhoneForDB(form.phone.trim()),
-        // Always update user's single address with latest values (match backend schema)
-        address: {
-          street1: form.street1,
-          street2: form.street2,
-          city: form.city,
-          state: form.state,
-          zip: form.zip
-        },
-        ...(accountType !== 'entity' ? {
-          dob: form.dob,
-          // Only send ssn if it's not masked (already on file)
-          ...(isSsnMasked ? {} : { ssn: form.ssn })
-        } : {})
+        ...(accountType === 'entity'
+          ? {
+              accountType: 'entity',
+              firstName: form.authorizedRep.firstName.trim(),
+              lastName: form.authorizedRep.lastName.trim(),
+              dob: form.authorizedRep.dob,
+              ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
+              authorizedRepresentative: {
+                firstName: form.authorizedRep.firstName.trim(),
+                lastName: form.authorizedRep.lastName.trim(),
+                phone: normalizedAuthorizedRepPhone,
+                dob: form.authorizedRep.dob,
+                ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
+                address: formatAddressForBackend(primaryAddress)
+              },
+              entity: {
+                name: form.entity.name.trim(),
+                formationDate: form.entity.registrationDate,
+                registrationDate: form.entity.registrationDate,
+                taxId: form.entity.taxId,
+                ...(form.entity.phone ? { phone: normalizedEntityPhone } : {}),
+                address: formatAddressForBackend(entityAddress)
+              }
+            }
+          : {
+              firstName: form.firstName.trim(),
+              lastName: form.lastName.trim(),
+              dob: form.dob,
+              // Only send ssn if it's not masked (already on file)
+              ...(isSsnMasked ? {} : { ssn: form.ssn })
+            })
       }
 
       // Note: Joint holder data is investment-specific; do not send in /api/profile payload
 
       // Build summary immediately and advance UI
       const summary = {
-        ...(accountType !== 'entity' ? {
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim()
-        } : {}),
-        phone: form.phone.trim(),
-        street1: form.street1,
-        street2: form.street2,
-        city: form.city,
-        state: form.state,
-        zip: form.zip,
-        country: form.country,
-        dob: form.dob,
-        ssn: form.ssn,
         accountType,
+        firstName: accountType === 'entity' ? form.authorizedRep.firstName.trim() : form.firstName.trim(),
+        lastName: accountType === 'entity' ? form.authorizedRep.lastName.trim() : form.lastName.trim(),
+        phone: (primaryPhoneDisplay || '').trim(),
+        street1: primaryAddress.street1,
+        street2: primaryAddress.street2,
+        city: primaryAddress.city,
+        state: primaryAddress.state,
+        zip: primaryAddress.zip,
+        country: primaryAddress.country,
+        dob: accountType === 'entity' ? form.authorizedRep.dob : form.dob,
+        // For entity accounts, show EIN/TIN in the summary's 'ssn' field (renderer switches label)
+        ssn: accountType === 'entity' ? form.entity.taxId : form.ssn,
         jointHoldingType: form.jointHoldingType,
         jointHolder: accountType === 'joint' ? {
           firstName: form.jointHolder.firstName,
@@ -690,22 +886,37 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           ssn: form.jointHolder.ssn,
           address: jointAddress
         } : undefined,
-        entityName: accountType === 'entity' ? form.entityName : undefined,
+        entityName: accountType === 'entity' ? form.entity.name : undefined,
+        entity: accountType === 'entity' ? {
+          name: form.entity.name,
+          phone: form.entity.phone,
+          registrationDate: form.entity.registrationDate,
+          taxId: form.entity.taxId,
+          address: entityAddress
+        } : undefined,
         authorizedRep: accountType === 'entity' ? {
           firstName: form.authorizedRep.firstName,
           lastName: form.authorizedRep.lastName,
+          phone: form.authorizedRep.phone,
           dob: form.authorizedRep.dob,
           ssn: form.authorizedRep.ssn,
-          address: {
-            street1: form.authorizedRep.street1,
-            street2: form.authorizedRep.street2,
-            city: form.authorizedRep.city,
-            state: form.authorizedRep.state,
-            zip: form.authorizedRep.zip,
-            country: form.authorizedRep.country,
-          }
+          address: primaryAddress
         } : undefined
       }
+      // Persist a sanitized local snapshot so Edit rehydrates even if backend save fails
+      try {
+        const invId = localStorage.getItem('currentInvestmentId')
+        const snapshotKey = invId ? `investmentIdentityDraft:${invId}` : 'investmentIdentityDraft'
+        const sanitized = {
+          ...form,
+          ssn: '',
+          dob: '',
+          authorizedRep: { ...form.authorizedRep, ssn: '', dob: '' },
+          jointHolder: { ...form.jointHolder, ssn: '', dob: '' },
+          entity: { ...form.entity, taxId: '' }
+        }
+        localStorage.setItem(snapshotKey, JSON.stringify({ accountType, form: sanitized }))
+      } catch {}
       if (typeof onReviewSummary === 'function') onReviewSummary(summary)
       if (typeof onCompleted === 'function') onCompleted(summary)
 
@@ -737,13 +948,13 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
       // Prepare address data for saving (defined BEFORE usage below)
       const mainAddress = {
-        street1: form.street1,
-        street2: form.street2,
-        city: form.city,
-        state: form.state,
-        zip: form.zip,
-        country: form.country,
-        label: 'Home',
+        street1: primaryAddress.street1,
+        street2: primaryAddress.street2,
+        city: primaryAddress.city,
+        state: primaryAddress.state,
+        zip: primaryAddress.zip,
+        country: primaryAddress.country,
+        label: accountType === 'entity' ? 'Authorized Rep' : 'Home',
         isPrimary: true
       }
 
@@ -780,23 +991,19 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         
         if (accountType === 'entity') {
           investmentFields.entity = {
-            name: form.entityName,
-            registrationDate: form.dob,
-            taxId: form.ssn
+            name: form.entity.name.trim(),
+            formationDate: form.entity.registrationDate,
+            registrationDate: form.entity.registrationDate,
+            ...(form.entity.phone ? { phone: normalizedEntityPhone } : {}),
+            address: formatAddressForBackend(entityAddress)
           }
           investmentFields.authorizedRepresentative = {
             firstName: form.authorizedRep.firstName.trim(),
             lastName: form.authorizedRep.lastName.trim(),
+            phone: normalizedAuthorizedRepPhone,
             dob: form.authorizedRep.dob,
-            ssn: form.authorizedRep.ssn,
-            address: formatAddressForBackend({
-              street1: form.authorizedRep.street1,
-              street2: form.authorizedRep.street2,
-              city: form.authorizedRep.city,
-              state: form.authorizedRep.state,
-              zip: form.authorizedRep.zip,
-              country: form.authorizedRep.country
-            })
+            ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
+            address: formatAddressForBackend(primaryAddress)
           }
         } else if (accountType === 'joint') {
           // Add joint holder data to investment
@@ -806,7 +1013,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             lastName: form.jointHolder.lastName.trim(),
             address: formatAddressForBackend(jointAddress),
             dob: form.jointHolder.dob,
-            ssn: form.jointHolder.ssn,
             email: form.jointHolder.email,
             phone: normalizePhoneForBackend(form.jointHolder.phone)
           }
@@ -815,10 +1021,22 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             accepted: true,
             acceptedAt: new Date().toISOString()
           }
+        } else if (accountType === 'individual' && USE_SERVER_IDENTITY_DRAFTS) {
+          // Persist individual identity draft without sensitive numbers
+          investmentFields.identityDraft = {
+            holder: {
+              firstName: form.firstName.trim(),
+              lastName: form.lastName.trim(),
+              phone: normalizePhoneForBackend(form.phone),
+              dob: form.dob,
+              address: formatAddressForBackend(primaryAddress),
+              ssnOnFile: isSsnMasked || Boolean(userData?.ssn)
+            }
+          }
         }
 
         try {
-          console.log('💾 Saving investment identity fields:', { investmentId, investmentFields })
+          console.log('💾 Saving investment identity fields:', { investmentId, keys: Object.keys(investmentFields || {}) })
           const investmentResponse = await apiClient.updateInvestment(userId, investmentId, investmentFields)
           if (!investmentResponse.success) {
             console.error('Failed to update investment:', investmentResponse.error)
@@ -913,6 +1131,11 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               {errors['authorizedRep.lastName'] && <span className={styles.error}>{errors['authorizedRep.lastName']}</span>}
             </div>
             <div className={styles.field}> 
+              <label className={styles.label}>Phone Number</label>
+              <input className={`${styles.input} ${errors['authorizedRep.phone'] ? styles.inputError : ''}`} name="authorizedRep.phone" value={form.authorizedRep.phone} onChange={handleChange} placeholder="(555) 555-5555" inputMode="tel" />
+              {errors['authorizedRep.phone'] && <span className={styles.error}>{errors['authorizedRep.phone']}</span>}
+            </div>
+            <div className={styles.field}> 
               <label className={styles.label}>Street Address</label>
               <input className={`${styles.input} ${errors['authorizedRep.street1'] ? styles.inputError : ''}`} name="authorizedRep.street1" value={form.authorizedRep.street1} onChange={handleChange} placeholder="No PO Boxes" />
               {errors['authorizedRep.street1'] && <span className={styles.error}>{errors['authorizedRep.street1']}</span>}
@@ -989,21 +1212,138 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         <h3>{accountType === 'entity' ? 'Entity Information' : (accountType === 'joint' ? 'Primary Holder Information' : 'Holder Information')}</h3>
       </div>
       <div className={styles.grid}>
-        {accountType === 'entity' && (
+        {accountType === 'entity' ? (
           <>
             <div className={styles.field}> 
               <label className={styles.label}>Entity Name</label>
-              <input className={`${styles.input} ${errors.entityName ? styles.inputError : ''}`} name="entityName" value={form.entityName} onChange={handleChange} placeholder="Enter entity name" disabled={hasActiveInvestments} />
-              {errors.entityName && <span className={styles.error}>{errors.entityName}</span>}
+              <input
+                className={`${styles.input} ${errors['entity.name'] ? styles.inputError : ''}`}
+                name="entity.name"
+                value={form.entity.name}
+                onChange={handleChange}
+                placeholder="Enter entity name"
+                disabled={hasActiveInvestments}
+              />
+              {errors['entity.name'] && <span className={styles.error}>{errors['entity.name']}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Phone Number</label>
-              <input className={`${styles.input} ${errors.phone ? styles.inputError : ''}`} name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" inputMode="tel" />
-              {errors.phone && <span className={styles.error}>{errors.phone}</span>}
+              <input
+                className={`${styles.input} ${errors['entity.phone'] ? styles.inputError : ''}`}
+                name="entity.phone"
+                value={form.entity.phone}
+                onChange={handleChange}
+                placeholder="(555) 555-5555"
+                inputMode="tel"
+              />
+              {errors['entity.phone'] && <span className={styles.error}>{errors['entity.phone']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Street Address</label>
+              <input
+                className={`${styles.input} ${errors['entity.street1'] ? styles.inputError : ''}`}
+                name="entity.street1"
+                value={form.entity.street1}
+                onChange={handleChange}
+                placeholder="No PO Boxes"
+              />
+              {errors['entity.street1'] && <span className={styles.error}>{errors['entity.street1']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Apt or Unit</label>
+              <input
+                className={styles.input}
+                name="entity.street2"
+                value={form.entity.street2}
+                onChange={handleChange}
+                placeholder="Apt, unit, etc."
+              />
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>City</label>
+              <input
+                className={`${styles.input} ${errors['entity.city'] ? styles.inputError : ''}`}
+                name="entity.city"
+                value={form.entity.city}
+                onChange={handleChange}
+                placeholder="Enter city"
+              />
+              {errors['entity.city'] && <span className={styles.error}>{errors['entity.city']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Zip Code</label>
+              <input
+                className={`${styles.input} ${errors['entity.zip'] ? styles.inputError : ''}`}
+                name="entity.zip"
+                value={form.entity.zip}
+                onChange={handleChange}
+                placeholder="Enter ZIP code"
+                inputMode="numeric"
+              />
+              {errors['entity.zip'] && <span className={styles.error}>{errors['entity.zip']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>State</label>
+              <select
+                name="entity.state"
+                value={form.entity.state}
+                onChange={handleChange}
+                className={`${styles.input} ${errors['entity.state'] ? styles.inputError : ''}`}
+              >
+                <option value="">Select state</option>
+                {US_STATES.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {errors['entity.state'] && <span className={styles.error}>{errors['entity.state']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Country</label>
+              <input className={styles.input} name="entity.country" value={form.entity.country} readOnly disabled />
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>{dateLabel}</label>
+              <input
+                className={`${styles.input} ${errors['entity.registrationDate'] ? styles.inputError : ''}`}
+                type="date"
+                name="entity.registrationDate"
+                value={form.entity.registrationDate}
+                onChange={handleChange}
+                min={MIN_DOB}
+                max={maxToday}
+                disabled={hasActiveInvestments}
+              />
+              {errors['entity.registrationDate'] && <span className={styles.error}>{errors['entity.registrationDate']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <div className={styles.labelRow}>
+                <label className={styles.label}>{idLabel}</label>
+                <button type="button" className={styles.helpLink} onClick={() => setShowSsnHelp(v => !v)}>
+                  Why do we need this?
+                </button>
+              </div>
+              <input 
+                className={`${styles.input} ${errors['entity.taxId'] ? styles.inputError : ''}`} 
+                type="text"
+                name="entity.taxId" 
+                value={form.entity.taxId} 
+                onChange={handleChange} 
+                placeholder="Enter EIN or TIN"
+                inputMode="numeric" 
+                disabled={hasActiveInvestments || form.entity.taxId === '•••-••-••••'} 
+                readOnly={hasActiveInvestments || form.entity.taxId === '•••-••-••••'}
+                autoComplete="off"
+                title={form.entity.taxId === '•••-••-••••' ? 'TIN on file - cannot be modified' : ''}
+              />
+              {errors['entity.taxId'] && <span className={styles.error}>{errors['entity.taxId']}</span>}
+              {showSsnHelp && (
+                <div className={styles.helpText}>
+                  A Taxpayer Identification Number (TIN) is necessary for compliance with Anti-Money Laundering (AML) and Know Your Customer (KYC) regulations. This information is securely stored and used only for verification purposes.
+                </div>
+              )}
             </div>
           </>
-        )}
-        {accountType !== 'entity' && (
+        ) : (
           <>
             <div className={styles.field}> 
               <label className={styles.label}>First Name</label>
@@ -1020,83 +1360,83 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               <input className={`${styles.input} ${errors.phone ? styles.inputError : ''}`} name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" inputMode="tel" />
               {errors.phone && <span className={styles.error}>{errors.phone}</span>}
             </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Street Address</label>
+              <input className={`${styles.input} ${errors.street1 ? styles.inputError : ''}`} name="street1" value={form.street1} onChange={handleChange} placeholder="No PO Boxes" />
+              {errors.street1 && <span className={styles.error}>{errors.street1}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Apt or Unit</label>
+              <input className={styles.input} name="street2" value={form.street2} onChange={handleChange} placeholder="Apt, unit, etc." />
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>City</label>
+              <input className={`${styles.input} ${errors.city ? styles.inputError : ''}`} name="city" value={form.city} onChange={handleChange} placeholder="Enter city" />
+              {errors.city && <span className={styles.error}>{errors.city}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Zip Code</label>
+              <input className={`${styles.input} ${errors.zip ? styles.inputError : ''}`} name="zip" value={form.zip} onChange={handleChange} placeholder="Enter ZIP code" inputMode="numeric" />
+              {errors.zip && <span className={styles.error}>{errors.zip}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>State</label>
+              <select
+                name="state"
+                value={form.state}
+                onChange={handleChange}
+                className={`${styles.input} ${errors.state ? styles.inputError : ''}`}
+              >
+                <option value="">Select state</option>
+                {US_STATES.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {errors.state && <span className={styles.error}>{errors.state}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>Country</label>
+              <input className={styles.input} name="country" value={form.country} readOnly disabled />
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>{dateLabel}</label>
+              <input className={`${styles.input} ${errors.dob ? styles.inputError : ''}`} type="date" name="dob" value={form.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={hasActiveInvestments} />
+              {errors.dob && <span className={styles.error}>{errors.dob}</span>}
+            </div>
+            <div className={styles.field}> 
+              <div className={styles.labelRow}>
+                <label className={styles.label}>{idLabel}</label>
+                <button type="button" className={styles.helpLink} onClick={() => setShowSsnHelp(v => !v)}>
+                  Why do we need this?
+                </button>
+              </div>
+              <input 
+                className={`${styles.input} ${errors.ssn ? styles.inputError : ''}`} 
+                type="text"
+                name="ssn" 
+                value={form.ssn} 
+                onChange={handleChange} 
+                placeholder="123-45-6789"
+                inputMode="numeric" 
+                disabled={hasActiveInvestments || form.ssn === '•••-••-••••'} 
+                readOnly={hasActiveInvestments || form.ssn === '•••-••-••••'}
+                autoComplete="off"
+                title={form.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
+              />
+              {errors.ssn && <span className={styles.error}>{errors.ssn}</span>}
+              {!form.ssn && !errors.ssn && hasActiveInvestments && (
+                <span className={styles.helpText} style={{color: '#f59e0b', marginTop: '4px'}}>
+                  ⚠️ No SSN on file. Contact your administrator to add SSN to your profile before making an investment.
+                </span>
+              )}
+              {showSsnHelp && (
+                <div className={styles.helpText}>
+                  A Taxpayer Identification Number (TIN) is necessary for compliance with Anti-Money Laundering (AML) and Know Your Customer (KYC) regulations. This information is securely stored and used only for verification purposes.
+                </div>
+              )}
+            </div>
           </>
         )}
-        <div className={styles.field}> 
-          <label className={styles.label}>Street Address</label>
-          <input className={`${styles.input} ${errors.street1 ? styles.inputError : ''}`} name="street1" value={form.street1} onChange={handleChange} placeholder="No PO Boxes" />
-          {errors.street1 && <span className={styles.error}>{errors.street1}</span>}
-        </div>
-        <div className={styles.field}> 
-          <label className={styles.label}>Apt or Unit</label>
-          <input className={styles.input} name="street2" value={form.street2} onChange={handleChange} placeholder="Apt, unit, etc." />
-        </div>
-        <div className={styles.field}> 
-          <label className={styles.label}>City</label>
-          <input className={`${styles.input} ${errors.city ? styles.inputError : ''}`} name="city" value={form.city} onChange={handleChange} placeholder="Enter city" />
-          {errors.city && <span className={styles.error}>{errors.city}</span>}
-        </div>
-        <div className={styles.field}> 
-          <label className={styles.label}>Zip Code</label>
-          <input className={`${styles.input} ${errors.zip ? styles.inputError : ''}`} name="zip" value={form.zip} onChange={handleChange} placeholder="Enter ZIP code" inputMode="numeric" />
-          {errors.zip && <span className={styles.error}>{errors.zip}</span>}
-        </div>
-        <div className={styles.field}> 
-          <label className={styles.label}>State</label>
-          <select
-            name="state"
-            value={form.state}
-            onChange={handleChange}
-            className={`${styles.input} ${errors.state ? styles.inputError : ''}`}
-          >
-            <option value="">Select state</option>
-            {US_STATES.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          {errors.state && <span className={styles.error}>{errors.state}</span>}
-        </div>
-        <div className={styles.field}> 
-          <label className={styles.label}>Country</label>
-          <input className={styles.input} name="country" value={form.country} readOnly disabled />
-        </div>
-        <div className={styles.field}> 
-          <label className={styles.label}>{dateLabel}</label>
-          <input className={`${styles.input} ${errors.dob ? styles.inputError : ''}`} type="date" name="dob" value={form.dob} onChange={handleChange} min={MIN_DOB} max={accountType === 'entity' ? maxToday : maxAdultDob} disabled={hasActiveInvestments} />
-          {errors.dob && <span className={styles.error}>{errors.dob}</span>}
-        </div>
-        <div className={styles.field}> 
-          <div className={styles.labelRow}>
-            <label className={styles.label}>{idLabel}</label>
-            <button type="button" className={styles.helpLink} onClick={() => setShowSsnHelp(v => !v)}>
-              Why do we need this?
-            </button>
-          </div>
-          <input 
-            className={`${styles.input} ${errors.ssn ? styles.inputError : ''}`} 
-            type="text"
-            name="ssn" 
-            value={form.ssn} 
-            onChange={handleChange} 
-            placeholder={accountType === 'entity' ? 'Enter EIN or TIN' : '123-45-6789'} 
-            inputMode="numeric" 
-            disabled={hasActiveInvestments || form.ssn === '•••-••-••••'} 
-            readOnly={hasActiveInvestments || form.ssn === '•••-••-••••'}
-            autoComplete="off"
-            title={form.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
-          />
-          {errors.ssn && <span className={styles.error}>{errors.ssn}</span>}
-          {!form.ssn && !errors.ssn && hasActiveInvestments && (
-            <span className={styles.helpText} style={{color: '#f59e0b', marginTop: '4px'}}>
-              ⚠️ No SSN on file. Contact your administrator to add SSN to your profile before making an investment.
-            </span>
-          )}
-          {showSsnHelp && (
-            <div className={styles.helpText}>
-              A Taxpayer Identification Number (TIN) is necessary for compliance with Anti-Money Laundering (AML) and Know Your Customer (KYC) regulations. This information is securely stored and used only for verification purposes.
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Authorized Representative Information for Entities - section moved above */}
