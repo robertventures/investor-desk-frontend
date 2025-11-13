@@ -4,12 +4,20 @@ import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '@/lib/apiClient'
 import logger from '@/lib/logger'
+import { getInvestmentTypeLockInfo } from '@/lib/investmentAccess'
 import Header from '../components/Header'
 import styles from './page.module.css'
 import stepStyles from '../components/TabbedSignup.module.css'
 import TabbedInvestmentType from '../components/TabbedInvestmentType'
 import InvestmentForm from '../components/InvestmentForm'
 import TabbedResidentialIdentity from '../components/TabbedResidentialIdentity'
+
+const ACCOUNT_TYPE_LABELS = {
+  individual: 'Individual',
+  joint: 'Joint',
+  entity: 'Entity',
+  ira: 'IRA'
+}
 
 function InvestmentPageContent() {
   const router = useRouter()
@@ -26,6 +34,7 @@ function InvestmentPageContent() {
 
   const [selectedAccountType, setSelectedAccountType] = useState('individual')
   const [lockedAccountType, setLockedAccountType] = useState(null)
+  const [lockingStatus, setLockingStatus] = useState(null)
   const [userAccountType, setUserAccountType] = useState(null)
   const [investmentAmount, setInvestmentAmount] = useState(0)
   const [investmentPaymentFrequency, setInvestmentPaymentFrequency] = useState('compounding')
@@ -33,20 +42,22 @@ function InvestmentPageContent() {
   const [investmentSummary, setInvestmentSummary] = useState(null)
   const [identitySummary, setIdentitySummary] = useState(null)
   const [isLoadingDraft, setIsLoadingDraft] = useState(true)
+  const lockedTypeLabel = useMemo(() => {
+    if (!lockedAccountType) return null
+    return ACCOUNT_TYPE_LABELS[lockedAccountType] || lockedAccountType
+  }, [lockedAccountType])
+  const topLockMessage = useMemo(() => {
+    if (!lockedTypeLabel) return null
+    return `Since you already have an investment type of ${lockedTypeLabel}, you can only make ${lockedTypeLabel} investments.`
+  }, [lockedTypeLabel])
   const formattedInvestmentSummary = useMemo(() => {
     if (!investmentSummary) return []
-    const accountTypeLabels = {
-      individual: 'Individual',
-      joint: 'Joint',
-      entity: 'Entity',
-      ira: 'IRA'
-    }
     const lockupLabels = {
       '1-year': '1-Year Lock-Up',
       '3-year': '3-Year Lock-Up'
     }
     const lines = []
-    lines.push({ label: 'Account Type', value: accountTypeLabels[investmentSummary.accountType] || '—' })
+    lines.push({ label: 'Account Type', value: ACCOUNT_TYPE_LABELS[investmentSummary.accountType] || '—' })
     lines.push({ label: 'Investment Amount', value: typeof investmentSummary.amount === 'number' ? `$${Number(investmentSummary.amount).toLocaleString()}` : '—' })
     lines.push({ label: 'Total Bonds', value: typeof investmentSummary.bonds === 'number' ? investmentSummary.bonds.toLocaleString() : '—' })
     lines.push({ label: 'Payment Frequency', value: investmentSummary.paymentFrequency === 'monthly' ? 'Interest Paid Monthly' : 'Compounded Monthly' })
@@ -191,15 +202,30 @@ function InvestmentPageContent() {
           }
         }
         
-        // Load user's account type and set as locked ONLY if user has confirmed investments
+        // Load user's investments (ensure we fetch them if not already present)
+        let userInvestments = Array.isArray(data.user?.investments) ? data.user.investments : []
+        if ((!userInvestments || userInvestments.length === 0) && data.success) {
+          try {
+            const investmentsResponse = await apiClient.getInvestments()
+            if (Array.isArray(investmentsResponse?.investments)) {
+              userInvestments = investmentsResponse.investments
+            }
+          } catch (err) {
+            logger.warn('Failed to fetch investments for lock enforcement:', err)
+          }
+        }
+
+        // Load user's account type and set as locked ONLY if user has confirmed/pending/active investments
         if (data.success && data.user) {
-          const confirmedInvestments = (data.user.investments || []).filter(inv => inv.status === 'confirmed' || inv.status === 'pending')
-          if (confirmedInvestments.length > 0 && data.user.accountType) {
-            // User has at least one confirmed/pending investment, lock the account type
-            setUserAccountType(data.user.accountType)
-            setLockedAccountType(data.user.accountType)
-            setSelectedAccountType(data.user.accountType)
+          const lockInfo = getInvestmentTypeLockInfo({ investments: userInvestments, accountType: data.user.accountType })
+          if (lockInfo.lockedAccountType) {
+            setUserAccountType(data.user.accountType || lockInfo.lockedAccountType)
+            setLockedAccountType(lockInfo.lockedAccountType)
+            setLockingStatus(lockInfo.lockingStatus)
+            setSelectedAccountType(lockInfo.lockedAccountType)
           } else {
+            setLockingStatus(null)
+            setLockedAccountType(null)
             // User has no confirmed investments yet - use profile accountType if available; otherwise use local draft fallback
             if (data.user.accountType) setUserAccountType(data.user.accountType)
             const localFallback = (() => {
@@ -223,6 +249,8 @@ function InvestmentPageContent() {
             }
           }
         } else {
+          setLockedAccountType(null)
+          setLockingStatus(null)
           // Fallback for missing user data: try local storage only
           const localFallback = (() => {
             try {
@@ -279,6 +307,11 @@ function InvestmentPageContent() {
             </div>
           </div>
         )}
+        {topLockMessage && (
+          <div className={styles.lockNotice}>
+            {topLockMessage}
+          </div>
+        )}
         <section className={`${stepStyles.card} ${isStep1Collapsed ? stepStyles.collapsed : ''}`}>
           <header className={stepStyles.cardHeader} onClick={() => { setActiveStep(1); setReviewModeStep1(false); setStep1Confirmed(false) }}>
             <div className={stepStyles.stepCircle}>1</div>
@@ -306,11 +339,6 @@ function InvestmentPageContent() {
                   showContinueButton={false}
                   onChange={setSelectedAccountType}
                 />
-                {lockedAccountType && (
-                  <p className={stepStyles.accountTypeDescription}>
-                    Your account type is determined by your first investment and cannot be changed for future investments.
-                  </p>
-                )}
               </div>
               <InvestmentForm 
                 accountType={selectedAccountType}

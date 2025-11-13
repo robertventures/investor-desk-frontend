@@ -11,7 +11,7 @@ import {
   readStoredPaymentMethod
 } from '../../lib/paymentMethodPreferences'
 import styles from './page.module.css'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function FinalizeInvestmentPage() {
@@ -64,6 +64,207 @@ function ClientContent() {
   const [bankSelectionMode, setBankSelectionMode] = useState('') // 'funding' or 'payout'
   const [fundingInfo, setFundingInfo] = useState(null)
   const [fundingError, setFundingError] = useState('')
+  const [agreementState, setAgreementState] = useState({
+    status: 'idle',
+    data: null,
+    error: '',
+    investmentId: null
+  })
+  const agreementStateRef = useRef(agreementState)
+  const agreementBlobUrlRef = useRef(null)
+  const agreementRequestIdRef = useRef(0)
+
+  useEffect(() => {
+    agreementStateRef.current = agreementState
+  }, [agreementState])
+
+  const releaseAgreementBlobUrl = useCallback(() => {
+    if (agreementBlobUrlRef.current) {
+      URL.revokeObjectURL(agreementBlobUrlRef.current)
+      agreementBlobUrlRef.current = null
+    }
+  }, [])
+
+  const openAgreementAsset = useCallback(
+    (data) => {
+      if (typeof window === 'undefined' || !data) return false
+
+      const signedUrl =
+        data.signed_url ||
+        data.signedUrl ||
+        data.url ||
+        data.download_url ||
+        data.downloadUrl ||
+        null
+
+      if (signedUrl) {
+        const win = window.open(signedUrl, '_blank', 'noopener,noreferrer')
+        if (!win) {
+          console.warn('Agreement pop-up was blocked.')
+          return false
+        }
+        return true
+      }
+
+      const pdfBase64 = data.pdf_base64 || data.pdfBase64 || data.pdf || null
+      if (typeof pdfBase64 === 'string' && pdfBase64.trim()) {
+        try {
+          let base64 = pdfBase64.trim()
+          if (base64.includes(',')) {
+            base64 = base64.slice(base64.indexOf(',') + 1)
+          }
+          base64 = base64.replace(/\s+/g, '')
+          if (!base64) {
+            return false
+          }
+
+          const binary = atob(base64)
+          const len = binary.length
+          const bytes = new Uint8Array(len)
+          for (let i = 0; i < len; i += 1) {
+            bytes[i] = binary.charCodeAt(i)
+          }
+
+          const blob = new Blob([bytes], {
+            type: data.content_type || data.contentType || 'application/pdf'
+          })
+          releaseAgreementBlobUrl()
+          const blobUrl = URL.createObjectURL(blob)
+          agreementBlobUrlRef.current = blobUrl
+          const win = window.open(blobUrl, '_blank', 'noopener,noreferrer')
+          if (!win) {
+            console.warn('Agreement pop-up was blocked.')
+            return false
+          }
+          return true
+        } catch (err) {
+          console.error('Failed to decode agreement PDF', err)
+          releaseAgreementBlobUrl()
+          return false
+        }
+      }
+
+      return false
+    },
+    [releaseAgreementBlobUrl]
+  )
+
+  const fetchAgreement = useCallback(
+    async ({ force = false, openOnSuccess = false } = {}) => {
+      if (!investment?.id) {
+        const message = 'Missing investment context for agreement.'
+        setAgreementState((prev) => ({
+          ...prev,
+          status: 'error',
+          error: message,
+          investmentId: null,
+          data: null
+        }))
+        return { success: false, error: message, data: null }
+      }
+
+      const current = agreementStateRef.current
+      if (!force && current.investmentId === investment.id) {
+        if (current.status === 'ready') {
+          if (openOnSuccess) {
+            const opened = openAgreementAsset(current.data)
+            if (!opened) {
+              const message = 'Agreement file could not be opened. Please allow pop-ups and try again.'
+              setAgreementState({
+                status: 'error',
+                data: current.data,
+                error: message,
+                investmentId: investment.id
+              })
+              return { success: false, error: message, data: current.data }
+            }
+          }
+          return { success: true, data: current.data }
+        }
+        if (current.status === 'loading') {
+          return { success: false, pending: true, data: current.data }
+        }
+      }
+
+      const requestId = agreementRequestIdRef.current + 1
+      agreementRequestIdRef.current = requestId
+      releaseAgreementBlobUrl()
+      setAgreementState({
+        status: 'loading',
+        data: current.investmentId === investment.id ? current.data : null,
+        error: '',
+        investmentId: investment.id
+      })
+
+      try {
+        console.log('[FinalizeInvestment] Fetching agreement for investment', {
+          investmentId: investment.id,
+          lockupPeriod: investment.lockupPeriod,
+          paymentFrequency: investment.paymentFrequency,
+          amount: investment.amount,
+          status: investment.status
+        })
+        const response = await apiClient.generateBondAgreement(investment.id, user?.id)
+        if (agreementRequestIdRef.current !== requestId) {
+          return { success: false, cancelled: true }
+        }
+
+        if (response?.success && response.data) {
+          console.log('[FinalizeInvestment] Agreement response received', {
+            hasSignedUrl: Boolean(response.data?.signed_url),
+            hasPdfBase64: Boolean(response.data?.pdf_base64),
+            fileName: response.data?.file_name,
+            expiresAt: response.data?.expires_at
+          })
+          const nextState = {
+            status: 'ready',
+            data: response.data,
+            error: '',
+            investmentId: investment.id
+          }
+          setAgreementState(nextState)
+
+          if (openOnSuccess) {
+            const opened = openAgreementAsset(response.data)
+            if (!opened) {
+              const message = 'Agreement file could not be opened. Please allow pop-ups and try again.'
+              setAgreementState({
+                status: 'error',
+                data: response.data,
+                error: message,
+                investmentId: investment.id
+              })
+              return { success: false, error: message, data: response.data }
+            }
+          }
+
+          return { success: true, data: response.data }
+        }
+
+        const message = response?.error || 'Failed to load agreement'
+        setAgreementState({
+          status: 'error',
+          data: response?.data || null,
+          error: message,
+          investmentId: investment.id
+        })
+        return { success: false, error: message, data: response?.data || null }
+      } catch (error) {
+        if (agreementRequestIdRef.current !== requestId) {
+          return { success: false, cancelled: true }
+        }
+        const message = error?.message || 'Failed to load agreement'
+        setAgreementState({
+          status: 'error',
+          data: null,
+          error: message,
+          investmentId: investment.id
+        })
+        return { success: false, error: message, data: null }
+      }
+    },
+    [investment?.id, openAgreementAsset, releaseAgreementBlobUrl, user?.id]
+  )
 
   useEffect(() => {
     setMounted(true)
@@ -173,6 +374,72 @@ function ClientContent() {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    if (!investment?.id) {
+      agreementRequestIdRef.current += 1
+      releaseAgreementBlobUrl()
+      setAgreementState({
+        status: 'idle',
+        data: null,
+        error: '',
+        investmentId: null
+      })
+      return
+    }
+
+    fetchAgreement()
+  }, [fetchAgreement, investment?.id, releaseAgreementBlobUrl, user?.id])
+
+  useEffect(() => {
+    return () => {
+      releaseAgreementBlobUrl()
+    }
+  }, [releaseAgreementBlobUrl])
+
+  const handleViewAgreement = useCallback(async () => {
+    if (!user || !investment) {
+      const message = 'Unable to prepare agreement. Please refresh the page and try again.'
+      setAgreementState((prev) => ({
+        ...prev,
+        status: 'error',
+        error: message,
+        investmentId: investment?.id ?? prev.investmentId
+      }))
+      return
+    }
+
+    setSubmitError('')
+    const current = agreementStateRef.current
+    if (current.investmentId === investment.id && current.status === 'ready') {
+      const opened = openAgreementAsset(current.data)
+      if (!opened) {
+        setAgreementState({
+          status: 'error',
+          data: current.data,
+          error: 'Agreement file could not be opened. Please allow pop-ups and try again.',
+          investmentId: investment.id
+        })
+      }
+      return
+    }
+
+    const result = await fetchAgreement({ force: true, openOnSuccess: true })
+    if (!result.success && !result.cancelled && result.error) {
+      setAgreementState((prev) => ({
+        status: 'error',
+        data: result.data ?? prev.data,
+        error: result.error,
+        investmentId: investment.id
+      }))
+    }
+  }, [fetchAgreement, investment, openAgreementAsset, setSubmitError, user])
+
+  const {
+    status: agreementStatus,
+    data: agreementData,
+    error: agreementError
+  } = agreementState
 
   useEffect(() => {
     if (investment?.compliance) {
@@ -290,11 +557,42 @@ function ClientContent() {
     }
   }, [accredited, accreditedType, tenPercentConfirmed, fundingMethod, payoutMethod, selectedBankId, agreeToTerms])
 
+  // Keep investment summary up-to-date after modifications (e.g. lockup period)
+  useEffect(() => {
+    if (!investment?.id) return
+
+    let cancelled = false
+
+    const refreshInvestment = async () => {
+      try {
+        const detail = await apiClient.getInvestment(investment.id)
+        if (!cancelled && detail?.success && detail.investment) {
+          setInvestment(detail.investment)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[FinalizeInvestment] Failed to refresh investment details', err)
+        }
+      }
+    }
+
+    refreshInvestment()
+
+    return () => {
+      cancelled = true
+    }
+  }, [investment?.id])
+
   // Prevent hydration mismatch
   if (!mounted || !user) return <div className={styles.loading}>Loading...</div>
 
   const isIra = (investment?.accountType || user?.accountType) === 'ira'
   const requiresWireTransfer = investment?.amount > 100000
+  const agreementExpiresDisplay = (() => {
+    if (!agreementData?.expires_at) return ''
+    const expiresDate = new Date(agreementData.expires_at)
+    return Number.isNaN(expiresDate.getTime()) ? '' : expiresDate.toLocaleString()
+  })()
 
   const generateIdempotencyKey = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -408,36 +706,24 @@ function ClientContent() {
             <button
               type="button"
               className={styles.downloadButton}
-              disabled={isSaving}
-              onClick={async () => {
-                if (!user || !investment) {
-                  setSubmitError('Unable to generate agreement. Please refresh the page and try again.')
-                  return
-                }
-                
-                setIsSaving(true)
-                setSubmitError('')
-                
-                try {
-                  // Generate PDF bond agreement via backend
-                  const response = await apiClient.generateBondAgreement(investment.id, user.id)
-                  
-                  if (response.success && response.data?.signed_url) {
-                    // Open the PDF in a new tab
-                    window.open(response.data.signed_url, '_blank', 'noopener,noreferrer')
-                  } else {
-                    setSubmitError('Failed to generate bond agreement. Please try again.')
-                  }
-                } catch (error) {
-                  console.error('Error generating bond agreement:', error)
-                  setSubmitError('An error occurred while generating the bond agreement. Please try again.')
-                } finally {
-                  setIsSaving(false)
-                }
-              }}
+              disabled={isSaving || agreementStatus === 'loading'}
+              onClick={handleViewAgreement}
             >
-              {isSaving ? '⏳ Generating...' : '📄 View Agreement'}
+              {agreementStatus === 'loading' ? '⏳ Preparing...' : '📄 View Agreement'}
             </button>
+            {agreementStatus === 'loading' && (
+              <p className={styles.agreementMeta}>Preparing agreement…</p>
+            )}
+            {agreementStatus === 'ready' && (
+              <p className={styles.agreementMeta}>
+                Agreement ready
+                {agreementData?.file_name ? ` • ${agreementData.file_name}` : ''}
+                {agreementExpiresDisplay ? ` • Link expires ${agreementExpiresDisplay}` : ''}
+              </p>
+            )}
+            {agreementStatus === 'error' && agreementError && (
+              <p className={styles.agreementError}>{agreementError}</p>
+            )}
           </div>
 
           <div className={styles.confirm}>

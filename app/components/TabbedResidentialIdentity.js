@@ -197,6 +197,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     authorizedRep: {
       firstName: '',
       lastName: '',
+      title: '',
       phone: '',
       street1: '',
       street2: '',
@@ -376,6 +377,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         ...prev.authorizedRep,
         ...(r.firstName || u.firstName ? { firstName: r.firstName || u.firstName } : {}),
         ...(r.lastName || u.lastName ? { lastName: r.lastName || u.lastName } : {}),
+        ...(r.title ? { title: r.title } : {}),
         ...((r.phone || u.phoneNumber) ? { phone: formatPhoneFromDB(r.phone || u.phoneNumber) } : {}),
         ...(repAddress.street1 ? { street1: repAddress.street1 } : {}),
         ...(repAddress.street2 ? { street2: repAddress.street2 } : {}),
@@ -442,6 +444,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             updated.authorizedRep = {
               firstName: rep.firstName || prev.authorizedRep.firstName,
               lastName: rep.lastName || prev.authorizedRep.lastName,
+              title: rep.title || prev.authorizedRep.title,
               phone: formatPhoneFromDB(rep.phone) || prev.authorizedRep.phone,
               street1: rep.address?.street1 || prev.authorizedRep.street1,
               street2: rep.address?.street2 || prev.authorizedRep.street2,
@@ -836,6 +839,8 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               authorizedRepresentative: {
                 firstName: form.authorizedRep.firstName.trim(),
                 lastName: form.authorizedRep.lastName.trim(),
+                // Backend support for representative title is pending; submit empty string for now
+                title: '',
                 phone: normalizedAuthorizedRepPhone,
                 dob: form.authorizedRep.dob,
                 ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
@@ -1000,6 +1005,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           investmentFields.authorizedRepresentative = {
             firstName: form.authorizedRep.firstName.trim(),
             lastName: form.authorizedRep.lastName.trim(),
+            title: '',
             phone: normalizedAuthorizedRepPhone,
             dob: form.authorizedRep.dob,
             ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
@@ -1129,6 +1135,21 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               <label className={styles.label}>Last Name</label>
               <input className={`${styles.input} ${errors['authorizedRep.lastName'] ? styles.inputError : ''}`} name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} placeholder="Enter last name" disabled={hasActiveInvestments} />
               {errors['authorizedRep.lastName'] && <span className={styles.error}>{errors['authorizedRep.lastName']}</span>}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Title</label>
+              <input
+                className={styles.input}
+                name="authorizedRep.title"
+                value={form.authorizedRep.title}
+                onChange={handleChange}
+                placeholder="Pending backend support"
+                disabled
+                readOnly
+              />
+              <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px', display: 'block' }}>
+                We’ll capture this once backend support is available.
+              </span>
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Phone Number</label>

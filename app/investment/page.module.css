@@ -11,6 +11,18 @@
   padding: 0 var(--container-padding-x);
 }
 
+.lockNotice {
+  margin: 24px auto;
+  padding: 14px 18px;
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  color: #065f46;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+}
+
 /* tabs replaced by vertical steps */
 
 .footer {

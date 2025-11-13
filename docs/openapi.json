@@ -464,6 +464,126 @@
         ]
       }
     },
+    "/api/profile/trusted_contact": {
+      "get": {
+        "tags": [
+          "profile",
+          "profile"
+        ],
+        "summary": "Trusted Contact:Get",
+        "description": "Get the trusted contact for the current user.",
+        "operationId": "trusted_contact_get_api_profile_trusted_contact_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedContactResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "profile",
+          "profile"
+        ],
+        "summary": "Trusted Contact:Update",
+        "description": "Update the trusted contact for the current user.",
+        "operationId": "trusted_contact_update_api_profile_trusted_contact_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustedContactUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedContactResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "profile",
+          "profile"
+        ],
+        "summary": "Trusted Contact:Create",
+        "description": "Create a new trusted contact for the current user.",
+        "operationId": "trusted_contact_create_api_profile_trusted_contact_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustedContactCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedContactResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/api/investments": {
       "get": {
         "tags": [
@@ -2856,6 +2976,17 @@
             "type": "string",
             "title": "Name"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "formationDate": {
             "anyOf": [
               {
@@ -2908,6 +3039,18 @@
             "maxLength": 255,
             "minLength": 1,
             "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           },
           "formationDate": {
             "type": "string",
@@ -4348,6 +4491,190 @@
           "transactionsCreated"
         ],
         "title": "TransactionMigrateResponse"
+      },
+      "TrustedContactCreateRequest": {
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Firstname"
+          },
+          "lastName": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Lastname"
+          },
+          "relationshipType": {
+            "$ref": "#/components/schemas/TrustedContactRelationship"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "relationshipType",
+          "email",
+          "phone"
+        ],
+        "title": "TrustedContactCreateRequest"
+      },
+      "TrustedContactDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "userId": {
+            "type": "integer",
+            "title": "Userid"
+          },
+          "firstName": {
+            "type": "string",
+            "title": "Firstname"
+          },
+          "lastName": {
+            "type": "string",
+            "title": "Lastname"
+          },
+          "relationshipType": {
+            "$ref": "#/components/schemas/TrustedContactRelationship"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "firstName",
+          "lastName",
+          "relationshipType",
+          "email",
+          "phone"
+        ],
+        "title": "TrustedContactDetail"
+      },
+      "TrustedContactRelationship": {
+        "type": "string",
+        "enum": [
+          "spouse",
+          "parent",
+          "sibling",
+          "child",
+          "friend",
+          "attorney",
+          "financial_advisor",
+          "other"
+        ],
+        "title": "TrustedContactRelationship"
+      },
+      "TrustedContactResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "trustedContact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrustedContactDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "trustedContact"
+        ],
+        "title": "TrustedContactResponse"
+      },
+      "TrustedContactUpdateRequest": {
+        "properties": {
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstname"
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastname"
+          },
+          "relationshipType": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrustedContactRelationship"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "type": "object",
+        "title": "TrustedContactUpdateRequest"
       },
       "UserDetail": {
         "properties": {

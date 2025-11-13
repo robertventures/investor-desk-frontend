@@ -262,6 +262,7 @@ export default function ProfileView() {
           authorizedRepresentative: {
             dob: data.user.authorizedRepresentative?.dob || '',
             ssn: data.user.authorizedRepresentative?.ssn || '',
+            title: data.user.authorizedRepresentative?.title || '',
             address: {
               street1: data.user.authorizedRepresentative?.address?.street1 || '',
               street2: data.user.authorizedRepresentative?.address?.street2 || '',
@@ -656,6 +657,8 @@ const handleEntityChange = (e) => {
             phone: normalizePhoneForDB(formData.phoneNumber),
             dob: formData.authorizedRepresentative?.dob || formData.dob,
             ssn: formData.authorizedRepresentative?.ssn || formData.ssn,
+            // Backend support for authorized representative title is pending; submit empty string for now
+            title: '',
             address: {
               street1: formData.authorizedRepresentative?.address?.street1 || addressForm.street1 || '',
               street2: formData.authorizedRepresentative?.address?.street2 || addressForm.street2 || '',
@@ -955,6 +958,23 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
               <label className={styles.label}>Last Name</label>
               <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={formData.lastName} onChange={handleChange} disabled={hasInvestments} />
             </div>
+            {isEntityView && (
+              <div className={styles.field}>
+                <label className={styles.label}>Title</label>
+                <input
+                  className={styles.input}
+                  name="title"
+                  value={formData.authorizedRepresentative?.title || ''}
+                  onChange={handleAuthorizedRepChange}
+                  placeholder="Pending backend support"
+                  disabled
+                  readOnly
+                />
+                <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px', display: 'block' }}>
+                  We’ll add your title once backend support is ready.
+                </span>
+              </div>
+            )}
             <div className={styles.field}>
               <label className={styles.label}>Date of Birth</label>
               <input

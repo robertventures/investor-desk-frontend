@@ -1,41 +1,52 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient } from '../../lib/apiClient'
+import { useUser } from '../contexts/UserContext'
+import { getInvestmentTypeLockInfo } from '@/lib/investmentAccess'
 import styles from './FixedInvestButton.module.css'
+
+const ACCOUNT_TYPE_LABELS = {
+  individual: 'Individual',
+  joint: 'Joint',
+  entity: 'Entity',
+  ira: 'IRA'
+}
 
 export default function FixedInvestButton() {
   const router = useRouter()
+  const { userData } = useUser()
   const [mounted, setMounted] = useState(false)
-  const [hide, setHide] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    if (typeof window === 'undefined') return
-    
-    const init = async () => {
-      const userId = localStorage.getItem('currentUserId')
-      if (!userId) return
-      try {
-        const data = await apiClient.getUser(userId)
-        if (data.success && data.user && data.user.isAdmin) {
-          setHide(true)
-        }
-      } catch {}
-    }
-    init()
   }, [])
 
+  const lockInfo = useMemo(
+    () => (userData ? getInvestmentTypeLockInfo(userData) : { lockedAccountType: null, lockingStatus: null, investmentId: null }),
+    [userData]
+  )
+
+  const lockedTypeLabel = lockInfo.lockedAccountType ? (ACCOUNT_TYPE_LABELS[lockInfo.lockedAccountType] || lockInfo.lockedAccountType) : null
+
   const handleMakeInvestment = () => {
-    try {
-      // Force a fresh draft on new investment flow
-      localStorage.removeItem('currentInvestmentId')
-    } catch {}
+    if (typeof window !== 'undefined') {
+      try {
+        if (lockInfo.lockingStatus === 'draft' && lockInfo.investmentId) {
+          localStorage.setItem('currentInvestmentId', lockInfo.investmentId)
+        } else {
+          localStorage.removeItem('currentInvestmentId')
+        }
+      } catch {
+        // no-op
+      }
+    }
     router.push('/investment?context=new')
   }
 
+  const shouldHide = userData?.isAdmin
+
   // Prevent hydration mismatch - don't render until mounted
-  if (!mounted || hide) return null
+  if (!mounted || shouldHide) return null
 
   return (
     <div className={styles.fixedButtonContainer}>

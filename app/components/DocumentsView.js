@@ -8,7 +8,9 @@ import { formatDateLocale } from '../../lib/dateUtils.js'
 export default function DocumentsView() {
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState(null)
+  const [investments, setInvestments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [agreementLoadingId, setAgreementLoadingId] = useState(null)
 
   useEffect(() => {
     setMounted(true)
@@ -22,9 +24,16 @@ export default function DocumentsView() {
       }
 
       try {
+        // Load user data
         const data = await apiClient.getUser(userId)
         if (data.success) {
           setUser(data.user)
+          
+          // Load investments separately
+          const investmentsData = await apiClient.getInvestments(userId)
+          if (investmentsData.success) {
+            setInvestments(investmentsData.investments || [])
+          }
         }
       } catch (error) {
         console.error('Failed to load user data:', error)
@@ -35,77 +44,74 @@ export default function DocumentsView() {
     loadUser()
   }, [])
 
-  const viewAgreement = async (investment) => {
-    // Check if bond agreement PDF exists
-    const bondAgreementUrl = investment.documents?.bondAgreementUrl
-    
-    if (bondAgreementUrl) {
-      // PDF exists - fetch signed URL and open it
-      try {
-        const response = await apiClient.getBondAgreement(investment.id, user.id)
-        if (response.success && response.data?.signed_url) {
-          window.open(response.data.signed_url, '_blank', 'noopener,noreferrer')
-        } else {
-          alert('Failed to retrieve bond agreement. Please try again.')
-        }
-      } catch (error) {
-        console.error('Error retrieving bond agreement:', error)
-        alert('An error occurred while retrieving the bond agreement.')
+  const openAgreementData = (data) => {
+    if (typeof window === 'undefined' || !data) return false
+
+    if (data.signed_url) {
+      const win = window.open(data.signed_url, '_blank', 'noopener,noreferrer')
+      if (!win) {
+        console.warn('Agreement pop-up was blocked.')
+        return false
       }
-    } else {
-      // Fallback: Generate JSON for legacy investments
-      downloadLegacyAgreement(investment)
+      return true
     }
+
+    if (data.pdf_base64) {
+      try {
+        let base64 = data.pdf_base64.trim()
+        const commaIndex = base64.indexOf(',')
+        if (commaIndex !== -1) {
+          base64 = base64.slice(commaIndex + 1)
+        }
+        base64 = base64.replace(/\s+/g, '')
+        if (!base64) return false
+
+        const byteCharacters = atob(base64)
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i += 1) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        const blob = new Blob([byteArray], { type: data.content_type || 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        const win = window.open(url, '_blank', 'noopener,noreferrer')
+        if (!win) {
+          URL.revokeObjectURL(url)
+          console.warn('Agreement pop-up was blocked.')
+          return false
+        }
+        setTimeout(() => {
+          URL.revokeObjectURL(url)
+        }, 60_000)
+        return true
+      } catch (error) {
+        console.error('Failed to decode agreement PDF', error)
+        return false
+      }
+    }
+
+    return false
   }
 
-  const downloadLegacyAgreement = (investment) => {
-    // Generate agreement data on-demand for legacy investments without PDF
-    const agreementData = {
-      // If documents.agreement exists, use it; otherwise generate basic structure
-      ...(investment.documents?.agreement || {}),
-      
-      // Basic investment information
-      investmentId: investment.id,
-      userId: user.id,
-      amount: investment.amount,
-      bonds: investment.bonds,
-      lockupPeriod: investment.lockupPeriod,
-      paymentFrequency: investment.paymentFrequency,
-      accountType: investment.accountType,
-      status: investment.status,
-      submittedAt: investment.submittedAt || investment.createdAt,
-      confirmedAt: investment.confirmedAt,
-      lockupEndDate: investment.lockupEndDate,
-      
-      // User information
-      investor: {
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        dob: user.dob,
-        address: user.address
-      },
-      
-      // Add entity and joint holder data if applicable
-      ...(investment.accountType === 'entity' && user?.entity ? { entity: user.entity } : {}),
-      ...(investment.accountType === 'joint' && user?.jointHolder ? { jointHolder: user.jointHolder } : {}),
-      
-      // Metadata
-      generatedAt: new Date().toISOString(),
-      source: investment.documents?.agreement ? 'original' : 'generated'
-    }
+  const viewAgreement = async (investment) => {
+    if (!investment?.id) return
 
-    const jsonString = JSON.stringify(agreementData, null, 2)
-    const blob = new Blob([jsonString], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `investment-agreement-${investment.id}-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    setAgreementLoadingId(investment.id)
+
+    try {
+      const response = await apiClient.getBondAgreement(investment.id, user?.id)
+      if (response?.success && response.data) {
+        openAgreementData(response.data)
+      } else if (response?.error) {
+        console.warn('Failed to retrieve bond agreement:', response.error)
+        alert('Unable to retrieve the agreement. Please try again or contact support.')
+      }
+    } catch (error) {
+      console.error('Error retrieving bond agreement:', error)
+      alert('An error occurred while retrieving the agreement. Please try again.')
+    } finally {
+      setAgreementLoadingId(null)
+    }
   }
 
   if (loading) {
@@ -124,7 +130,7 @@ export default function DocumentsView() {
 
   // Get finalized investments (both regular and imported)
   // Include pending, active, withdrawal_notice, and withdrawn investments
-  const finalizedInvestments = (user?.investments || []).filter(investment =>
+  const finalizedInvestments = investments.filter(investment =>
     investment.status === 'pending' || 
     investment.status === 'active' ||
     investment.status === 'withdrawal_notice' ||
@@ -213,14 +219,12 @@ export default function DocumentsView() {
             <h3 className={styles.sectionTitle}>Investment Agreements</h3>
             <div className={styles.documentsGrid}>
               {finalizedInvestments.map(investment => {
-                const hasPdf = !!investment.documents?.bondAgreementUrl
                 return (
                   <div key={investment.id} className={styles.documentCard}>
                     <div className={styles.documentIcon}>📄</div>
                     <div className={styles.documentInfo}>
                       <h4 className={styles.documentTitle}>
-                        Bond Agreement - {investment.id.slice(-8)}
-                        {hasPdf && <span style={{marginLeft: '8px', fontSize: '12px', color: '#10b981'}}>PDF</span>}
+                        Bond Agreement - {investment.id.toString().slice(-8)}
                       </h4>
                       <div className={styles.documentDetails}>
                         <p><strong>Amount:</strong> {formatCurrency(investment.amount)}</p>
@@ -235,8 +239,11 @@ export default function DocumentsView() {
                       <button
                         className={styles.downloadButton}
                         onClick={() => viewAgreement(investment)}
+                        disabled={agreementLoadingId === investment.id}
                       >
-                        {hasPdf ? '📄 View PDF' : '📥 Download'}
+                        {agreementLoadingId === investment.id
+                          ? '⏳ Preparing...'
+                          : '📄 View Agreement'}
                       </button>
                     </div>
                   </div>
