@@ -158,7 +158,8 @@ export default function ProfileView() {
       if (resolved === 'entity-info' && userData) {
         const hasEntityInvestments = Array.isArray(userData?.investments) && 
           userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
-        if (!hasEntityInvestments) {
+        const allowEntityTab = userData?.accountType === 'entity' || hasEntityInvestments
+        if (!allowEntityTab) {
           replaceProfileUrl({ tab: 'primary-holder' })
           setActiveTab('primary-holder')
           return
@@ -239,7 +240,8 @@ export default function ProfileView() {
           jointHoldingType: data.user.jointHoldingType || '',
           entity: {
             name: data.user.entity?.name || '',
-            registrationDate: data.user.entity?.registrationDate || '',
+            phone: formatPhone(data.user.entity?.phone || ''),
+            registrationDate: data.user.entity?.registrationDate || data.user.entity?.formationDate || '',
             taxId: data.user.entity?.taxId || '',
             address: {
               street1: data.user.entity?.address?.street1 || '',
@@ -356,11 +358,13 @@ export default function ProfileView() {
   }
 
 
-  const handleEntityChange = (e) => {
+const handleEntityChange = (e) => {
     const { name, value } = e.target
     let formattedValue = value
     if (name === 'name') {
       formattedValue = formatName(value)
+  } else if (name === 'phone') {
+    formattedValue = formatPhone(value)
     }
     setFormData(prev => ({ ...prev, entity: { ...prev.entity, [name]: formattedValue } }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
@@ -625,13 +629,41 @@ export default function ProfileView() {
           }
         }
       } else if (activeTab === 'entity-info') {
-        // Keep existing limited payload behavior for entity tab (no change to backend contract here)
+        // Save both authorized representative and entity information
         payload = {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phoneNumber: normalizePhoneForDB(formData.phoneNumber),
           dob: formData.dob,
-          ssn: formData.ssn
+          ssn: formData.ssn,
+          entity: {
+            name: formData.entity?.name || '',
+            phone: normalizePhoneForDB(formData.entity?.phone || ''),
+            formationDate: formData.entity?.registrationDate || '',
+            registrationDate: formData.entity?.registrationDate || '',
+            taxId: formData.entity?.taxId || '',
+            address: {
+              street1: formData.entity?.address?.street1 || '',
+              street2: formData.entity?.address?.street2 || '',
+              city: formData.entity?.address?.city || '',
+              state: formData.entity?.address?.state || '',
+              zip: formData.entity?.address?.zip || ''
+            }
+          },
+          authorizedRepresentative: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            phone: normalizePhoneForDB(formData.phoneNumber),
+            dob: formData.authorizedRepresentative?.dob || formData.dob,
+            ssn: formData.authorizedRepresentative?.ssn || formData.ssn,
+            address: {
+              street1: formData.authorizedRepresentative?.address?.street1 || addressForm.street1 || '',
+              street2: formData.authorizedRepresentative?.address?.street2 || addressForm.street2 || '',
+              city: formData.authorizedRepresentative?.address?.city || addressForm.city || '',
+              state: formData.authorizedRepresentative?.address?.state || addressForm.state || '',
+              zip: formData.authorizedRepresentative?.address?.zip || addressForm.zip || ''
+            }
+          }
         }
       } else if (activeTab === 'trusted-contact') {
         payload = {
@@ -761,10 +793,11 @@ export default function ProfileView() {
   const hasInvestments = Array.isArray(userData?.investments) && 
     userData.investments.some(inv => ['pending', 'active', 'withdrawn'].includes(inv.status))
 
+  const isEntityView = (userData?.accountType === 'entity') || hasEntityInvestments
   const tabs = [
-    { id: 'primary-holder', label: 'Primary Holder' },
+    { id: 'primary-holder', label: isEntityView ? 'Authorized Representative' : 'Primary Holder' },
     ...(showJointSection ? [{ id: 'joint-holder', label: 'Joint Holder' }] : []),
-    ...(hasEntityInvestments ? [{ id: 'entity-info', label: 'Entity Information' }] : []),
+    ...(isEntityView ? [{ id: 'entity-info', label: 'Entity Information' }] : []),
     { id: 'trusted-contact', label: 'Trusted Contact' },
     { id: 'banking', label: 'Banking Information' },
     { id: 'security', label: 'Security' }
@@ -801,6 +834,7 @@ export default function ProfileView() {
             setShowSSN={setShowSSN}
             maskSSN={maskSSN}
             handleChange={handleChange}
+            handleAuthorizedRepChange={handleAuthorizedRepChange}
             addressForm={addressForm}
             handleAddressFormChange={handleAddressFormChange}
             handleSave={handleSave}
@@ -810,6 +844,7 @@ export default function ProfileView() {
             maxDob={maxDob}
             maxToday={maxToday}
             hasInvestments={hasInvestments}
+            isEntityView={isEntityView}
           />
         )}
 
@@ -830,7 +865,7 @@ export default function ProfileView() {
           />
         )}
 
-        {activeTab === 'entity-info' && hasEntityInvestments && (
+        {activeTab === 'entity-info' && (userData?.accountType === 'entity' || hasEntityInvestments) && (
           <EntityInfoTab
             formData={formData}
             userData={userData}
@@ -848,6 +883,7 @@ export default function ProfileView() {
             MIN_DOB={MIN_DOB}
             maxDob={maxDob}
             maxToday={maxToday}
+            entityLocked={hasInvestments}
           />
         )}
 
@@ -897,11 +933,11 @@ export default function ProfileView() {
 }
 
 // Individual Tab Components
-function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments }) {
+function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleAuthorizedRepChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, isEntityView }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Primary Holder</h2>
+        <h2 className={styles.sectionTitle}>{isEntityView ? 'Authorized Representative' : 'Primary Holder'}</h2>
         {hasInvestments && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Your name, date of birth, and SSN are locked because you have active investments.
@@ -921,7 +957,16 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Date of Birth</label>
-              <input className={`${styles.input} ${errors.dob ? styles.inputError : ''}`} type="date" name="dob" value={formData.dob} onChange={handleChange} min={MIN_DOB} max={maxDob} disabled={hasInvestments} />
+              <input
+                className={`${styles.input} ${errors.dob ? styles.inputError : ''}`}
+                type="date"
+                name="dob"
+                value={isEntityView ? (formData.authorizedRepresentative?.dob || '') : formData.dob}
+                onChange={isEntityView ? handleAuthorizedRepChange : handleChange}
+                min={MIN_DOB}
+                max={maxDob}
+                disabled={hasInvestments}
+              />
               {errors.dob && <span className={styles.errorText}>{errors.dob}</span>}
             </div>
             <div className={styles.field}>
@@ -931,8 +976,8 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   className={`${styles.input} ${styles.inputWithToggle}`}
                   type="text"
                   name="ssn" 
-                  value={showSSN ? formData.ssn : maskSSN(formData.ssn)} 
-                  onChange={handleChange} 
+                  value={showSSN ? (isEntityView ? (formData.authorizedRepresentative?.ssn || '') : formData.ssn) : maskSSN(isEntityView ? (formData.authorizedRepresentative?.ssn || '') : formData.ssn)} 
+                  onChange={isEntityView ? handleAuthorizedRepChange : handleChange} 
                   placeholder="123-45-6789"
                   readOnly={!showSSN || hasInvestments}
                   disabled={hasInvestments}
@@ -1191,7 +1236,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
   )
 }
 
-function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleAuthorizedRepChange, handleAuthorizedRepAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday }) {
+function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleAuthorizedRepChange, handleAuthorizedRepAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, entityLocked }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
@@ -1208,11 +1253,24 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="name"
               value={formData.entity?.name || ''}
               onChange={handleEntityChange}
+              disabled={entityLocked}
             />
             {errors.entityName && <span className={styles.errorText}>{errors.entityName}</span>}
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>Registration Date</label>
+            <label className={styles.label}>Phone</label>
+            <input
+              className={styles.input}
+              type="tel"
+              name="phone"
+              value={formData.entity?.phone || ''}
+              onChange={handleEntityChange}
+              placeholder="(555) 555-5555"
+              disabled={entityLocked}
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label}>Formation Date</label>
             <input
               className={`${styles.input} ${errors.entityRegistrationDate ? styles.inputError : ''}`}
               type="date"
@@ -1221,6 +1279,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               onChange={handleEntityChange}
               min={MIN_DOB}
               max={maxToday}
+              disabled={entityLocked}
             />
             {errors.entityRegistrationDate && <span className={styles.errorText}>{errors.entityRegistrationDate}</span>}
           </div>
@@ -1232,6 +1291,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="taxId"
               value={formData.entity?.taxId || ''}
               onChange={handleEntityChange}
+              disabled={entityLocked}
             />
             {errors.entityTaxId && <span className={styles.errorText}>{errors.entityTaxId}</span>}
           </div>
@@ -1245,6 +1305,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="street1"
               value={formData.entity?.address?.street1 || ''}
               onChange={handleEntityAddressChange}
+              disabled={entityLocked}
             />
             {errors.entityStreet1 && <span className={styles.errorText}>{errors.entityStreet1}</span>}
           </div>
@@ -1256,6 +1317,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="street2"
               value={formData.entity?.address?.street2 || ''}
               onChange={handleEntityAddressChange}
+              disabled={entityLocked}
             />
           </div>
           <div className={styles.field}>
@@ -1266,6 +1328,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="city"
               value={formData.entity?.address?.city || ''}
               onChange={handleEntityAddressChange}
+              disabled={entityLocked}
             />
             {errors.entityCity && <span className={styles.errorText}>{errors.entityCity}</span>}
           </div>
@@ -1277,6 +1340,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="state"
               value={formData.entity?.address?.state || ''}
               onChange={handleEntityAddressChange}
+              disabled={entityLocked}
             />
             {errors.entityState && <span className={styles.errorText}>{errors.entityState}</span>}
           </div>
@@ -1288,6 +1352,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="zip"
               value={formData.entity?.address?.zip || ''}
               onChange={handleEntityAddressChange}
+              disabled={entityLocked}
             />
             {errors.entityZip && <span className={styles.errorText}>{errors.entityZip}</span>}
           </div>
@@ -1299,117 +1364,6 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               name="country"
               value={formData.entity?.address?.country || 'United States'}
               onChange={handleEntityAddressChange}
-              disabled
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Authorized Representative</h2>
-        <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-          Information about the authorized representative for this entity.
-        </p>
-        <div className={styles.compactGrid}>
-          <div className={styles.field}>
-            <label className={styles.label}>Date of Birth</label>
-            <input
-              className={`${styles.input} ${errors.repDob ? styles.inputError : ''}`}
-              type="date"
-              name="dob"
-              value={formData.authorizedRepresentative?.dob || ''}
-              onChange={handleAuthorizedRepChange}
-              min={MIN_DOB}
-              max={maxDob}
-            />
-            {errors.repDob && <span className={styles.errorText}>{errors.repDob}</span>}
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>SSN</label>
-            <div className={styles.inputWrapper}>
-              <input
-                className={`${styles.input} ${styles.inputWithToggle} ${errors.repSsn ? styles.inputError : ''}`}
-                type="text"
-                name="ssn"
-                value={showRepSSN ? (formData.authorizedRepresentative?.ssn || '') : maskSSN(formData.authorizedRepresentative?.ssn || '')}
-                onChange={handleAuthorizedRepChange}
-                readOnly={!showRepSSN}
-              />
-              <button
-                type="button"
-                className={styles.toggleButton}
-                onClick={() => setShowRepSSN(!showRepSSN)}
-                aria-label={showRepSSN ? 'Hide SSN' : 'Show SSN'}
-              >
-                {showRepSSN ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            {errors.repSsn && <span className={styles.errorText}>{errors.repSsn}</span>}
-          </div>
-        </div>
-        <div className={styles.compactGrid}>
-          <div className={styles.field}>
-            <label className={styles.label}>Street Address 1</label>
-            <input
-              className={`${styles.input} ${errors.repStreet1 ? styles.inputError : ''}`}
-              type="text"
-              name="street1"
-              value={formData.authorizedRepresentative?.address?.street1 || ''}
-              onChange={handleAuthorizedRepAddressChange}
-            />
-            {errors.repStreet1 && <span className={styles.errorText}>{errors.repStreet1}</span>}
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Street Address 2</label>
-            <input
-              className={styles.input}
-              type="text"
-              name="street2"
-              value={formData.authorizedRepresentative?.address?.street2 || ''}
-              onChange={handleAuthorizedRepAddressChange}
-            />
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>City</label>
-            <input
-              className={`${styles.input} ${errors.repCity ? styles.inputError : ''}`}
-              type="text"
-              name="city"
-              value={formData.authorizedRepresentative?.address?.city || ''}
-              onChange={handleAuthorizedRepAddressChange}
-            />
-            {errors.repCity && <span className={styles.errorText}>{errors.repCity}</span>}
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>State</label>
-            <input
-              className={`${styles.input} ${errors.repState ? styles.inputError : ''}`}
-              type="text"
-              name="state"
-              value={formData.authorizedRepresentative?.address?.state || ''}
-              onChange={handleAuthorizedRepAddressChange}
-            />
-            {errors.repState && <span className={styles.errorText}>{errors.repState}</span>}
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>ZIP Code</label>
-            <input
-              className={`${styles.input} ${errors.repZip ? styles.inputError : ''}`}
-              type="text"
-              name="zip"
-              value={formData.authorizedRepresentative?.address?.zip || ''}
-              onChange={handleAuthorizedRepAddressChange}
-            />
-            {errors.repZip && <span className={styles.errorText}>{errors.repZip}</span>}
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Country</label>
-            <input
-              className={styles.input}
-              type="text"
-              name="country"
-              value={formData.authorizedRepresentative?.address?.country || 'United States'}
-              onChange={handleAuthorizedRepAddressChange}
               disabled
             />
           </div>

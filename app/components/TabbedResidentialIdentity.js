@@ -234,7 +234,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   const hasLoadedUserDataRef = useRef(false)
   
   const idLabel = accountType === 'entity' ? 'EIN or TIN' : 'SSN'
-  const dateLabel = accountType === 'entity' ? 'Registration Date' : 'Date of Birth'
+  const dateLabel = accountType === 'entity' ? 'Formation Date' : 'Date of Birth'
   const primaryFullName = (
     accountType === 'entity'
       ? [form.authorizedRep.firstName, form.authorizedRep.lastName]

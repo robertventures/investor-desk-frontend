@@ -73,7 +73,7 @@ function InvestmentPageContent() {
     const addressParts = [identitySummary.street1, identitySummary.street2, identitySummary.city, identitySummary.state, identitySummary.zip]
       .filter(Boolean)
     if (addressParts.length) lines.push({ label: 'Address', value: addressParts.join(', ') })
-    if (identitySummary.dob) lines.push({ label: identitySummary.accountType === 'entity' ? 'Registration Date' : 'Date of Birth', value: identitySummary.dob })
+    if (identitySummary.dob) lines.push({ label: identitySummary.accountType === 'entity' ? 'Formation Date' : 'Date of Birth', value: identitySummary.dob })
     if (identitySummary.ssn) lines.push({ label: identitySummary.accountType === 'entity' ? 'EIN/TIN' : 'SSN', value: identitySummary.ssn })
     if (identitySummary.accountType === 'entity' && identitySummary.entityName) {
       // already added above

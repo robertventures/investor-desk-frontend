@@ -1721,7 +1721,7 @@ function AdminUserDetailsContent() {
                   {errors.entityTaxId && <div className={styles.muted}>{errors.entityTaxId}</div>}
                 </div>
                 <div>
-                  <label><b>Entity Registration Date</b></label>
+                  <label><b>Entity Formation Date</b></label>
                   <input type="date" name="entityRegistrationDate" value={form.entityRegistrationDate} onChange={handleChange} min={MIN_DOB} max={maxToday} disabled={!isEditing} />
                   {errors.entityRegistrationDate && <div className={styles.muted}>{errors.entityRegistrationDate}</div>}
                 </div>
