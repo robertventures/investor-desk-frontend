@@ -22,6 +22,7 @@ export default function ProfileView() {
 
   // Names: Allow only letters, spaces, hyphens, apostrophes, and periods
   const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
+  const formatEntityName = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.&,]/g, '')
 
   // City names: Allow only letters, spaces, hyphens, apostrophes, and periods
   const formatCity = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
@@ -363,9 +364,9 @@ const handleEntityChange = (e) => {
     const { name, value } = e.target
     let formattedValue = value
     if (name === 'name') {
-      formattedValue = formatName(value)
+      formattedValue = formatEntityName(value)
   } else if (name === 'phone') {
-    formattedValue = formatPhone(value)
+      formattedValue = formatPhone(value)
     }
     setFormData(prev => ({ ...prev, entity: { ...prev.entity, [name]: formattedValue } }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
@@ -657,8 +658,7 @@ const handleEntityChange = (e) => {
             phone: normalizePhoneForDB(formData.phoneNumber),
             dob: formData.authorizedRepresentative?.dob || formData.dob,
             ssn: formData.authorizedRepresentative?.ssn || formData.ssn,
-            // Backend support for authorized representative title is pending; submit empty string for now
-            title: '',
+            title: formData.authorizedRepresentative?.title?.trim() || '',
             address: {
               street1: formData.authorizedRepresentative?.address?.street1 || addressForm.street1 || '',
               street2: formData.authorizedRepresentative?.address?.street2 || addressForm.street2 || '',
@@ -966,13 +966,9 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   name="title"
                   value={formData.authorizedRepresentative?.title || ''}
                   onChange={handleAuthorizedRepChange}
-                  placeholder="Pending backend support"
-                  disabled
-                  readOnly
+                  placeholder="e.g., Manager, CEO"
+                  disabled={hasInvestments}
                 />
-                <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px', display: 'block' }}>
-                  We’ll add your title once backend support is ready.
-                </span>
               </div>
             )}
             <div className={styles.field}>

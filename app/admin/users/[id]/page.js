@@ -48,6 +48,7 @@ function AdminUserDetailsContent() {
   const isCompleteSsn = (value = '') => value.replace(/\D/g, '').length === 9
   const formatCity = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
   const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
+  const formatEntityName = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.&,]/g, '')
   const formatStreet = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.,#]/g, '')
 
   const US_STATES = useMemo(() => [
@@ -89,6 +90,7 @@ function AdminUserDetailsContent() {
     authorizedRep: {
       firstName: '',
       lastName: '',
+      title: '',
       dob: '',
       ssn: '',
       street1: '',
@@ -213,6 +215,7 @@ function AdminUserDetailsContent() {
             authorizedRep: {
               firstName: u.authorizedRepresentative?.firstName || '',
               lastName: u.authorizedRepresentative?.lastName || '',
+              title: u.authorizedRepresentative?.title || '',
               dob: u.authorizedRepresentative?.dob || '',
               ssn: u.authorizedRepresentative?.ssn || '',
               street1: u.authorizedRepresentative?.address?.street1 || '',
@@ -326,7 +329,11 @@ function AdminUserDetailsContent() {
       setField(name, formatCity(value))
       return
     }
-    if (name === 'firstName' || name === 'lastName' || name === 'entityName' || 
+    if (name === 'entityName') {
+      setField(name, formatEntityName(value))
+      return
+    }
+    if (name === 'firstName' || name === 'lastName' || 
         name === 'jointHolder.firstName' || name === 'jointHolder.lastName' ||
         name === 'authorizedRep.firstName' || name === 'authorizedRep.lastName') {
       setField(name, formatName(value))
@@ -457,6 +464,7 @@ function AdminUserDetailsContent() {
       authorizedRep: {
         firstName: u.authorizedRepresentative?.firstName || '',
         lastName: u.authorizedRepresentative?.lastName || '',
+        title: u.authorizedRepresentative?.title || '',
         dob: u.authorizedRepresentative?.dob || '',
         ssn: u.authorizedRepresentative?.ssn || '',
         street1: u.authorizedRepresentative?.address?.street1 || '',
@@ -507,6 +515,7 @@ function AdminUserDetailsContent() {
         ...(form.accountType === 'entity' ? { authorizedRepresentative: {
           firstName: form.authorizedRep.firstName.trim(),
           lastName: form.authorizedRep.lastName.trim(),
+          title: form.authorizedRep.title.trim(),
           dob: form.authorizedRep.dob,
           ssn: form.authorizedRep.ssn,
           address: {
@@ -1741,6 +1750,11 @@ function AdminUserDetailsContent() {
                   <label><b>Last Name</b></label>
                   <input name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} disabled={!isEditing} />
                   {errors['authorizedRep.lastName'] && <div className={styles.muted}>{errors['authorizedRep.lastName']}</div>}
+                </div>
+                <div>
+                  <label><b>Title</b></label>
+                  <input name="authorizedRep.title" value={form.authorizedRep.title} onChange={handleChange} placeholder="e.g., Manager, CEO" disabled={!isEditing} />
+                  {errors['authorizedRep.title'] && <div className={styles.muted}>{errors['authorizedRep.title']}</div>}
                 </div>
                 <div>
                   <label><b>Date of Birth</b></label>

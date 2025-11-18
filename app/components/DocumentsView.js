@@ -266,15 +266,6 @@ export default function DocumentsView() {
             </ul>
           </div>
         ) : null}
-
-        <div className={styles.actions}>
-          <button className={styles.uploadButton}>
-            📤 Upload Document
-          </button>
-          <button className={styles.requestButton}>
-            📋 Request Document
-          </button>
-        </div>
       </div>
     </div>
   )

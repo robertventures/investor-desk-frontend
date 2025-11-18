@@ -326,6 +326,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/investments/{investment_id}/fund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fund Investment */
+        post: operations["fund_investment_api_investments__investment_id__fund_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/investments/{investment_id}/funding/{funding_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Funding */
+        get: operations["get_funding_api_investments__investment_id__funding__funding_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/withdrawals": {
         parameters: {
             query?: never;
@@ -474,6 +508,41 @@ export interface paths {
         put?: never;
         /** Admin:Investments:Reject */
         post: operations["admin_investments_reject_api_admin_investments__investment_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin:Settings:List */
+        get: operations["admin_settings_list_api_admin_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/settings/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin:Settings:Get */
+        get: operations["admin_settings_get_api_admin_settings__name__get"];
+        /** Admin:Settings:Update */
+        put: operations["admin_settings_update_api_admin_settings__name__put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -633,6 +702,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payment-methods/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Payment-Methods:Create-Manual */
+        post: operations["payment_methods_create_manual_api_payment_methods_manual_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payment-methods/{payment_method_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Payment-Methods:Verify-Micro-Deposits */
+        post: operations["payment_methods_verify_micro_deposits_api_payment_methods__payment_method_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment-Methods:List */
+        get: operations["payment_methods_list_api_payment_methods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payment-methods/{payment_method_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Payment-Methods:Delete */
+        delete: operations["payment_methods_delete_api_payment_methods__payment_method_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payment-methods/{payment_method_id}/sandbox/micro-deposit-amount": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment-Methods:Sandbox-Get-Micro-Deposit-Amount */
+        get: operations["payment_methods_sandbox_get_micro_deposit_amount_api_payment_methods__payment_method_id__sandbox_micro_deposit_amount_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payment-methods/{payment_method_id}/balance/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Payment-Methods:Refresh-Balance */
+        post: operations["payment_methods_refresh_balance_api_payment_methods__payment_method_id__balance_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -658,10 +829,10 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * AccountType
+         * ACHQCheckType
          * @enum {string}
          */
-        "AccountType-Input": "individual" | "joint" | "entity" | "ira";
+        ACHQCheckType: "Personal" | "Business";
         /**
          * AccountType
          * @enum {string}
@@ -774,6 +945,23 @@ export interface components {
             /** Zip */
             zip?: string | null;
         };
+        /** AdminSettingResponse */
+        AdminSettingResponse: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: string;
+        };
+        /** AdminSettingUpdateRequest */
+        AdminSettingUpdateRequest: {
+            /** Value */
+            value: string;
+        };
+        /** AdminSettingsResponse */
+        AdminSettingsResponse: {
+            /** Settings */
+            settings: components["schemas"]["AdminSettingResponse"][];
+        };
         /** AdminUserUpdateRequest */
         AdminUserUpdateRequest: {
             /** Firstname */
@@ -856,6 +1044,23 @@ export interface components {
              */
             auto_logged_in: boolean;
         };
+        /** CreateFundingRequest */
+        CreateFundingRequest: {
+            /**
+             * Payment Method Id
+             * Format: uuid
+             */
+            payment_method_id: string;
+            /**
+             * Amount Cents
+             * @description Amount in cents
+             */
+            amount_cents: number;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Memo */
+            memo?: string | null;
+        };
         /** CreateTestTokenRequest */
         CreateTestTokenRequest: {
             /**
@@ -914,6 +1119,59 @@ export interface components {
             /** Phone */
             phone?: string | null;
             address?: components["schemas"]["AddressDetail"] | null;
+        };
+        /** FundingDetail */
+        FundingDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Achq Transaction Id */
+            achq_transaction_id: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Expected Settlement Date */
+            expected_settlement_date: string | null;
+            /** Investment Id */
+            investment_id: number;
+            /**
+             * Payment Method Id
+             * Format: uuid
+             */
+            payment_method_id: string;
+            /** Submitted At */
+            submitted_at: string | null;
+            /** Settled At */
+            settled_at: string | null;
+            /** Memo */
+            memo: string | null;
+            /** Failure Reason */
+            failure_reason: string | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** FundingResponse */
+        FundingResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Achq Transaction Id */
+            achq_transaction_id: string | null;
+            /** Created At */
+            created_at: string | null;
+            /** Expected Settlement Date */
+            expected_settlement_date: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1151,6 +1409,59 @@ export interface components {
          * @enum {string}
          */
         LockupPeriod: "1-year" | "3-year";
+        /** ManualEntryRequest */
+        ManualEntryRequest: {
+            /**
+             * Routing Number
+             * @description 9-digit ABA routing number (sandbox default: 123123123)
+             * @default 123123123
+             * @example 123123123
+             * @example 021000021
+             */
+            routing_number: string;
+            /**
+             * Account Number
+             * @description Bank account number
+             * @example 333333333
+             * @example 1234567890
+             */
+            account_number: string;
+            /**
+             * @description Type of bank account
+             * @default checking
+             */
+            account_type: components["schemas"]["app__payments__models__enums__AccountType"];
+            /**
+             * @description Account holder type (Personal or Business)
+             * @default Personal
+             */
+            account_holder_type: components["schemas"]["ACHQCheckType"];
+            /**
+             * Idempotency Key
+             * @description Unique identifier to prevent duplicate payment method creation (UUID v4 recommended)
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            idempotency_key: string;
+        };
+        /** ManualEntryResponse */
+        ManualEntryResponse: {
+            payment_method: components["schemas"]["PaymentMethodResponse"];
+        };
+        /** MicroDepositAmountResponse */
+        MicroDepositAmountResponse: {
+            /**
+             * Amount 1
+             * @description First micro-deposit amount in cents (only available in sandbox/test environments)
+             * @example 32
+             */
+            amount_1: number | null;
+            /**
+             * Amount 2
+             * @description Second micro-deposit amount in cents (only available in sandbox/test environments)
+             * @example 47
+             */
+            amount_2: number | null;
+        };
         /** Page[AccreditationAttestationResponse] */
         Page_AccreditationAttestationResponse_: {
             /** Items */
@@ -1255,6 +1566,18 @@ export interface components {
          * @enum {string}
          */
         PaymentMethod: "ach" | "wire";
+        /** PaymentMethodDeleteResponse */
+        PaymentMethodDeleteResponse: {
+            /** Message */
+            message: string;
+            /** Payment Method Id */
+            payment_method_id: string;
+        };
+        /** PaymentMethodListResponse */
+        PaymentMethodListResponse: {
+            /** Payment Methods */
+            payment_methods: components["schemas"]["PaymentMethodResponse"][];
+        };
         /** PaymentMethodResponse */
         PaymentMethodResponse: {
             /** Id */
@@ -1265,6 +1588,7 @@ export interface components {
              * Display Name
              * @description Human-readable display name
              * @example Chase Checking ••1234
+             * @example Manual Entry ••3333
              */
             display_name: string;
             /**
@@ -1272,6 +1596,7 @@ export interface components {
              * @description Financial institution name
              * @example Chase
              * @example Bank of America
+             * @example Manual Entry
              */
             bank_name: string;
             /** @description Bank account type */
@@ -1284,18 +1609,54 @@ export interface components {
             last4: string;
             /** @description Payment method verification status */
             status: components["schemas"]["PaymentMethodStatus"];
+            /** Provider Transaction Id */
+            provider_transaction_id?: string | null;
+            /**
+             * Current Balance
+             * @description Current account balance in dollars (null for manual entry accounts)
+             * @example 1250.50
+             * @example 5000.00
+             */
+            current_balance?: string | null;
+            /**
+             * Available Balance
+             * @description Available account balance in dollars (null for manual entry accounts)
+             * @example 1250.50
+             * @example 5000.00
+             */
+            available_balance?: string | null;
+            /**
+             * Balance Last Updated
+             * @description ISO 8601 timestamp of last balance update (null if never fetched)
+             * @example 2024-01-15T10:30:00-05:00
+             */
+            balance_last_updated?: string | null;
             /**
              * Created At
              * @description ISO 8601 timestamp
              * @example 2024-01-15T10:30:00-05:00
              */
             created_at: string;
+            /**
+             * Verification Attempts Remaining
+             * @description Number of verification attempts remaining (null if not applicable)
+             * @example 3
+             * @example 2
+             * @example 1
+             */
+            verification_attempts_remaining?: number | null;
+            /**
+             * Verification Expires At
+             * @description ISO 8601 timestamp when verification expires (null if not applicable)
+             * @example 2024-01-22T10:30:00-05:00
+             */
+            verification_expires_at?: string | null;
         };
         /**
          * PaymentMethodStatus
          * @enum {string}
          */
-        PaymentMethodStatus: "ready" | "verification_pending";
+        PaymentMethodStatus: "ready" | "verification_pending" | "verification_failed";
         /**
          * PaymentMethodType
          * @enum {string}
@@ -1306,7 +1667,7 @@ export interface components {
             /** Phone */
             phone?: string | null;
             address?: components["schemas"]["AddressUpdateRequest"] | null;
-            accountType?: components["schemas"]["AccountType-Input"] | null;
+            accountType?: components["schemas"]["app__users__models__enums__AccountType"] | null;
         };
         /** ProfilePatchResponse */
         ProfilePatchResponse: {
@@ -1330,7 +1691,7 @@ export interface components {
             /** Ssn */
             ssn?: string | null;
             address?: components["schemas"]["AddressUpdateRequest"] | null;
-            accountType?: components["schemas"]["AccountType-Input"] | null;
+            accountType?: components["schemas"]["app__users__models__enums__AccountType"] | null;
             /** Jointholdingtype */
             jointHoldingType?: string | null;
             jointHolder?: components["schemas"]["JointHolderUpdateRequest"] | null;
@@ -1588,6 +1949,25 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** VerifyMicroDepositsRequest */
+        VerifyMicroDepositsRequest: {
+            /**
+             * Amount 1
+             * @description First micro-deposit amount in cents
+             * @example 32
+             */
+            amount_1: number;
+            /**
+             * Amount 2
+             * @description Second micro-deposit amount in cents
+             * @example 47
+             */
+            amount_2: number;
+        };
+        /** VerifyMicroDepositsResponse */
+        VerifyMicroDepositsResponse: {
+            payment_method: components["schemas"]["PaymentMethodResponse"];
+        };
         /** WithdrawalDetailResponse */
         WithdrawalDetailResponse: {
             /**
@@ -1662,6 +2042,16 @@ export interface components {
          * @enum {string}
          */
         WithdrawalType: "normal" | "admin_terminated";
+        /**
+         * AccountType
+         * @enum {string}
+         */
+        app__payments__models__enums__AccountType: "checking" | "savings";
+        /**
+         * AccountType
+         * @enum {string}
+         */
+        app__users__models__enums__AccountType: "individual" | "joint" | "entity" | "ira";
     };
     responses: never;
     parameters: never;
@@ -2427,6 +2817,73 @@ export interface operations {
             };
         };
     };
+    fund_investment_api_investments__investment_id__fund_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                investment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFundingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FundingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_funding_api_investments__investment_id__funding__funding_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                investment_id: number;
+                funding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FundingDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     withdrawals_list_api_withdrawals_get: {
         parameters: {
             query?: never;
@@ -2752,6 +3209,92 @@ export interface operations {
             };
         };
     };
+    admin_settings_list_api_admin_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettingsResponse"];
+                };
+            };
+        };
+    };
+    admin_settings_get_api_admin_settings__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_settings_update_api_admin_settings__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSettingUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_transactions_migrate_api_admin_transactions_migrate_post: {
         parameters: {
             query?: never;
@@ -2990,6 +3533,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateTestTokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payment_methods_create_manual_api_payment_methods_manual_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualEntryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payment_methods_verify_micro_deposits_api_payment_methods__payment_method_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Payment method ID */
+                payment_method_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyMicroDepositsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyMicroDepositsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payment_methods_list_api_payment_methods_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodListResponse"];
+                };
+            };
+        };
+    };
+    payment_methods_delete_api_payment_methods__payment_method_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Payment method ID */
+                payment_method_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payment_methods_sandbox_get_micro_deposit_amount_api_payment_methods__payment_method_id__sandbox_micro_deposit_amount_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Payment method ID */
+                payment_method_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MicroDepositAmountResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payment_methods_refresh_balance_api_payment_methods__payment_method_id__balance_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Payment method ID */
+                payment_method_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodResponse"];
                 };
             };
             /** @description Validation Error */

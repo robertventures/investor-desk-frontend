@@ -98,11 +98,14 @@ function ClientContent() {
         null
 
       if (signedUrl) {
-        const win = window.open(signedUrl, '_blank', 'noopener,noreferrer')
+        const win = window.open(signedUrl, '_blank')
         if (!win) {
           console.warn('Agreement pop-up was blocked.')
           return false
         }
+        try {
+          win.opener = null
+        } catch {}
         return true
       }
 
@@ -131,11 +134,15 @@ function ClientContent() {
           releaseAgreementBlobUrl()
           const blobUrl = URL.createObjectURL(blob)
           agreementBlobUrlRef.current = blobUrl
-          const win = window.open(blobUrl, '_blank', 'noopener,noreferrer')
+          const win = window.open(blobUrl, '_blank')
           if (!win) {
             console.warn('Agreement pop-up was blocked.')
+            releaseAgreementBlobUrl()
             return false
           }
+          try {
+            win.opener = null
+          } catch {}
           return true
         } catch (err) {
           console.error('Failed to decode agreement PDF', err)
@@ -420,6 +427,14 @@ function ClientContent() {
           error: 'Agreement file could not be opened. Please allow pop-ups and try again.',
           investmentId: investment.id
         })
+      } else {
+        // Clear any previous errors on successful open
+        setAgreementState({
+          status: 'ready',
+          data: current.data,
+          error: '', // Clear the error
+          investmentId: investment.id
+        })
       }
       return
     }
@@ -431,6 +446,12 @@ function ClientContent() {
         data: result.data ?? prev.data,
         error: result.error,
         investmentId: investment.id
+      }))
+    } else if (result.success) {
+      // Clear error on success
+      setAgreementState((prev) => ({
+        ...prev,
+        error: ''
       }))
     }
   }, [fetchAgreement, investment, openAgreementAsset, setSubmitError, user])
@@ -536,9 +557,9 @@ function ClientContent() {
     clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
   }, [fundingMethod, investment?.id])
 
-  // Force wire transfer for IRA accounts (must be declared before any conditional return)
+  // Force wire transfer for SDIRA accounts (must be declared before any conditional return)
   useEffect(() => {
-    if ((investment?.accountType || user?.accountType) === 'ira' && fundingMethod !== 'wire-transfer') {
+    if ((investment?.accountType || user?.accountType) === 'sdira' && fundingMethod !== 'wire-transfer') {
       setFundingMethod('wire-transfer')
     }
   }, [investment?.accountType, user?.accountType, fundingMethod])
@@ -586,7 +607,7 @@ function ClientContent() {
   // Prevent hydration mismatch
   if (!mounted || !user) return <div className={styles.loading}>Loading...</div>
 
-  const isIra = (investment?.accountType || user?.accountType) === 'ira'
+  const isSdira = (investment?.accountType || user?.accountType) === 'sdira'
   const requiresWireTransfer = investment?.amount > 100000
   const agreementExpiresDisplay = (() => {
     if (!agreementData?.expires_at) return ''
@@ -728,7 +749,7 @@ function ClientContent() {
 
           <div className={styles.confirm}>
             <input type="checkbox" id="agree" checked={agreeToTerms} onChange={(e) => setAgreeToTerms(e.target.checked)} />
-            <label htmlFor="agree">I have reviewed the agreement and agree to the terms.</label>
+            <label htmlFor="agree">I confirm I have reviewed and understood the Investor Bond Agreement, including all terms, risks, and obligations; agree to be bound by it; and consent to electronic signature of this agreement.</label>
           </div>
         </div>
       </Section>
@@ -738,7 +759,7 @@ function ClientContent() {
         <div className={styles.subSection}>
           <div className={styles.groupTitle}>Funding</div>
           <div className={styles.radioGroup}>
-            {!isIra && !requiresWireTransfer && (
+            {!isSdira && !requiresWireTransfer && (
               <div 
                 className={styles.radioOption}
                 onClick={(e) => {
@@ -843,30 +864,39 @@ function ClientContent() {
               </label>
               {fundingMethod === 'wire-transfer' && (
                 <div>
-                  <div className={styles.wireRow}><b>Beneficiary:</b> Robert Ventures</div>
-                  <div className={styles.wireRow}><b>Bank:</b> Example Bank</div>
-                  <div className={styles.wireRow}><b>Routing #:</b> 123456789</div>
-                  <div className={styles.wireRow}><b>Account #:</b> 987654321</div>
-                  <div className={styles.wireRow}><b>Reference:</b> {user.firstName} {user.lastName}</div>
+                  <div className={styles.wireRow}><b>Bank:</b> Bank of America</div>
+                  <div className={styles.wireRow}><b>Bank Location:</b> 7950 Brier Creek Pkwy, Raleigh NC 27617</div>
+                  <div className={styles.wireRow}><b>Routing for Wires:</b> 026009593</div>
+                  <div className={styles.wireRow}><b>Account Name:</b> Robert Ventures Holdings LLC</div>
+                  <div className={styles.wireRow}><b>Account #:</b> 237047915756</div>
+                  <div className={styles.wireRow}><b>RVH Address:</b> 2810 N Church St, Num 28283, Wilmington DE 19802</div>
+                  <div className={styles.wireRow}><b>Office#:</b> 302-404-6341 - Joseph Robert</div>
+                  <div className={styles.wireRow}><b>Email:</b> ir@robertventures.com</div>
                   <button
                     type="button"
                     className={styles.secondaryButton}
                     style={{ marginTop: '12px' }}
                     onClick={() => {
-                      const content = `Wire Transfer Instructions\n\n` +
-                        `Beneficiary: Robert Ventures\n` +
-                        `Bank: Example Bank\n` +
-                        `Routing #: 123456789\n` +
-                        `Account #: 987654321\n` +
-                        `Reference: ${user.firstName} ${user.lastName}`
-                      const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Wire Transfer Instructions</title>` +
-                        `<style>body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;padding:24px;color:#111}.h{font-size:20px;font-weight:700;margin:0 0 12px}p{margin:6px 0}</style>` +
-                        `</head><body><div class=\"h\">Wire Transfer Instructions</div>` +
-                        `<p><b>Beneficiary:</b> Robert Ventures</p>` +
-                        `<p><b>Bank:</b> Example Bank</p>` +
-                        `<p><b>Routing #:</b> 123456789</p>` +
-                        `<p><b>Account #:</b> 987654321</p>` +
-                        `<p><b>Reference:</b> ${user.firstName} ${user.lastName}</p>` +
+                      const content = `Wire Instructions\n\n` +
+                        `Bank: Bank of America\n` +
+                        `Bank Location: 7950 Brier Creek Pkwy, Raleigh NC 27617\n` +
+                        `Routing for Wires: 026009593\n` +
+                        `Account Name: Robert Ventures Holdings LLC\n` +
+                        `Account #: 237047915756\n` +
+                        `RVH Address: 2810 N Church St, Num 28283, Wilmington DE 19802\n` +
+                        `Office#: 302-404-6341 - Joseph Robert\n` +
+                        `Email: ir@robertventures.com`
+                      const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Wire Instructions</title>` +
+                        `<style>body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;padding:24px;color:#111}.h{font-size:20px;font-weight:700;margin:0 0 12px;text-decoration:underline}p{margin:6px 0}</style>` +
+                        `</head><body><div class=\"h\">Wire Instructions</div>` +
+                        `<p><b>Bank:</b> Bank of America</p>` +
+                        `<p><b>Bank Location:</b> 7950 Brier Creek Pkwy, Raleigh NC 27617</p>` +
+                        `<p><b>Routing for Wires:</b> 026009593</p>` +
+                        `<p><b>Account Name:</b> Robert Ventures Holdings LLC</p>` +
+                        `<p><b>Account #:</b> 237047915756</p>` +
+                        `<p><b>RVH Address:</b> 2810 N Church St, Num 28283, Wilmington DE 19802</p>` +
+                        `<p><b>Office#:</b> 302-404-6341 - Joseph Robert</p>` +
+                        `<p><b>Email:</b> ir@robertventures.com</p>` +
                         `</body></html>`
                       const w = window.open('', '_blank', 'noopener,noreferrer')
                       if (w) {
@@ -1014,7 +1044,7 @@ function ClientContent() {
           marginBottom: '16px',
           lineHeight: '1.6'
         }}>
-          By clicking Continue & Submit, <b><i>you are agreeing to all Investor Acknowledgements</i></b> and agree to be bound by the terms of the <a href="#" style={{ color: '#0891b2', textDecoration: 'underline' }}>Investor Bond Agreement.</a>
+          By clicking Continue & Submit, you confirm you have reviewed the <a href="https://l.robertventures.com/OfferingCircular" target="_blank" rel="noopener noreferrer" style={{ color: '#0ea5e9', textDecoration: 'underline' }}>Offering Circular</a> and its exhibits/related documents.
         </p>
         <button
           className={styles.primaryButton}

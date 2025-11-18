@@ -16,7 +16,7 @@ const ACCOUNT_TYPE_LABELS = {
   individual: 'Individual',
   joint: 'Joint',
   entity: 'Entity',
-  ira: 'IRA'
+  sdira: 'SDIRA'
 }
 
 function InvestmentPageContent() {
@@ -44,7 +44,9 @@ function InvestmentPageContent() {
   const [isLoadingDraft, setIsLoadingDraft] = useState(true)
   const lockedTypeLabel = useMemo(() => {
     if (!lockedAccountType) return null
-    return ACCOUNT_TYPE_LABELS[lockedAccountType] || lockedAccountType
+    // Map "ira" from backend to "sdira" for display
+    const displayType = lockedAccountType === 'ira' ? 'sdira' : lockedAccountType
+    return ACCOUNT_TYPE_LABELS[displayType] || displayType
   }, [lockedAccountType])
   const topLockMessage = useMemo(() => {
     if (!lockedTypeLabel) return null
@@ -68,49 +70,134 @@ function InvestmentPageContent() {
   const formattedIdentitySummary = useMemo(() => {
     if (!identitySummary) return []
     const lines = []
-    if (identitySummary.accountType === 'entity' && identitySummary.entityName) {
-      lines.push({ label: 'Entity Name', value: identitySummary.entityName })
+    const accountType = identitySummary.accountType
+
+    // INDIVIDUAL ACCOUNT
+    if (accountType === 'individual') {
+      const holderName = [identitySummary.firstName, identitySummary.lastName].filter(Boolean).join(' ')
+      if (holderName) lines.push({ label: 'Holder Name', value: holderName })
+      if (identitySummary.phone) lines.push({ label: 'Phone', value: identitySummary.phone })
+      const addressParts = [identitySummary.street1, identitySummary.street2, identitySummary.city, identitySummary.state, identitySummary.zip].filter(Boolean)
+      if (addressParts.length) lines.push({ label: 'Address', value: addressParts.join(', ') })
+      if (identitySummary.dob) lines.push({ label: 'Date of Birth', value: identitySummary.dob })
+      if (identitySummary.ssn) lines.push({ label: 'SSN', value: identitySummary.ssn })
     }
-    if (identitySummary.accountType !== 'entity') {
+
+    // JOINT ACCOUNT
+    else if (accountType === 'joint') {
+      // Primary Holder Section
+      lines.push({ label: 'Primary Holder', value: '', isSection: true })
       const primaryName = [identitySummary.firstName, identitySummary.lastName].filter(Boolean).join(' ')
-      if (primaryName) {
-        lines.push({ label: 'Holder Name', value: primaryName })
-      }
-    }
-    if (identitySummary.phone) lines.push({ label: identitySummary.accountType === 'joint' ? 'Primary Phone' : 'Phone', value: identitySummary.phone })
-    if (identitySummary.accountType === 'joint') {
-      lines.push({ label: 'Joint Holding Type', value: identitySummary.jointHoldingType || '—' })
-    }
-    const addressParts = [identitySummary.street1, identitySummary.street2, identitySummary.city, identitySummary.state, identitySummary.zip]
-      .filter(Boolean)
-    if (addressParts.length) lines.push({ label: 'Address', value: addressParts.join(', ') })
-    if (identitySummary.dob) lines.push({ label: identitySummary.accountType === 'entity' ? 'Formation Date' : 'Date of Birth', value: identitySummary.dob })
-    if (identitySummary.ssn) lines.push({ label: identitySummary.accountType === 'entity' ? 'EIN/TIN' : 'SSN', value: identitySummary.ssn })
-    if (identitySummary.accountType === 'entity' && identitySummary.entityName) {
-      // already added above
-    }
-    if (identitySummary.accountType === 'entity' && identitySummary.authorizedRep) {
-      const rep = identitySummary.authorizedRep
-      const repName = [rep.firstName, rep.lastName].filter(Boolean).join(' ')
-      if (repName) lines.push({ label: 'Authorized Rep Name', value: repName })
-      if (rep.dob) lines.push({ label: 'Authorized Rep DOB', value: rep.dob })
-      if (rep.ssn) lines.push({ label: 'Authorized Rep SSN', value: rep.ssn })
-      const repAddress = [rep.address?.street1, rep.address?.street2, rep.address?.city, rep.address?.state, rep.address?.zip].filter(Boolean)
-      if (repAddress.length) lines.push({ label: 'Authorized Rep Address', value: repAddress.join(', ') })
-    }
-    if (identitySummary.accountType === 'joint') {
+      if (primaryName) lines.push({ label: 'Name', value: primaryName })
+      if (identitySummary.phone) lines.push({ label: 'Phone', value: identitySummary.phone })
+      const primaryAddress = [identitySummary.street1, identitySummary.street2, identitySummary.city, identitySummary.state, identitySummary.zip].filter(Boolean)
+      if (primaryAddress.length) lines.push({ label: 'Address', value: primaryAddress.join(', ') })
+      if (identitySummary.dob) lines.push({ label: 'Date of Birth', value: identitySummary.dob })
+      if (identitySummary.ssn) lines.push({ label: 'SSN', value: identitySummary.ssn })
+      if (identitySummary.jointHoldingType) lines.push({ label: 'Joint Holding Type', value: identitySummary.jointHoldingType })
+
+      // Joint Holder Section
       const joint = identitySummary.jointHolder
       if (joint) {
-        const fullName = [joint.firstName, joint.lastName].filter(Boolean).join(' ')
-        if (fullName) lines.push({ label: 'Joint Holder', value: fullName })
-        if (joint.email) lines.push({ label: 'Joint Email', value: joint.email })
-        if (joint.phone) lines.push({ label: 'Joint Phone', value: joint.phone })
-        if (joint.dob) lines.push({ label: 'Joint DOB', value: joint.dob })
-        if (joint.ssn) lines.push({ label: 'Joint SSN', value: joint.ssn })
+        lines.push({ label: 'Joint Holder', value: '', isSection: true })
+        const jointName = [joint.firstName, joint.lastName].filter(Boolean).join(' ')
+        if (jointName) lines.push({ label: 'Name', value: jointName })
+        if (joint.email) lines.push({ label: 'Email', value: joint.email })
+        if (joint.phone) lines.push({ label: 'Phone', value: joint.phone })
         const jointAddress = [joint.address?.street1, joint.address?.street2, joint.address?.city, joint.address?.state, joint.address?.zip].filter(Boolean)
-        if (jointAddress.length) lines.push({ label: 'Joint Address', value: jointAddress.join(', ') })
+        if (jointAddress.length) lines.push({ label: 'Address', value: jointAddress.join(', ') })
+        if (joint.dob) lines.push({ label: 'Date of Birth', value: joint.dob })
+        if (joint.ssn) lines.push({ label: 'SSN', value: joint.ssn })
       }
     }
+
+    // ENTITY ACCOUNT
+    else if (accountType === 'entity') {
+      // Entity Information Section
+      lines.push({ label: 'Entity Information', value: '', isSection: true })
+      if (identitySummary.entityName) lines.push({ label: 'Entity Name', value: identitySummary.entityName })
+      
+      // Entity formation date from entity object or legacy field
+      const entityFormationDate = identitySummary.entity?.formationDate || identitySummary.entity?.registrationDate
+      if (entityFormationDate) lines.push({ label: 'Formation Date', value: entityFormationDate })
+      
+      // Entity EIN from entity.taxId or fallback
+      const entityEin = identitySummary.entity?.taxId || identitySummary.ssn
+      if (entityEin) lines.push({ label: 'EIN/TIN', value: entityEin })
+      
+      // Entity Address
+      const entityAddress = [
+        identitySummary.entity?.address?.street1,
+        identitySummary.entity?.address?.street2,
+        identitySummary.entity?.address?.city,
+        identitySummary.entity?.address?.state,
+        identitySummary.entity?.address?.zip
+      ].filter(Boolean)
+      if (entityAddress.length) lines.push({ label: 'Entity Address', value: entityAddress.join(', ') })
+
+      // Authorized Representative Section
+      const rep = identitySummary.authorizedRep
+      if (rep) {
+        lines.push({ label: 'Authorized Representative', value: '', isSection: true })
+        const repName = [rep.firstName, rep.lastName].filter(Boolean).join(' ')
+        if (repName) lines.push({ label: 'Name', value: repName })
+        if (rep.title) lines.push({ label: 'Title', value: rep.title })
+        if (rep.phone) lines.push({ label: 'Phone', value: rep.phone })
+        const repAddress = [rep.address?.street1, rep.address?.street2, rep.address?.city, rep.address?.state, rep.address?.zip].filter(Boolean)
+        if (repAddress.length) lines.push({ label: 'Address', value: repAddress.join(', ') })
+        if (rep.dob) lines.push({ label: 'Date of Birth', value: rep.dob })
+        if (rep.ssn) lines.push({ label: 'SSN', value: rep.ssn })
+      }
+    }
+
+    // SDIRA ACCOUNT
+    else if (accountType === 'sdira' || accountType === 'ira') {
+      // SDIRA/Custodian Information Section
+      lines.push({ label: 'SDIRA Account Information', value: '', isSection: true })
+      
+      // Custodian name from entity or legacy ira fields
+      const custodianName = identitySummary.entityName || 
+        identitySummary.entity?.name || 
+        identitySummary.ira?.accountName ||
+        [identitySummary.ira?.firstName, identitySummary.ira?.lastName].filter(Boolean).join(' ')
+      if (custodianName) lines.push({ label: 'Account Name', value: custodianName })
+      
+      // SDIRA Address from entity.address
+      const custodianAddress = [
+        identitySummary.entity?.address?.street1,
+        identitySummary.entity?.address?.street2,
+        identitySummary.entity?.address?.city,
+        identitySummary.entity?.address?.state,
+        identitySummary.entity?.address?.zip
+      ].filter(Boolean)
+      if (custodianAddress.length) lines.push({ label: 'SDIRA Address', value: custodianAddress.join(', ') })
+      
+      // Formation date from entity
+      const formationDate = identitySummary.entity?.formationDate || identitySummary.entity?.registrationDate
+      if (formationDate) lines.push({ label: 'Formation Date', value: formationDate })
+      
+      // TIN from entity.taxId or fallback
+      const tin = identitySummary.entity?.taxId || identitySummary.ira?.taxId || identitySummary.ssn
+      if (tin) lines.push({ label: 'TIN', value: tin })
+
+      // Beneficiary Information Section
+      lines.push({ label: 'Beneficiary Information', value: '', isSection: true })
+      const beneficiaryName = [identitySummary.firstName, identitySummary.lastName].filter(Boolean).join(' ')
+      if (beneficiaryName) lines.push({ label: 'Holder Name', value: beneficiaryName })
+      if (identitySummary.phone) lines.push({ label: 'Phone', value: identitySummary.phone })
+      
+      // Beneficiary Address (primary address on user)
+      const beneficiaryAddress = [identitySummary.street1, identitySummary.street2, identitySummary.city, identitySummary.state, identitySummary.zip].filter(Boolean)
+      if (beneficiaryAddress.length) lines.push({ label: 'Address', value: beneficiaryAddress.join(', ') })
+      if (identitySummary.dob) lines.push({ label: 'Date of Birth', value: identitySummary.dob })
+      
+      // Beneficiary SSN (different from TIN above)
+      const beneficiarySSN = identitySummary.ssn
+      if (beneficiarySSN && beneficiarySSN !== tin) {
+        lines.push({ label: 'SSN', value: beneficiarySSN })
+      }
+    }
+
     return lines
   }, [identitySummary])
 
@@ -118,12 +205,21 @@ function InvestmentPageContent() {
     if (!items.length) return null
     return (
       <div className={stepStyles.reviewSummary}>
-        {items.map(({ label, value }) => (
-          <div key={label} className={stepStyles.summaryRow}>
-            <span className={stepStyles.summaryLabel}>{label}</span>
-            <span className={stepStyles.summaryValue}>{value || '—'}</span>
-          </div>
-        ))}
+        {items.map(({ label, value, isSection }, idx) => {
+          if (isSection) {
+            return (
+              <div key={`${label}-${idx}`} className={stepStyles.sectionHeader}>
+                {label}
+              </div>
+            )
+          }
+          return (
+            <div key={`${label}-${idx}`} className={stepStyles.summaryRow}>
+              <span className={stepStyles.summaryLabel}>{label}</span>
+              <span className={stepStyles.summaryValue}>{value || '—'}</span>
+            </div>
+          )
+        })}
       </div>
     )
   }
@@ -220,9 +316,11 @@ function InvestmentPageContent() {
           const lockInfo = getInvestmentTypeLockInfo({ investments: userInvestments, accountType: data.user.accountType })
           if (lockInfo.lockedAccountType) {
             setUserAccountType(data.user.accountType || lockInfo.lockedAccountType)
-            setLockedAccountType(lockInfo.lockedAccountType)
+            // Map "ira" from backend to "sdira" for frontend
+            const mappedLockedType = lockInfo.lockedAccountType === 'ira' ? 'sdira' : lockInfo.lockedAccountType
+            setLockedAccountType(mappedLockedType)
             setLockingStatus(lockInfo.lockingStatus)
-            setSelectedAccountType(lockInfo.lockedAccountType)
+            setSelectedAccountType(mappedLockedType)
           } else {
             setLockingStatus(null)
             setLockedAccountType(null)
@@ -238,8 +336,10 @@ function InvestmentPageContent() {
               }
             })()
             if (data.user.accountType) {
-              setSelectedAccountType(data.user.accountType)
-              logger.log('✅ Using user profile accountType:', data.user.accountType)
+              // Map "ira" from backend to "sdira" for frontend
+              const mappedAccountType = data.user.accountType === 'ira' ? 'sdira' : data.user.accountType
+              setSelectedAccountType(mappedAccountType)
+              logger.log('✅ Using user profile accountType:', mappedAccountType)
             } else if (localFallback) {
               setSelectedAccountType(localFallback)
               logger.log('✅ Restored draft accountType from local storage:', localFallback)
@@ -277,9 +377,9 @@ function InvestmentPageContent() {
     if (userId) checkAdmin()
   }, [])
 
-  // If user switches to IRA and payment frequency is monthly, force compounding
+  // If user switches to SDIRA and payment frequency is monthly, force compounding
   useEffect(() => {
-    if (selectedAccountType === 'ira' && investmentPaymentFrequency === 'monthly') {
+    if (selectedAccountType === 'sdira' && investmentPaymentFrequency === 'monthly') {
       setInvestmentPaymentFrequency('compounding')
     }
   }, [selectedAccountType, investmentPaymentFrequency])

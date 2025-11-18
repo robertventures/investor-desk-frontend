@@ -174,7 +174,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
 
   const handleRadioChange = (e) => {
     const { name, value } = e.target
-    if (accountType === 'ira' && value === 'monthly') return
+    if (accountType === 'sdira' && value === 'monthly') return
     setFormData(prev => ({ ...prev, [name]: value }))
     if (typeof onValuesChange === 'function') onValuesChange({ amount: formData.investmentAmount, paymentFrequency: value, lockupPeriod: selectedLockup })
   }
@@ -214,19 +214,22 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
       // Persist selected account type to user profile early (backend will lock if not allowed)
       if (accountType) {
         try {
-          await apiClient.patchUserProfile({ accountType })
-          console.log(`✅ Account type saved to profile: ${accountType}`)
+          // Map "sdira" to "ira" for user profile (backend expects "ira" for SDIRA accounts)
+          const profileAccountType = accountType === 'sdira' ? 'ira' : accountType
+          await apiClient.patchUserProfile({ accountType: profileAccountType })
+          console.log(`✅ Account type saved to profile: ${profileAccountType}`)
         } catch (e) {
           // Silently ignore if profile is locked or backend rejects partial data
           console.log('Account type profile update skipped/failed:', e?.message || e)
         }
       }
 
+      const backendAccountType = accountType === 'sdira' ? 'ira' : accountType
       const investmentPayload = {
         amount: formData.investmentAmount,
         paymentFrequency: formData.paymentFrequency,
         lockupPeriod,
-        ...(accountType ? { accountType } : {})
+        ...(backendAccountType ? { accountType: backendAccountType } : {})
       }
 
       const draftPaymentMethod = determineDraftPaymentMethod(accountType, formData.investmentAmount)
@@ -357,7 +360,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
               </div>
             </label>
             
-            <label className={`${styles.radioOption} ${accountType === 'ira' ? styles.disabled : ''} ${formData.paymentFrequency === 'monthly' ? styles.radioOptionSelected : ''}`}>
+            <label className={`${styles.radioOption} ${accountType === 'sdira' ? styles.disabled : ''} ${formData.paymentFrequency === 'monthly' ? styles.radioOptionSelected : ''}`}>
               <input
                 type="radio"
                 name="paymentFrequency"
@@ -365,7 +368,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
                 checked={formData.paymentFrequency === 'monthly'}
                 onChange={handleRadioChange}
                 className={styles.radioInput}
-                disabled={accountType === 'ira'}
+                disabled={accountType === 'sdira'}
               />
               <div className={styles.radioContent}>
                 <span className={styles.radioLabel}>Interest Paid Monthly</span>

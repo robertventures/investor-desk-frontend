@@ -290,9 +290,9 @@ function AdminInvestmentDetailsContent() {
       return 'Cannot change investment amount on active investments. Amount is locked for tax reporting and audit compliance.'
     }
 
-    // IRA accounts cannot use monthly payment frequency
+    // SDIRA accounts cannot use monthly payment frequency
     if (form.accountType === 'ira' && form.paymentFrequency === 'monthly') {
-      return 'IRA accounts can only use compounding payment frequency'
+      return 'SDIRA accounts can only use compounding payment frequency'
     }
 
     // Account type must match user's account type
@@ -571,7 +571,7 @@ function AdminInvestmentDetailsContent() {
                 </select>
                 {isEditing && form.accountType === 'ira' && form.paymentFrequency === 'monthly' && (
                   <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>
-                    ⚠️ IRA accounts can only use compounding
+                    ⚠️ SDIRA accounts can only use compounding
                   </div>
                 )}
               </div>
@@ -588,7 +588,7 @@ function AdminInvestmentDetailsContent() {
                   <option value="individual">Individual</option>
                   <option value="joint">Joint</option>
                   <option value="entity">Entity</option>
-                  <option value="ira">IRA</option>
+                  <option value="ira">SDIRA</option>
                 </select>
                 {isEditing && user?.accountType && form.accountType !== user.accountType && (
                   <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>

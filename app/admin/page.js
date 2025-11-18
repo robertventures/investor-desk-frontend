@@ -793,7 +793,7 @@ function AdminPageContent() {
                           {user.accountType === 'joint' && <span className={styles.jointBadge}>Joint</span>}
                           {user.accountType === 'individual' && <span className={styles.individualBadge}>Individual</span>}
                           {user.accountType === 'entity' && <span className={styles.entityBadge}>Entity</span>}
-                          {user.accountType === 'ira' && <span className={styles.iraBadge}>IRA</span>}
+                          {user.accountType === 'ira' && <span className={styles.sdiraBadge}>SDIRA</span>}
                         </div>
                       </div>
                       <div className={styles.accountCardBody}>

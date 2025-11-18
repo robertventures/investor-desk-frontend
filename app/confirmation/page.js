@@ -197,7 +197,7 @@ export default function ConfirmationPage() {
         try {
           localStorage.removeItem('currentInvestmentId')
           localStorage.removeItem('currentInvestmentAccountType')
-          // Remove any per-investment identity snapshots
+          // Remove any per-investment identity snapshots from localStorage
           const keysToRemove = []
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i)
@@ -206,6 +206,16 @@ export default function ConfirmationPage() {
             }
           }
           keysToRemove.forEach(k => localStorage.removeItem(k))
+          
+          // Also clear sessionStorage identity snapshots (contains sensitive data)
+          const sessionKeysToRemove = []
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i)
+            if (key && key.startsWith('investmentIdentityDraft:')) {
+              sessionKeysToRemove.push(key)
+            }
+          }
+          sessionKeysToRemove.forEach(k => sessionStorage.removeItem(k))
         } catch {}
         // Clear pending registration data
         localStorage.removeItem('pendingRegistration')

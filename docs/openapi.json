@@ -1130,6 +1130,122 @@
         }
       }
     },
+    "/api/investments/{investment_id}/fund": {
+      "post": {
+        "tags": [
+          "investments",
+          "investments"
+        ],
+        "summary": "Fund Investment",
+        "operationId": "fund_investment_api_investments__investment_id__fund_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "investment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Investment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFundingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/investments/{investment_id}/funding/{funding_id}": {
+      "get": {
+        "tags": [
+          "investments",
+          "investments"
+        ],
+        "summary": "Get Funding",
+        "operationId": "get_funding_api_investments__investment_id__funding__funding_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "investment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Investment Id"
+            }
+          },
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Funding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundingDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/withdrawals": {
       "get": {
         "tags": [
@@ -1854,6 +1970,137 @@
         }
       }
     },
+    "/api/admin/settings": {
+      "get": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Admin:Settings:List",
+        "operationId": "admin_settings_list_api_admin_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/{name}": {
+      "get": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Admin:Settings:Get",
+        "operationId": "admin_settings_get_api_admin_settings__name__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin",
+          "admin"
+        ],
+        "summary": "Admin:Settings:Update",
+        "operationId": "admin_settings_update_api_admin_settings__name__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSettingUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/transactions/migrate": {
       "post": {
         "tags": [
@@ -2315,6 +2562,294 @@
         ]
       }
     },
+    "/api/payment-methods/manual": {
+      "post": {
+        "tags": [
+          "payment-methods",
+          "payment-methods"
+        ],
+        "summary": "Payment-Methods:Create-Manual",
+        "operationId": "payment_methods_create_manual_api_payment_methods_manual_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualEntryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualEntryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/payment-methods/{payment_method_id}/verify": {
+      "post": {
+        "tags": [
+          "payment-methods",
+          "payment-methods"
+        ],
+        "summary": "Payment-Methods:Verify-Micro-Deposits",
+        "operationId": "payment_methods_verify_micro_deposits_api_payment_methods__payment_method_id__verify_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Payment method ID",
+              "title": "Payment Method Id"
+            },
+            "description": "Payment method ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyMicroDepositsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyMicroDepositsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payment-methods": {
+      "get": {
+        "tags": [
+          "payment-methods",
+          "payment-methods"
+        ],
+        "summary": "Payment-Methods:List",
+        "operationId": "payment_methods_list_api_payment_methods_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/payment-methods/{payment_method_id}": {
+      "delete": {
+        "tags": [
+          "payment-methods",
+          "payment-methods"
+        ],
+        "summary": "Payment-Methods:Delete",
+        "operationId": "payment_methods_delete_api_payment_methods__payment_method_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Payment method ID",
+              "title": "Payment Method Id"
+            },
+            "description": "Payment method ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payment-methods/{payment_method_id}/sandbox/micro-deposit-amount": {
+      "get": {
+        "tags": [
+          "payment-methods",
+          "payment-methods"
+        ],
+        "summary": "Payment-Methods:Sandbox-Get-Micro-Deposit-Amount",
+        "operationId": "payment_methods_sandbox_get_micro_deposit_amount_api_payment_methods__payment_method_id__sandbox_micro_deposit_amount_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Payment method ID",
+              "title": "Payment Method Id"
+            },
+            "description": "Payment method ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MicroDepositAmountResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payment-methods/{payment_method_id}/balance/refresh": {
+      "post": {
+        "tags": [
+          "payment-methods",
+          "payment-methods"
+        ],
+        "summary": "Payment-Methods:Refresh-Balance",
+        "operationId": "payment_methods_refresh_balance_api_payment_methods__payment_method_id__balance_refresh_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Payment method ID",
+              "title": "Payment Method Id"
+            },
+            "description": "Payment method ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -2344,15 +2879,13 @@
   },
   "components": {
     "schemas": {
-      "AccountType-Input": {
+      "ACHQCheckType": {
         "type": "string",
         "enum": [
-          "individual",
-          "joint",
-          "entity",
-          "ira"
+          "Personal",
+          "Business"
         ],
-        "title": "AccountType"
+        "title": "ACHQCheckType"
       },
       "AccountType-Output": {
         "type": "string",
@@ -2698,6 +3231,54 @@
         "type": "object",
         "title": "AddressUpdateRequest"
       },
+      "AdminSettingResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "AdminSettingResponse"
+      },
+      "AdminSettingUpdateRequest": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "AdminSettingUpdateRequest"
+      },
+      "AdminSettingsResponse": {
+        "properties": {
+          "settings": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSettingResponse"
+            },
+            "type": "array",
+            "title": "Settings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings"
+        ],
+        "title": "AdminSettingsResponse"
+      },
       "AdminUserUpdateRequest": {
         "properties": {
           "firstName": {
@@ -2919,6 +3500,46 @@
         ],
         "title": "ConfirmAccountResponse"
       },
+      "CreateFundingRequest": {
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Method Id"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "title": "Amount Cents",
+            "description": "Amount in cents"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Idempotency Key"
+          },
+          "memo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_method_id",
+          "amount_cents",
+          "idempotency_key"
+        ],
+        "title": "CreateFundingRequest"
+      },
       "CreateTestTokenRequest": {
         "properties": {
           "institution_id": {
@@ -3092,6 +3713,197 @@
           "taxId"
         ],
         "title": "EntityUpdateRequest"
+      },
+      "FundingDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "achq_transaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Achq Transaction Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expected_settlement_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Settlement Date"
+          },
+          "investment_id": {
+            "type": "integer",
+            "title": "Investment Id"
+          },
+          "payment_method_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Method Id"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "settled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settled At"
+          },
+          "memo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memo"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "amount_cents",
+          "achq_transaction_id",
+          "created_at",
+          "expected_settlement_date",
+          "investment_id",
+          "payment_method_id",
+          "submitted_at",
+          "settled_at",
+          "memo",
+          "failure_reason",
+          "updated_at"
+        ],
+        "title": "FundingDetail"
+      },
+      "FundingResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "title": "Amount Cents"
+          },
+          "achq_transaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Achq Transaction Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expected_settlement_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Settlement Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "amount_cents",
+          "achq_transaction_id",
+          "created_at",
+          "expected_settlement_date"
+        ],
+        "title": "FundingResponse"
       },
       "HTTPValidationError": {
         "properties": {
@@ -3791,6 +4603,109 @@
         ],
         "title": "LockupPeriod"
       },
+      "ManualEntryRequest": {
+        "properties": {
+          "routing_number": {
+            "type": "string",
+            "maxLength": 9,
+            "minLength": 9,
+            "title": "Routing Number",
+            "description": "9-digit ABA routing number (sandbox default: 123123123)",
+            "default": "123123123",
+            "examples": [
+              "123123123",
+              "021000021"
+            ]
+          },
+          "account_number": {
+            "type": "string",
+            "maxLength": 17,
+            "minLength": 4,
+            "title": "Account Number",
+            "description": "Bank account number",
+            "examples": [
+              "333333333",
+              "1234567890"
+            ]
+          },
+          "account_type": {
+            "$ref": "#/components/schemas/app__payments__models__enums__AccountType",
+            "description": "Type of bank account",
+            "default": "checking"
+          },
+          "account_holder_type": {
+            "$ref": "#/components/schemas/ACHQCheckType",
+            "description": "Account holder type (Personal or Business)",
+            "default": "Personal"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "title": "Idempotency Key",
+            "description": "Unique identifier to prevent duplicate payment method creation (UUID v4 recommended)",
+            "examples": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_number",
+          "idempotency_key"
+        ],
+        "title": "ManualEntryRequest"
+      },
+      "ManualEntryResponse": {
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "title": "ManualEntryResponse"
+      },
+      "MicroDepositAmountResponse": {
+        "properties": {
+          "amount_1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount 1",
+            "description": "First micro-deposit amount in cents (only available in sandbox/test environments)",
+            "examples": [
+              32
+            ]
+          },
+          "amount_2": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount 2",
+            "description": "Second micro-deposit amount in cents (only available in sandbox/test environments)",
+            "examples": [
+              47
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount_1",
+          "amount_2"
+        ],
+        "title": "MicroDepositAmountResponse"
+      },
       "Page_AccreditationAttestationResponse_": {
         "properties": {
           "items": {
@@ -4061,6 +4976,40 @@
         ],
         "title": "PaymentMethod"
       },
+      "PaymentMethodDeleteResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "payment_method_id": {
+            "type": "string",
+            "title": "Payment Method Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "payment_method_id"
+        ],
+        "title": "PaymentMethodDeleteResponse"
+      },
+      "PaymentMethodListResponse": {
+        "properties": {
+          "payment_methods": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodResponse"
+            },
+            "type": "array",
+            "title": "Payment Methods"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_methods"
+        ],
+        "title": "PaymentMethodListResponse"
+      },
       "PaymentMethodResponse": {
         "properties": {
           "id": {
@@ -4076,7 +5025,8 @@
             "title": "Display Name",
             "description": "Human-readable display name",
             "examples": [
-              "Chase Checking ••1234"
+              "Chase Checking ••1234",
+              "Manual Entry ••3333"
             ]
           },
           "bank_name": {
@@ -4085,7 +5035,8 @@
             "description": "Financial institution name",
             "examples": [
               "Chase",
-              "Bank of America"
+              "Bank of America",
+              "Manual Entry"
             ]
           },
           "account_type": {
@@ -4106,12 +5057,104 @@
             "$ref": "#/components/schemas/PaymentMethodStatus",
             "description": "Payment method verification status"
           },
+          "provider_transaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Transaction Id"
+          },
+          "current_balance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Balance",
+            "description": "Current account balance in dollars (null for manual entry accounts)",
+            "examples": [
+              "1250.50",
+              "5000.00"
+            ]
+          },
+          "available_balance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Balance",
+            "description": "Available account balance in dollars (null for manual entry accounts)",
+            "examples": [
+              "1250.50",
+              "5000.00"
+            ]
+          },
+          "balance_last_updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Last Updated",
+            "description": "ISO 8601 timestamp of last balance update (null if never fetched)",
+            "examples": [
+              "2024-01-15T10:30:00-05:00"
+            ]
+          },
           "created_at": {
             "type": "string",
             "title": "Created At",
             "description": "ISO 8601 timestamp",
             "examples": [
               "2024-01-15T10:30:00-05:00"
+            ]
+          },
+          "verification_attempts_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Attempts Remaining",
+            "description": "Number of verification attempts remaining (null if not applicable)",
+            "examples": [
+              3,
+              2,
+              1
+            ]
+          },
+          "verification_expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Expires At",
+            "description": "ISO 8601 timestamp when verification expires (null if not applicable)",
+            "examples": [
+              "2024-01-22T10:30:00-05:00"
             ]
           }
         },
@@ -4132,7 +5175,8 @@
         "type": "string",
         "enum": [
           "ready",
-          "verification_pending"
+          "verification_pending",
+          "verification_failed"
         ],
         "title": "PaymentMethodStatus"
       },
@@ -4170,7 +5214,7 @@
           "accountType": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AccountType-Input"
+                "$ref": "#/components/schemas/app__users__models__enums__AccountType"
               },
               {
                 "type": "null"
@@ -4273,7 +5317,7 @@
           "accountType": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AccountType-Input"
+                "$ref": "#/components/schemas/app__users__models__enums__AccountType"
               },
               {
                 "type": "null"
@@ -5023,6 +6067,44 @@
         ],
         "title": "ValidationError"
       },
+      "VerifyMicroDepositsRequest": {
+        "properties": {
+          "amount_1": {
+            "type": "integer",
+            "title": "Amount 1",
+            "description": "First micro-deposit amount in cents",
+            "examples": [
+              32
+            ]
+          },
+          "amount_2": {
+            "type": "integer",
+            "title": "Amount 2",
+            "description": "Second micro-deposit amount in cents",
+            "examples": [
+              47
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount_1",
+          "amount_2"
+        ],
+        "title": "VerifyMicroDepositsRequest"
+      },
+      "VerifyMicroDepositsResponse": {
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "title": "VerifyMicroDepositsResponse"
+      },
       "WithdrawalDetailResponse": {
         "properties": {
           "success": {
@@ -5263,6 +6345,24 @@
           "admin_terminated"
         ],
         "title": "WithdrawalType"
+      },
+      "app__payments__models__enums__AccountType": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "savings"
+        ],
+        "title": "AccountType"
+      },
+      "app__users__models__enums__AccountType": {
+        "type": "string",
+        "enum": [
+          "individual",
+          "joint",
+          "entity",
+          "ira"
+        ],
+        "title": "AccountType"
       }
     },
     "securitySchemes": {

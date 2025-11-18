@@ -7,12 +7,15 @@ const options = [
   { key: 'individual', label: 'Individual' },
   { key: 'joint', label: 'Joint' },
   { key: 'entity', label: 'Entity' },
-  { key: 'ira', label: 'IRA' }
+  { key: 'sdira', label: 'SDIRA' }
 ]
 
 export default function TabbedInvestmentType({ onCompleted, showContinueButton = true, autoSaveOnSelect = false, onChange, selectedValue, lockedAccountType }) {
   const [selected, setSelected] = useState(selectedValue || 'individual')
   const [isSaving, setIsSaving] = useState(false)
+
+  // Map "ira" from backend to "sdira" for frontend comparison
+  const normalizedLockedType = lockedAccountType === 'ira' ? 'sdira' : lockedAccountType
 
   // Optionally we could warn if session is missing, but keep the button state as Continue
   useEffect(() => {
@@ -24,7 +27,7 @@ export default function TabbedInvestmentType({ onCompleted, showContinueButton =
   }, [selectedValue])
 
   const handleSelect = async (key) => {
-    if (lockedAccountType && key !== lockedAccountType) return
+    if (normalizedLockedType && key !== normalizedLockedType) return
     setSelected(key)
     if (typeof onChange === 'function') onChange(key)
 
@@ -47,8 +50,10 @@ export default function TabbedInvestmentType({ onCompleted, showContinueButton =
       if (!userId) return
       
       setIsSaving(true)
-      await apiClient.patchUserProfile({ accountType: key })
-      console.log(`✅ Auto-saved account type to profile: ${key}`)
+      // Map "sdira" to "ira" for user profile (backend expects "ira" for SDIRA accounts)
+      const profileAccountType = key === 'sdira' ? 'ira' : key
+      await apiClient.patchUserProfile({ accountType: profileAccountType })
+      console.log(`✅ Auto-saved account type to profile: ${profileAccountType}`)
       if (typeof onCompleted === 'function') onCompleted(key)
     } catch (e) {
       // Silently ignore if profile is locked or backend rejects
@@ -68,7 +73,7 @@ export default function TabbedInvestmentType({ onCompleted, showContinueButton =
     <div className={styles.wrapper}>
       <div className={styles.grid}>
         {options.map(opt => {
-          const isLockedOther = Boolean(lockedAccountType && opt.key !== lockedAccountType)
+          const isLockedOther = Boolean(normalizedLockedType && opt.key !== normalizedLockedType)
           return (
             <button
               key={opt.key}

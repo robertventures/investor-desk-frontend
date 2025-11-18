@@ -92,6 +92,9 @@ const formatTaxIdFromDB = (value = '') => {
 // Names: Allow only letters, spaces, hyphens, apostrophes, and periods
 const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
 
+// Entity names: Allow letters, numbers, spaces, hyphens, apostrophes, periods, commas, and ampersands
+const formatEntityName = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.&,]/g, '')
+
 // City names: Allow only letters, spaces, hyphens, apostrophes, and periods
 const formatCity = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
 
@@ -117,9 +120,70 @@ const formatAddressForBackend = (address = {}) => {
     street2: address.street2 || '',
     city: address.city || '',
     state: address.state || '',
-    zip: address.zip || '',
-    ...(address.country ? { country: address.country } : {})
+    zip: address.zip || ''
   }
+}
+
+const normalizeAccountType = (type) => {
+  if (!type) return type
+  return type === 'ira' ? 'sdira' : type
+}
+
+const toBackendAccountType = (type) => (type === 'sdira' ? 'ira' : type)
+
+const resolveSdiraAccountName = (profile = {}) => {
+  if (!profile) return ''
+  if (profile.accountName) return profile.accountName
+  const firstName = profile.firstName || ''
+  const lastName = profile.lastName || ''
+  if (firstName || lastName) {
+    return [firstName, lastName].filter(Boolean).join(' ')
+  }
+  return profile.name || ''
+}
+
+const mergeLegacySdiraFormIntoEntity = (entity = {}, sdiraForm = {}) => {
+  if (!sdiraForm) return entity
+  const next = { ...entity }
+  if (sdiraForm.accountName) next.name = sdiraForm.accountName
+  if (sdiraForm.street1) next.street1 = sdiraForm.street1
+  if (sdiraForm.street2) next.street2 = sdiraForm.street2
+  if (sdiraForm.city) next.city = sdiraForm.city
+  if (sdiraForm.state) next.state = sdiraForm.state
+  if (sdiraForm.zip) next.zip = sdiraForm.zip
+  if (sdiraForm.country) next.country = sdiraForm.country
+  if (sdiraForm.registrationDate) next.registrationDate = sdiraForm.registrationDate
+  if (sdiraForm.taxId) next.taxId = sdiraForm.taxId
+  return next
+}
+
+const extractEntityFieldsFromSdiraProfile = (
+  profile = {},
+  {
+    savedTaxId = '',
+    maskTaxId = false,
+    formatter = (value) => value
+  } = {}
+) => {
+  if (!profile || typeof profile !== 'object') return {}
+  const fields = {}
+  const accountName = resolveSdiraAccountName(profile)
+  if (accountName) fields.name = accountName
+  const address = profile.address || {}
+  if (address.street1) fields.street1 = address.street1
+  if (address.street2) fields.street2 = address.street2
+  if (address.city) fields.city = address.city
+  if (address.state) fields.state = toFullStateName(address.state)
+  if (address.zip) fields.zip = address.zip
+  if (address.country) fields.country = address.country
+  const regDate = profile.registrationDate || profile.formationDate
+  if (regDate) fields.registrationDate = regDate
+  if (savedTaxId) {
+    fields.taxId = maskTaxId ? '•••-••-••••' : formatter(savedTaxId)
+  } else if (profile.taxId) {
+    fields.taxId = maskTaxId ? '•••-••-••••' : formatter(profile.taxId)
+  }
+  return fields
 }
 
 const parseDateString = (value = '') => {
@@ -210,7 +274,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     },
     entity: {
       name: '',
-      phone: '',
       street1: '',
       street2: '',
       city: '',
@@ -223,7 +286,8 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   })
   const [errors, setErrors] = useState({})
   const [isSaving, setIsSaving] = useState(false)
-  const [accountType, setAccountType] = useState(accountTypeProp || 'individual')
+  const normalizedAccountTypeProp = normalizeAccountType(accountTypeProp)
+  const [accountType, setAccountType] = useState(normalizedAccountTypeProp || 'individual')
   const [jointUsePrimaryAddress, setJointUsePrimaryAddress] = useState(true)
   const [showSsnHelp, setShowSsnHelp] = useState(false)
   const [showAuthorizedRepSsnHelp, setShowAuthorizedRepSsnHelp] = useState(false)
@@ -257,7 +321,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   }, [])
 
   useEffect(() => {
-    if (accountTypeProp) setAccountType(accountTypeProp)
+    if (accountTypeProp) setAccountType(normalizeAccountType(accountTypeProp))
   }, [accountTypeProp])
 
   // Load local snapshot as early fallback so Edit shows previous entries even if backend fails
@@ -266,20 +330,41 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     try {
       const invId = localStorage.getItem('currentInvestmentId')
       const snapshotKey = invId ? `investmentIdentityDraft:${invId}` : 'investmentIdentityDraft'
-      const raw = localStorage.getItem(snapshotKey)
+      
+      // Try sessionStorage first (contains complete data including sensitive fields for active session)
+      // Fall back to localStorage (contains sanitized data without sensitive fields)
+      const sessionRaw = sessionStorage.getItem(snapshotKey)
+      const localRaw = localStorage.getItem(snapshotKey)
+      const raw = sessionRaw || localRaw
+      
       if (!raw) return
       const snap = JSON.parse(raw)
+      
+      // Log which storage was used for debugging
+      if (sessionRaw) {
+        console.log('📝 Restored form data from sessionStorage (includes sensitive fields)')
+      } else if (localRaw) {
+        console.log('📝 Restored form data from localStorage (sanitized, without sensitive fields)')
+      }
+      
       if (snap?.accountType && !accountTypeProp) {
-        setAccountType(snap.accountType)
+        setAccountType(normalizeAccountType(snap.accountType))
       }
       if (snap?.form) {
-        setForm(prev => ({
-          ...prev,
-          ...snap.form,
-          jointHolder: { ...prev.jointHolder, ...(snap.form.jointHolder || {}) },
-          authorizedRep: { ...prev.authorizedRep, ...(snap.form.authorizedRep || {}) },
-          entity: { ...prev.entity, ...(snap.form.entity || {}) }
-        }))
+        const { sdira: legacySdira, ...restForm } = snap.form
+        setForm(prev => {
+          const nextEntity = mergeLegacySdiraFormIntoEntity(
+            { ...prev.entity, ...(restForm.entity || {}) },
+            legacySdira
+          )
+          return {
+            ...prev,
+            ...restForm,
+            jointHolder: { ...prev.jointHolder, ...(restForm.jointHolder || {}) },
+            authorizedRep: { ...prev.authorizedRep, ...(restForm.authorizedRep || {}) },
+            entity: nextEntity
+          }
+        })
       }
     } catch {}
   }, [accountTypeProp])
@@ -292,11 +377,12 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   useEffect(() => {
     if (!userData) return
     const u = userData
+    const normalizedUserAccountType = normalizeAccountType(u.accountType)
 
     const investments = Array.isArray(u.investments) ? u.investments : []
     const currentInvId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
     const currentInv = investments.find(inv => inv.id === currentInvId)
-    if (!accountTypeProp && currentInv?.accountType) setAccountType(currentInv.accountType)
+    if (!accountTypeProp && currentInv?.accountType) setAccountType(normalizeAccountType(currentInv.accountType))
 
     const hasPendingOrActive = investments.some(inv => inv.status === 'pending' || inv.status === 'active')
     setHasActiveInvestments(hasPendingOrActive)
@@ -354,7 +440,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         ...prev.entity,
         ...(u.entityName ? { name: u.entityName } : {}),
         ...(entityProfile.name ? { name: entityProfile.name } : {}),
-        ...(entityProfile.phone ? { phone: formatPhoneFromDB(entityProfile.phone) } : {}),
         ...(entityProfile.address?.street1 ? { street1: entityProfile.address.street1 } : {}),
         ...(entityProfile.address?.street2 ? { street2: entityProfile.address.street2 } : {}),
         ...(entityProfile.address?.city ? { city: entityProfile.address.city } : {}),
@@ -366,6 +451,27 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         ...(savedEntityTaxId ? { taxId: isEntityTaxIdOnFile ? '•••-••-••••' : formatTaxIdFromDB(savedEntityTaxId) } : {}),
         // Allow fallback to investment-level registration date if stored on user legacy fields
         ...(u.entityRegistrationDate && !entityProfile.registrationDate && !entityProfile.formationDate ? { registrationDate: u.entityRegistrationDate } : {})
+      }
+
+      // SDIRA profile information (legacy) - map backend "ira" fields into entity data for SDIRA accounts
+      const sdiraProfile = u.ira || u.sdira || {}
+      const savedSdiraTaxId = sdiraProfile.taxId || u.iraTaxId || u.sdiraTaxId || ''
+      const isSdiraTaxIdOnFile = savedSdiraTaxId && (savedSdiraTaxId === '•••-••-••••' || savedSdiraTaxId.includes(':') || savedSdiraTaxId.length > 20)
+      const sdiraDerivedFields = extractEntityFieldsFromSdiraProfile(sdiraProfile, {
+        savedTaxId: savedSdiraTaxId,
+        maskTaxId: isSdiraTaxIdOnFile,
+        formatter: formatTaxIdFromDB
+      })
+      const shouldApplySdiraToEntity = normalizedUserAccountType === 'sdira' || !updated.entity?.name
+      if (Object.keys(sdiraDerivedFields).length) {
+        const mergedEntity = { ...updated.entity }
+        Object.entries(sdiraDerivedFields).forEach(([key, value]) => {
+          if (!value) return
+          if (shouldApplySdiraToEntity || !mergedEntity[key]) {
+            mergedEntity[key] = value
+          }
+        })
+        updated.entity = mergedEntity
       }
 
       // Authorized Representative
@@ -426,7 +532,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             updated.entity = {
               ...prev.entity,
               ...(entity.name ? { name: entity.name } : {}),
-              ...(entity.phone ? { phone: formatPhoneFromDB(entity.phone) } : {}),
               ...(entity.address?.street1 ? { street1: entity.address.street1 } : {}),
               ...(entity.address?.street2 ? { street2: entity.address.street2 } : {}),
               ...(entity.address?.city ? { city: entity.address.city } : {}),
@@ -436,6 +541,25 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               ...(entity.registrationDate ? { registrationDate: entity.registrationDate } : {}),
               ...(entity.formationDate ? { registrationDate: entity.formationDate } : {})
             }
+          }
+
+          // SDIRA-specific fields - backend previously used "ira"
+          if (investment.ira || investment.sdira) {
+            const sdira = investment.ira || investment.sdira
+            const sdiraEntityFields = extractEntityFieldsFromSdiraProfile(sdira, {
+              formatter: formatTaxIdFromDB
+            })
+            if (Object.keys(sdiraEntityFields).length) {
+              updated.entity = {
+                ...updated.entity,
+                ...sdiraEntityFields
+              }
+            }
+            console.log('✅ Loaded SDIRA data from investment:', {
+              hasTaxId: !!sdira.taxId,
+              taxIdLength: sdira.taxId?.length,
+              entityName: sdiraEntityFields.name
+            })
           }
           
           // Authorized representative for entity accounts
@@ -624,7 +748,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       return
     }
     if (name === 'entity.name') {
-      setFieldValue(name, formatName(value))
+      setFieldValue(name, formatEntityName(value))
       return
     }
     if (name.endsWith('.city') || name === 'city') {
@@ -639,7 +763,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       setFieldValue(name, formatZip(value))
       return
     }
-    if (name.endsWith('.phone') || name === 'phone') {
+    if ((name.endsWith('.phone') || name === 'phone') && !name.startsWith('entity.')) {
       setFieldValue(name, formatPhone(value))
       return
     }
@@ -659,8 +783,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
     if (accountType === 'entity') {
       if (!form.entity.name.trim()) newErrors['entity.name'] = 'Required'
-      if (!form.entity.phone.trim()) newErrors['entity.phone'] = 'Required'
-      else if (!isValidUSPhone(form.entity.phone)) newErrors['entity.phone'] = 'Enter a valid US phone (10 digits; area code 2-9)'
       if (!form.entity.street1.trim()) newErrors['entity.street1'] = 'Required'
       if (!form.entity.city.trim()) newErrors['entity.city'] = 'Required'
       else if (/[0-9]/.test(form.entity.city)) newErrors['entity.city'] = 'No numbers allowed'
@@ -681,6 +803,35 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       }
       if (!form.entity.taxId.trim()) newErrors['entity.taxId'] = 'Required'
       else if (!isCompleteTaxId(form.entity.taxId)) newErrors['entity.taxId'] = 'Enter full EIN/TIN (9 digits)'
+    } else if (accountType === 'sdira') {
+      // Validate SDIRA custodian fields using entity schema
+      if (!form.entity.name.trim()) newErrors['entity.name'] = 'Required'
+      if (!form.entity.street1.trim()) newErrors['entity.street1'] = 'Required'
+      if (!form.entity.city.trim()) newErrors['entity.city'] = 'Required'
+      else if (/[0-9]/.test(form.entity.city)) newErrors['entity.city'] = 'No numbers allowed'
+      if (!form.entity.state.trim()) newErrors['entity.state'] = 'Required'
+      if (!form.entity.zip.trim()) newErrors['entity.zip'] = 'Required'
+      else if (form.entity.zip.length !== 5) newErrors['entity.zip'] = 'Enter 5 digits'
+      if (!form.entity.taxId.trim()) newErrors['entity.taxId'] = 'Required'
+      else if (!isCompleteTaxId(form.entity.taxId)) newErrors['entity.taxId'] = 'Enter full EIN/TIN (9 digits)'
+      // Also validate holder fields for SDIRA
+      if (!form.firstName.trim()) newErrors.firstName = 'Required'
+      if (!form.lastName.trim()) newErrors.lastName = 'Required'
+      if (!form.phone.trim()) newErrors.phone = 'Required'
+      else if (!isValidUSPhone(form.phone)) newErrors.phone = 'Enter a valid US phone (10 digits; area code 2-9)'
+      if (!form.street1.trim()) newErrors.street1 = 'Required'
+      if (!form.city.trim()) newErrors.city = 'Required'
+      else if (/[0-9]/.test(form.city)) newErrors.city = 'No numbers allowed'
+      if (!form.state.trim()) newErrors.state = 'Required'
+      if (!form.zip.trim()) newErrors.zip = 'Required'
+      else if (form.zip.length !== 5) newErrors.zip = 'Enter 5 digits'
+      if (!form.dob) newErrors.dob = 'Required'
+      else if (!isAdultDob(form.dob)) {
+        newErrors.dob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
+      }
+      // Skip SSN validation if it's masked (already on file)
+      if (!form.ssn.trim()) newErrors.ssn = 'Required'
+      else if (form.ssn !== '•••-••-••••' && !isCompleteSsn(form.ssn)) newErrors.ssn = 'Enter full SSN'
     } else {
       if (!form.firstName.trim()) newErrors.firstName = 'Required'
       if (!form.lastName.trim()) newErrors.lastName = 'Required'
@@ -755,6 +906,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       
       const userId = localStorage.getItem('currentUserId')
       const investmentId = localStorage.getItem('currentInvestmentId')
+      const backendAccountType = toBackendAccountType(accountType)
       if (!userId) return
 
       // Update user profile
@@ -808,10 +960,17 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       const primaryPhoneDisplay = accountType === 'entity' ? form.authorizedRep.phone : form.phone
       const normalizedPrimaryPhone = normalizePhoneForDB((primaryPhoneDisplay || '').trim())
       const normalizedAuthorizedRepPhone = normalizePhoneForBackend(form.authorizedRep.phone)
-      const normalizedEntityPhone = form.entity.phone ? normalizePhoneForBackend(form.entity.phone) : ''
+
+      const entityPayload = {
+        name: form.entity.name.trim(),
+        // Use actual formation date if provided (entity accounts), otherwise use current date (SDIRA accounts)
+        formationDate: form.entity.registrationDate || new Date().toISOString().split('T')[0],
+        taxId: form.entity.taxId,
+        address: formatAddressForBackend(entityAddress)
+      }
 
       const userData = {
-        phoneNumber: normalizedPrimaryPhone,
+        phone: normalizedPrimaryPhone,
         // Always update user's single address with latest values (match backend schema)
         address: formatAddressForBackend(primaryAddress),
         ...(accountType === 'joint' ? {
@@ -839,20 +998,33 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               authorizedRepresentative: {
                 firstName: form.authorizedRep.firstName.trim(),
                 lastName: form.authorizedRep.lastName.trim(),
-                // Backend support for representative title is pending; submit empty string for now
-                title: '',
+                title: form.authorizedRep.title.trim(),
                 phone: normalizedAuthorizedRepPhone,
                 dob: form.authorizedRep.dob,
                 ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
                 address: formatAddressForBackend(primaryAddress)
               },
+              entityName: entityPayload.name,
               entity: {
-                name: form.entity.name.trim(),
-                formationDate: form.entity.registrationDate,
-                registrationDate: form.entity.registrationDate,
-                taxId: form.entity.taxId,
-                ...(form.entity.phone ? { phone: normalizedEntityPhone } : {}),
-                address: formatAddressForBackend(entityAddress)
+                ...entityPayload,
+                title: form.authorizedRep.title.trim() || null,
+                phone: null
+              }
+            }
+          : accountType === 'sdira'
+          ? {
+              // Map "sdira" to "ira" for user profile (backend expects "ira" for SDIRA accounts)
+              accountType: 'ira',
+              firstName: form.firstName.trim(),
+              lastName: form.lastName.trim(),
+              dob: form.dob,
+              // Only send ssn if it's not masked (already on file)
+              ...(isSsnMasked ? {} : { ssn: form.ssn }),
+              entityName: entityPayload.name,
+              entity: {
+                ...entityPayload,
+                title: null,
+                phone: null
               }
             }
           : {
@@ -879,8 +1051,8 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         zip: primaryAddress.zip,
         country: primaryAddress.country,
         dob: accountType === 'entity' ? form.authorizedRep.dob : form.dob,
-        // For entity accounts, show EIN/TIN in the summary's 'ssn' field (renderer switches label)
-        ssn: accountType === 'entity' ? form.entity.taxId : form.ssn,
+        // For entity/SDIRA accounts, show EIN/TIN in the summary's 'ssn' field (renderer switches label)
+        ssn: accountType === 'entity' || accountType === 'sdira' ? form.entity.taxId : form.ssn,
         jointHoldingType: form.jointHoldingType,
         jointHolder: accountType === 'joint' ? {
           firstName: form.jointHolder.firstName,
@@ -891,10 +1063,9 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           ssn: form.jointHolder.ssn,
           address: jointAddress
         } : undefined,
-        entityName: accountType === 'entity' ? form.entity.name : undefined,
-        entity: accountType === 'entity' ? {
+        entityName: (accountType === 'entity' || accountType === 'sdira') ? form.entity.name : undefined,
+        entity: (accountType === 'entity' || accountType === 'sdira') ? {
           name: form.entity.name,
-          phone: form.entity.phone,
           registrationDate: form.entity.registrationDate,
           taxId: form.entity.taxId,
           address: entityAddress
@@ -908,10 +1079,16 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           address: primaryAddress
         } : undefined
       }
-      // Persist a sanitized local snapshot so Edit rehydrates even if backend save fails
+      // Persist form data for editing during this session
       try {
         const invId = localStorage.getItem('currentInvestmentId')
         const snapshotKey = invId ? `investmentIdentityDraft:${invId}` : 'investmentIdentityDraft'
+        
+        // Store complete form data in sessionStorage for editing during active session
+        // (sessionStorage clears when browser tab closes, providing reasonable security)
+        sessionStorage.setItem(snapshotKey, JSON.stringify({ accountType, form }))
+        
+        // Also store sanitized version in localStorage as backup (without sensitive fields)
         const sanitized = {
           ...form,
           ssn: '',
@@ -928,6 +1105,12 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       // No longer persist client-side snapshots; rely solely on backend as source of truth
 
       // Use apiClient to call backend (background save). If profile is locked (403), silently ignore.
+      console.log('💾 Saving user profile data:', {
+        accountType: userData.accountType,
+        hasEntity: !!userData.entity,
+        entityName: userData.entity?.name || userData.entityName
+      })
+      console.log('📋 FULL USER PROFILE BEING SAVED:', JSON.stringify(userData, null, 2))
       apiClient.updateUser(userId, userData)
         .then(userResponse => {
           if (!userResponse.success) {
@@ -939,7 +1122,20 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               console.error('Failed to update user profile:', userResponse.error)
             }
           } else {
-            console.log('✅ User profile updated successfully')
+            console.log('✅ User profile updated successfully', {
+              returnedUser: userResponse.user,
+              entityName: userResponse.user?.entity?.name || userResponse.user?.entityName
+            })
+            console.log('📋 FULL USER PROFILE RETURNED FROM SERVER:', JSON.stringify(userResponse.user, null, 2))
+            
+            // Fetch current profile from database to verify what's actually stored
+            apiClient.getUserProfile()
+              .then(profileData => {
+                console.log('🔍 CURRENT PROFILE FROM DATABASE (api/profile):', JSON.stringify(profileData, null, 2))
+              })
+              .catch(err => {
+                console.error('Failed to fetch profile from database:', err)
+            })
           }
         })
         .catch(e => {
@@ -991,21 +1187,25 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       if (investmentId) {
         let investmentFields = {
           // Always include accountType to ensure it's persisted
-          accountType: accountType
+          accountType: backendAccountType
         }
         
-        if (accountType === 'entity') {
+        const shouldPersistEntity = accountType === 'entity' || accountType === 'sdira'
+        if (shouldPersistEntity) {
           investmentFields.entity = {
             name: form.entity.name.trim(),
-            formationDate: form.entity.registrationDate,
-            registrationDate: form.entity.registrationDate,
-            ...(form.entity.phone ? { phone: normalizedEntityPhone } : {}),
+            formationDate: form.entity.registrationDate || null,
+            taxId: form.entity.taxId,
+            title: accountType === 'entity' ? (form.authorizedRep.title.trim() || null) : null,
+            phone: null,
             address: formatAddressForBackend(entityAddress)
           }
+        }
+        if (accountType === 'entity') {
           investmentFields.authorizedRepresentative = {
             firstName: form.authorizedRep.firstName.trim(),
             lastName: form.authorizedRep.lastName.trim(),
-            title: '',
+            title: form.authorizedRep.title.trim(),
             phone: normalizedAuthorizedRepPhone,
             dob: form.authorizedRep.dob,
             ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
@@ -1043,6 +1243,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
         try {
           console.log('💾 Saving investment identity fields:', { investmentId, keys: Object.keys(investmentFields || {}) })
+          console.log('📋 FULL INVESTMENT DATA BEING SAVED:', JSON.stringify(investmentFields, null, 2))
           const investmentResponse = await apiClient.updateInvestment(userId, investmentId, investmentFields)
           if (!investmentResponse.success) {
             console.error('Failed to update investment:', investmentResponse.error)
@@ -1052,10 +1253,21 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               hasInvestment: !!investmentResponse.investment,
               returnedAccountType: investmentResponse.investment?.accountType
             })
+            console.log('📋 FULL INVESTMENT RETURNED FROM SERVER:', JSON.stringify(investmentResponse.investment, null, 2))
+            
+            // Fetch current investment from database to verify what's actually stored
+            apiClient.getInvestment(investmentId)
+              .then(investmentData => {
+                console.log('🔍 CURRENT INVESTMENT FROM DATABASE:', JSON.stringify(investmentData, null, 2))
+              })
+              .catch(err => {
+                console.error('Failed to fetch investment from database:', err)
+              })
+            
             // Fallback: if backend doesn't include accountType on investment, persist on user profile
             if (!investmentResponse.investment?.accountType && accountType === 'individual') {
               try {
-                const userResp = await apiClient.updateUser(userId, { accountType })
+                const userResp = await apiClient.updateUser(userId, { accountType: backendAccountType })
                 console.log('ℹ️ Fallback user accountType update after identity save (individual):', {
                   success: userResp?.success,
                   accountType
@@ -1143,13 +1355,9 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 name="authorizedRep.title"
                 value={form.authorizedRep.title}
                 onChange={handleChange}
-                placeholder="Pending backend support"
-                disabled
-                readOnly
+                placeholder="e.g., Manager, CEO"
+                disabled={hasActiveInvestments}
               />
-              <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px', display: 'block' }}>
-                We’ll capture this once backend support is available.
-              </span>
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Phone Number</label>
@@ -1230,7 +1438,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
       {/* Holder / Entity Information Section */}
       <div className={styles.sectionTitle}>
-        <h3>{accountType === 'entity' ? 'Entity Information' : (accountType === 'joint' ? 'Primary Holder Information' : 'Holder Information')}</h3>
+        <h3>{accountType === 'entity' ? 'Entity Information' : (accountType === 'joint' ? 'Primary Holder Information' : (accountType === 'sdira' ? 'SDIRA Beneficiary Information' : 'Holder Information'))}</h3>
       </div>
       <div className={styles.grid}>
         {accountType === 'entity' ? (
@@ -1246,18 +1454,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 disabled={hasActiveInvestments}
               />
               {errors['entity.name'] && <span className={styles.error}>{errors['entity.name']}</span>}
-            </div>
-            <div className={styles.field}> 
-              <label className={styles.label}>Phone Number</label>
-              <input
-                className={`${styles.input} ${errors['entity.phone'] ? styles.inputError : ''}`}
-                name="entity.phone"
-                value={form.entity.phone}
-                onChange={handleChange}
-                placeholder="(555) 555-5555"
-                inputMode="tel"
-              />
-              {errors['entity.phone'] && <span className={styles.error}>{errors['entity.phone']}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Street Address</label>
@@ -1459,6 +1655,119 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           </>
         )}
       </div>
+
+      {/* SDIRA Information Section - only show for SDIRA accounts */}
+      {accountType === 'sdira' && (
+        <>
+          <div className={styles.sectionTitle}>
+            <h3>SDIRA Information</h3>
+          </div>
+          <div className={styles.grid}>
+            <div className={styles.field}> 
+              <label className={styles.label}>Account Name</label>
+              <input
+                className={`${styles.input} ${errors['entity.name'] ? styles.inputError : ''}`}
+                name="entity.name"
+                value={form.entity.name}
+                onChange={handleChange}
+                placeholder="Enter account name"
+                disabled={hasActiveInvestments}
+              />
+              {errors['entity.name'] && <span className={styles.error}>{errors['entity.name']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>SDIRA Address</label>
+              <input
+                className={`${styles.input} ${errors['entity.street1'] ? styles.inputError : ''}`}
+                name="entity.street1"
+                value={form.entity.street1}
+                onChange={handleChange}
+                placeholder="No PO Boxes"
+              />
+              {errors['entity.street1'] && <span className={styles.error}>{errors['entity.street1']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>SDIRA Apt or Unit</label>
+              <input
+                className={styles.input}
+                name="entity.street2"
+                value={form.entity.street2}
+                onChange={handleChange}
+                placeholder="Apt, unit, etc."
+              />
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>SDIRA City</label>
+              <input
+                className={`${styles.input} ${errors['entity.city'] ? styles.inputError : ''}`}
+                name="entity.city"
+                value={form.entity.city}
+                onChange={handleChange}
+                placeholder="Enter city"
+              />
+              {errors['entity.city'] && <span className={styles.error}>{errors['entity.city']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>SDIRA Zip Code</label>
+              <input
+                className={`${styles.input} ${errors['entity.zip'] ? styles.inputError : ''}`}
+                name="entity.zip"
+                value={form.entity.zip}
+                onChange={handleChange}
+                placeholder="Enter ZIP code"
+                inputMode="numeric"
+              />
+              {errors['entity.zip'] && <span className={styles.error}>{errors['entity.zip']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>SDIRA State</label>
+              <select
+                name="entity.state"
+                value={form.entity.state}
+                onChange={handleChange}
+                className={`${styles.input} ${errors['entity.state'] ? styles.inputError : ''}`}
+              >
+                <option value="">Select state</option>
+                {US_STATES.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {errors['entity.state'] && <span className={styles.error}>{errors['entity.state']}</span>}
+            </div>
+            <div className={styles.field}> 
+              <label className={styles.label}>SDIRA Country</label>
+              <input className={styles.input} name="entity.country" value={form.entity.country} readOnly disabled />
+            </div>
+            <div className={styles.field}> 
+              <div className={styles.labelRow}>
+                <label className={styles.label}>EIN/TIN SDIRA</label>
+                <button type="button" className={styles.helpLink} onClick={() => setShowSsnHelp(v => !v)}>
+                  Why do we need this?
+                </button>
+              </div>
+              <input 
+                className={`${styles.input} ${errors['entity.taxId'] ? styles.inputError : ''}`} 
+                type="text"
+                name="entity.taxId" 
+                value={form.entity.taxId} 
+                onChange={handleChange} 
+                placeholder="Enter EIN/TIN"
+                inputMode="numeric" 
+                disabled={hasActiveInvestments || form.entity.taxId === '•••-••-••••'} 
+                readOnly={hasActiveInvestments || form.entity.taxId === '•••-••-••••'}
+                autoComplete="off"
+                title={form.entity.taxId === '•••-••-••••' ? 'EIN/TIN on file - cannot be modified' : ''}
+              />
+              {errors['entity.taxId'] && <span className={styles.error}>{errors['entity.taxId']}</span>}
+              {showSsnHelp && (
+                <div className={styles.helpText}>
+                  A Taxpayer Identification Number (TIN) or Employer Identification Number (EIN) is necessary for compliance with Anti-Money Laundering (AML) and Know Your Customer (KYC) regulations. This information is securely stored and used only for verification purposes.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Authorized Representative Information for Entities - section moved above */}
 

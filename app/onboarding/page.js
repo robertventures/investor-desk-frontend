@@ -572,7 +572,7 @@ function OnboardingContent() {
                         <h3 className={styles.investmentTitle}>
                           {investment.accountType === 'individual' ? 'Individual Account' :
                            investment.accountType === 'joint' ? 'Joint Account' :
-                           investment.accountType === 'entity' ? 'Entity Account' : 'IRA Account'}
+                           investment.accountType === 'entity' ? 'Entity Account' : 'SDIRA Account'}
                         </h3>
                         <p className={styles.investmentDetails}>
                           ${investment.amount?.toLocaleString()} • {investment.lockupPeriod} • {paymentType}

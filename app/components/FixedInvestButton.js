@@ -9,7 +9,7 @@ const ACCOUNT_TYPE_LABELS = {
   individual: 'Individual',
   joint: 'Joint',
   entity: 'Entity',
-  ira: 'IRA'
+  sdira: 'SDIRA'
 }
 
 export default function FixedInvestButton() {

@@ -1469,7 +1469,7 @@
                     "individual",
                     "joint",
                     "entity",
-                    "ira"
+                    "sdira"
                 ],
                 "title": "AccountType"
             },

@@ -235,7 +235,7 @@ const DashboardTab = memo(function DashboardTab({
                         {inv.accountType === 'individual' && 'Individual'}
                         {inv.accountType === 'joint' && 'Joint'}
                         {inv.accountType === 'entity' && 'Entity'}
-                        {inv.accountType === 'ira' && 'IRA'}
+                        {inv.accountType === 'ira' && 'SDIRA'}
                       </span>
                       <span className={styles.pendingItemDivider}>•</span>
                       <span className={styles.pendingItemLockup}>
@@ -469,7 +469,7 @@ const DashboardTab = memo(function DashboardTab({
                     <strong>{metrics.accountsByType.entity}</strong>
                   </div>
                   <div className={styles.distributionRow}>
-                    <span>IRA</span>
+                    <span>SDIRA</span>
                     <strong>{metrics.accountsByType.ira}</strong>
                   </div>
                 </div>
