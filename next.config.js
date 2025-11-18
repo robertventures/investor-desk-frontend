@@ -21,6 +21,7 @@ const nextConfig = {
       },
     ]
   },
+
   
   // Suppress hydration warnings for browser extensions
   compiler: {

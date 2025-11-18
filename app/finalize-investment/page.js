@@ -1,3 +1,18 @@
+/**
+ * Finalize Investment Page
+ * 
+ * This page handles the final steps of investment submission including:
+ * - Accreditation verification
+ * - Document review and agreement
+ * - Payment method selection (ACH via Plaid or Wire Transfer)
+ * - Investment submission and funding initiation
+ * 
+ * PLAID INTEGRATION:
+ * The page integrates with Plaid for bank account connection and ACH funding.
+ * See BankConnectionModal component for Plaid Link implementation details.
+ * 
+ * Testing in sandbox mode: Set NEXT_PUBLIC_PLAID_ENV=sandbox
+ */
 "use client"
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
@@ -64,6 +79,7 @@ function ClientContent() {
   const [bankSelectionMode, setBankSelectionMode] = useState('') // 'funding' or 'payout'
   const [fundingInfo, setFundingInfo] = useState(null)
   const [fundingError, setFundingError] = useState('')
+  const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [agreementState, setAgreementState] = useState({
     status: 'idle',
     data: null,
@@ -755,6 +771,26 @@ function ClientContent() {
       </Section>
 
       <Section title="Payment" raw>
+        {/* 
+          PLAID INTEGRATION - Funding Method Selection
+          
+          This section allows investors to connect their bank account via Plaid for ACH transfers.
+          
+          TESTING IN SANDBOX:
+          1. Ensure NEXT_PUBLIC_PLAID_ENV=sandbox in .env.local
+          2. Select "Bank Account" funding method
+          3. Click "Connect Bank Account" to open Plaid modal
+          4. Use test credentials: username="user_good", password="pass_good"
+          5. Select any test institution (e.g., Chase: ins_109508)
+          6. Complete the flow to create a payment method
+          7. Submit the investment to trigger ACH funding
+          
+          The flow will:
+          - Create a Plaid link token (POST /api/plaid/link-token)
+          - Exchange public token for processor token (POST /api/plaid/link-success)
+          - Store the payment method for reuse
+          - Initiate ACH funding on investment submission (POST /api/investments/:id/fund)
+        */}
         {/* Funding method */}
         <div className={styles.subSection}>
           <div className={styles.groupTitle}>Funding</div>
@@ -781,6 +817,10 @@ function ClientContent() {
                 </label>
                 {fundingMethod === 'bank-transfer' && (
                   <div className={styles.bankConnectionSection}>
+                    {/* 
+                      Display saved payment methods from Plaid
+                      These are fetched from /api/payment-methods?type=bank_ach
+                    */}
                     {availableBanks.length > 0 ? (
                       <>
                         <div className={styles.savedBanksGrid}>
@@ -1021,20 +1061,33 @@ function ClientContent() {
 
       <div className={styles.actions}>
         {fundingInfo && (
-          <div className={styles.warning} style={{ marginBottom: '12px' }}>
-            <div className={styles.warningTitle}>
-              Funding status: {fundingInfo.status?.toUpperCase() || 'PENDING'}
+          <div className={styles.warning} style={{ marginBottom: '12px', backgroundColor: '#e0f2fe', borderColor: '#0ea5e9' }}>
+            <div className={styles.warningTitle} style={{ color: '#0369a1' }}>
+              💳 ACH Funding Initiated: {fundingInfo.status?.toUpperCase() || 'PENDING'}
             </div>
-            {fundingInfo.expected_settlement_date && (
-              <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                Expected settlement: {new Date(fundingInfo.expected_settlement_date).toLocaleString()}
-              </div>
-            )}
+            <div style={{ fontSize: '13px', color: '#075985', marginTop: '8px', lineHeight: '1.6' }}>
+              {fundingInfo.id && (
+                <div>Funding ID: <code style={{ backgroundColor: 'rgba(14, 165, 233, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>{fundingInfo.id}</code></div>
+              )}
+              {fundingInfo.amount_cents && (
+                <div>Amount: ${(fundingInfo.amount_cents / 100).toFixed(2)}</div>
+              )}
+              {fundingInfo.expected_settlement_date && (
+                <div>Expected Settlement: {new Date(fundingInfo.expected_settlement_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              )}
+              {fundingInfo.achq_transaction_id && (
+                <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.8 }}>
+                  Transaction ID: {fundingInfo.achq_transaction_id}
+                </div>
+              )}
+            </div>
           </div>
         )}
         {fundingError && (
-          <div className={styles.submitError}>
-            <p className={styles.submitErrorText}>{fundingError}</p>
+          <div className={styles.submitError} style={{ marginBottom: '12px' }}>
+            <p className={styles.submitErrorText} style={{ fontSize: '13px', lineHeight: '1.6' }}>
+              ⚠️ {fundingError}
+            </p>
           </div>
         )}
         <p style={{ 
@@ -1198,8 +1251,21 @@ function ClientContent() {
               // Initiate ACH funding if bank-transfer selected and amount <= $100,000
               if (paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000) {
                 try {
+                  console.log('[FinalizeInvestment] Initiating ACH funding...', {
+                    investmentId,
+                    paymentMethodId: selectedFundingBankId,
+                    amount: investment.amount,
+                    paymentMethod
+                  })
+                  
                   const amountCents = Math.round((investment.amount || 0) * 100)
                   const idempotencyKey = generateIdempotencyKey()
+                  
+                  console.log('[FinalizeInvestment] Calling fundInvestment API:', {
+                    amountCents,
+                    idempotencyKey
+                  })
+                  
                   const fundRes = await apiClient.fundInvestment(
                     investmentId,
                     selectedFundingBankId,
@@ -1207,11 +1273,24 @@ function ClientContent() {
                     idempotencyKey,
                     `Investment ${investmentId}`
                   )
+                  
+                  console.log('[FinalizeInvestment] Funding initiated successfully:', fundRes)
                   setFundingInfo(fundRes?.funding || null)
                   setFundingError('')
                 } catch (fe) {
-                  console.error('Funding initiation failed:', fe)
-                  setFundingError(fe?.message || 'Failed to initiate funding')
+                  console.error('[FinalizeInvestment] Funding initiation failed:', fe)
+                  const errorMessage = fe?.message || 'Failed to initiate funding'
+                  
+                  // Special handling for investment status errors
+                  if (errorMessage.includes('ACTIVE') || errorMessage.includes('PENDING')) {
+                    setFundingError(
+                      'The investment was submitted successfully, but ACH funding could not be initiated due to investment status. ' +
+                      'This is a backend configuration issue - the investment should remain in PENDING status until funding is processed. ' +
+                      'Please contact your backend team to ensure investments stay PENDING after submission until funding settles.'
+                    )
+                  } else {
+                    setFundingError(`${errorMessage}. The investment has been submitted but funding was not initiated. Please contact support.`)
+                  }
                 }
               }
               
@@ -1286,16 +1365,37 @@ function ClientContent() {
         isOpen={showBankModal}
         onClose={() => !isSavingBank && setShowBankModal(false)}
         onAccountSelected={async (method) => {
-          setSelectedBankId(method.id)
-          setSelectedFundingBankId(method.id)
-          setSelectedPayoutBankId(method.id)
+          console.log('[FinalizeInvestment] Bank account selected from Plaid:', method)
+          
+          // Ensure the payment method has the expected structure
+          const paymentMethod = {
+            id: method.id,
+            type: method.type || 'bank_ach',
+            display_name: method.display_name || method.bank_name || 'Bank Account',
+            bank_name: method.bank_name || method.display_name || 'Bank',
+            account_type: method.account_type || 'checking',
+            last4: method.last4 || '****',
+            status: method.status || 'ready',
+            ...method
+          }
+          
+          console.log('[FinalizeInvestment] Normalized payment method:', paymentMethod)
+          
+          setSelectedBankId(paymentMethod.id)
+          setSelectedFundingBankId(paymentMethod.id)
+          setSelectedPayoutBankId(paymentMethod.id)
           setIsSavingBank(true)
+          
           try {
+            console.log('[FinalizeInvestment] Refreshing payment methods list...')
             const pmRes = await apiClient.listPaymentMethods('bank_ach')
             const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
+            console.log('[FinalizeInvestment] Available payment methods:', pms.length)
             setAvailableBanks(pms)
           } catch (e) {
-            // ignore, keep current state
+            console.error('[FinalizeInvestment] Failed to refresh payment methods:', e)
+            // Add the new bank to the list manually if refresh failed
+            setAvailableBanks(prev => [...prev, paymentMethod])
           } finally {
             setIsSavingBank(false)
             setShowBankModal(false)
@@ -1397,6 +1497,132 @@ function ClientContent() {
               Please wait while we securely save your bank account information...
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Development Debug Panel */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          zIndex: 9999,
+          background: '#1f2937',
+          color: '#f9fafb',
+          borderRadius: '8px',
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+          maxWidth: '400px',
+          fontSize: '12px',
+          fontFamily: 'monospace'
+        }}>
+          <div
+            onClick={() => setShowDebugPanel(!showDebugPanel)}
+            style={{
+              padding: '12px 16px',
+              cursor: 'pointer',
+              borderBottom: showDebugPanel ? '1px solid #374151' : 'none',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontWeight: '600'
+            }}
+          >
+            <span>🔧 Plaid Debug Panel</span>
+            <span>{showDebugPanel ? '▼' : '▶'}</span>
+          </div>
+          {showDebugPanel && (
+            <div style={{ padding: '16px', maxHeight: '400px', overflowY: 'auto' }}>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Environment:</div>
+                <div style={{ color: '#10b981' }}>
+                  {process.env.NEXT_PUBLIC_PLAID_ENV || 'not set (defaults to sandbox)'}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Payment Methods ({availableBanks.length}):</div>
+                {availableBanks.length === 0 ? (
+                  <div style={{ color: '#ef4444' }}>No banks connected</div>
+                ) : (
+                  availableBanks.map((bank, idx) => (
+                    <div key={bank.id || idx} style={{ 
+                      padding: '6px 8px', 
+                      background: '#374151', 
+                      borderRadius: '4px',
+                      marginBottom: '4px'
+                    }}>
+                      <div>{bank.display_name || bank.bank_name}</div>
+                      <div style={{ color: '#9ca3af', fontSize: '10px' }}>
+                        {bank.account_type} ••{bank.last4} | {bank.status}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Selected Funding Bank:</div>
+                <div style={{ color: selectedFundingBankId ? '#10b981' : '#ef4444' }}>
+                  {selectedFundingBankId || 'None'}
+                </div>
+              </div>
+
+              {fundingInfo && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding Status:</div>
+                  <div style={{ 
+                    padding: '8px', 
+                    background: '#374151', 
+                    borderRadius: '4px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all'
+                  }}>
+                    {JSON.stringify(fundingInfo, null, 2)}
+                  </div>
+                </div>
+              )}
+
+              {fundingError && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding Error:</div>
+                  <div style={{ color: '#ef4444' }}>{fundingError}</div>
+                </div>
+              )}
+
+              <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #374151' }}>
+                <button
+                  onClick={() => {
+                    console.log('=== PLAID DEBUG INFO ===')
+                    console.log('Environment:', process.env.NEXT_PUBLIC_PLAID_ENV)
+                    console.log('Available Banks:', availableBanks)
+                    console.log('Selected Funding Bank ID:', selectedFundingBankId)
+                    console.log('Funding Info:', fundingInfo)
+                    console.log('Funding Error:', fundingError)
+                    console.log('Investment:', investment)
+                    console.log('=======================')
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    background: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: '600'
+                  }}
+                >
+                  Log Debug Info to Console
+                </button>
+                <div style={{ marginTop: '8px', fontSize: '10px', color: '#9ca3af', lineHeight: '1.4' }}>
+                  <div>Test Credentials:</div>
+                  <div>• user_good / pass_good</div>
+                  <div>• Chase: ins_109508</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       

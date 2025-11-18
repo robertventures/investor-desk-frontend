@@ -51,30 +51,32 @@ export function middleware(request) {
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
 
   // Content Security Policy (CSP) - balanced security with Next.js compatibility
-  // Build CSP with dynamic API backend URL
+  // Build CSP with dynamic API backend URL and Plaid support
   // Note: 'unsafe-inline' and 'unsafe-hashes' are required for Next.js error pages and development
   const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || ''
   
-  // Build connect-src directive to allow connections to backend
-  let connectSrc = `'self'`
+  // Build connect-src directive to allow connections to backend and Plaid
+  let connectSrc = `'self' https://cdn.plaid.com https://production.plaid.com https://sandbox.plaid.com https://development.plaid.com`
   if (apiUrl) connectSrc += ` ${apiUrl}`
   
   {
     const isProd = process.env.NODE_ENV === 'production'
+    // Allow Plaid CDN scripts
     const scriptSrc = isProd
-      ? "script-src 'self'; "
-      : "script-src 'self' 'unsafe-eval' 'unsafe-inline'; "
+      ? "script-src 'self' https://cdn.plaid.com https://plaid.com; "
+      : "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.plaid.com https://plaid.com; "
 
     response.headers.set(
       'Content-Security-Policy',
       "default-src 'self'; " +
       scriptSrc +
-      "style-src 'self' 'unsafe-inline' 'unsafe-hashes' https://fonts.googleapis.com; " +
+      "style-src 'self' 'unsafe-inline' 'unsafe-hashes' https://fonts.googleapis.com https://cdn.plaid.com; " +
       "style-src-attr 'self' 'unsafe-inline' 'unsafe-hashes'; " +
-      "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "img-src 'self' data: https:; " +
-      "font-src 'self' data: https://fonts.gstatic.com; " +
+      "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.plaid.com; " +
+      "img-src 'self' data: https: blob:; " +
+      "font-src 'self' data: https://fonts.gstatic.com https://cdn.plaid.com; " +
       `connect-src ${connectSrc}; ` +
+      "frame-src 'self' https://cdn.plaid.com; " +
       "frame-ancestors 'self'; " +
       "base-uri 'self'; " +
       "form-action 'self'"
