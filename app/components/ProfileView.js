@@ -191,15 +191,9 @@ export default function ProfileView() {
     try {
       // Use apiClient to route to Python backend (not Next.js)
       const data = await apiClient.getUser(userId)
-      console.log('[ProfileView] Loaded user data:', data)
-      console.log('[ProfileView] Phone field check:', {
-        hasPhone: 'phone' in (data.user || {}),
-        phoneValue: data.user?.phone,
-        hasPhoneNumber: 'phoneNumber' in (data.user || {}),
-        phoneNumberValue: data.user?.phoneNumber
-      })
       if (data.success && data.user) {
         setUserData(data.user)
+        
         setFormData({
           firstName: data.user.firstName || '',
           lastName: data.user.lastName || '',
@@ -258,7 +252,7 @@ export default function ProfileView() {
             lastName: data.user.trustedContact?.lastName || '',
             email: data.user.trustedContact?.email || '',
             phone: formatPhone(data.user.trustedContact?.phone || ''),
-            relationship: data.user.trustedContact?.relationship || ''
+            relationship: data.user.trustedContact?.relationshipType || data.user.trustedContact?.relationship || ''
           },
           authorizedRepresentative: {
             dob: data.user.authorizedRepresentative?.dob || '',
@@ -339,6 +333,39 @@ export default function ProfileView() {
         logger.error('Failed to load user data', e)
       }
   }
+
+  // Load trusted contact via dedicated endpoint when opening the tab
+  useEffect(() => {
+    if (activeTab !== 'trusted-contact') return
+    let isCancelled = false
+    const loadTrustedContact = async () => {
+      try {
+        const resp = await apiClient.getTrustedContact()
+        const trusted = resp?.trustedContact ?? null
+        if (isCancelled) return
+        // Update userData with the trusted contact
+        setUserData(prev => ({ ...(prev || {}), trustedContact: trusted }))
+        // Update form data if it's available
+        setFormData(prev => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            trustedContact: {
+              firstName: trusted?.firstName || '',
+              lastName: trusted?.lastName || '',
+              email: trusted?.email || '',
+              phone: formatPhone(trusted?.phone || ''),
+              relationship: trusted?.relationshipType || trusted?.relationship || ''
+            }
+          }
+        })
+      } catch (e) {
+        // Silent fail; keep existing state
+      }
+    }
+    loadTrustedContact()
+    return () => { isCancelled = true }
+  }, [activeTab])
 
   const handleTabChange = (tab) => {
     setActiveTab(tab)
@@ -669,14 +696,53 @@ const handleEntityChange = (e) => {
           }
         }
       } else if (activeTab === 'trusted-contact') {
-        payload = {
-          trustedContact: {
-            firstName: formData.trustedContact?.firstName || '',
-            lastName: formData.trustedContact?.lastName || '',
-            email: formData.trustedContact?.email || '',
-            phone: normalizePhoneForDB(formData.trustedContact?.phone || ''),
-            relationship: formData.trustedContact?.relationship || ''
+        // Use specific trusted contact endpoint to bypass profile lock
+        const trustedContactData = {
+          firstName: formData.trustedContact?.firstName || '',
+          lastName: formData.trustedContact?.lastName || '',
+          email: formData.trustedContact?.email || '',
+          phone: normalizePhoneForDB(formData.trustedContact?.phone || ''),
+          relationship: formData.trustedContact?.relationship || ''
+        }
+        
+        try {
+          // Always use PUT to create or update the trusted contact
+          const data = await apiClient.updateTrustedContact(trustedContactData)
+          
+          if (data.success && data.trustedContact) {
+            // Update local state with new trusted contact
+            const updatedContact = data.trustedContact
+            setUserData(prev => ({ ...prev, trustedContact: updatedContact }))
+            
+            // Update form data with formatted values
+            setFormData(prev => ({
+              ...prev,
+              trustedContact: {
+                firstName: updatedContact.firstName || '',
+                lastName: updatedContact.lastName || '',
+                email: updatedContact.email || '',
+                phone: formatPhone(updatedContact.phone || ''),
+                relationship: updatedContact.relationshipType || updatedContact.relationship || ''
+              }
+            }))
+            
+            setSaveSuccess(true)
+            // Do not reload full user profile; keep local state authoritative
+            setIsSaving(false)
+            return true // Return success
+          } else {
+            // Handle unsuccessful save
+            const errorMsg = data?.error || 'Failed to save trusted contact'
+            alert(`Error: ${errorMsg}. The backend endpoint may not be implemented yet.`)
+            setIsSaving(false)
+            return false // Return failure
           }
+        } catch (e) {
+          logger.error('Failed to save trusted contact', e)
+          const errorMsg = e?.responseData?.error || e?.message || 'Unknown error'
+          alert(`Failed to save trusted contact: ${errorMsg}\n\nThe backend /api/profile/trusted_contact endpoint may not be fully implemented yet.`)
+          setIsSaving(false)
+          return false // Return failure
         }
       } else {
         // Fallback - keep previous behavior
@@ -898,6 +964,9 @@ const handleEntityChange = (e) => {
             handleSave={handleSave}
             isSaving={isSaving}
             saveSuccess={saveSuccess}
+            setFormData={setFormData}
+            userData={userData}
+            formatPhone={formatPhone}
           />
         )}
 
@@ -1400,45 +1469,104 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
   )
 }
 
-function TrustedContactTab({ formData, errors, handleTrustedContactChange, handleSave, isSaving, saveSuccess }) {
+function TrustedContactTab({ formData, errors, handleTrustedContactChange, handleSave, isSaving, saveSuccess, setFormData, userData, formatPhone }) {
+  const [isEditing, setIsEditing] = useState(false)
+  
+  // Check if trusted contact exists and has meaningful data
+  const hasTrustedContact = formData.trustedContact && 
+    (formData.trustedContact.firstName || formData.trustedContact.lastName || 
+     formData.trustedContact.email || formData.trustedContact.phone)
+
+  // Set editing mode based on whether contact exists
+  // If contact exists: locked (not editing)
+  // If no contact: unlocked (editing)
+  useEffect(() => {
+    if (!hasTrustedContact) {
+      setIsEditing(true)
+    } else {
+      setIsEditing(false)
+    }
+  }, [hasTrustedContact])
+
+  const handleEdit = () => {
+    setIsEditing(true)
+  }
+
+  const handleCancel = () => {
+    if (!hasTrustedContact) {
+      // Cannot cancel if no contact exists
+      return
+    }
+    // Revert form data to the saved userData
+    setFormData(prev => ({
+      ...prev,
+      trustedContact: {
+        firstName: userData?.trustedContact?.firstName || '',
+        lastName: userData?.trustedContact?.lastName || '',
+        email: userData?.trustedContact?.email || '',
+        phone: formatPhone(userData?.trustedContact?.phone || ''),
+        relationship: userData?.trustedContact?.relationshipType || userData?.trustedContact?.relationship || ''
+      }
+    }))
+    setIsEditing(false)
+  }
+
+  const handleSaveWrapper = async () => {
+    const success = await handleSave()
+    // Only switch to view mode if save was successful
+    if (success) {
+      setIsEditing(false)
+    }
+  }
+
   return (
     <div className={styles.content}>
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Trusted Contact</h2>
-        <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-          Provide a trusted contact who we can reach in case we cannot contact you or in emergency situations.
+        <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '24px' }}>
+          You can only have one trusted contact. This person should be someone you trust who can be reached in emergency situations.
         </p>
 
         <div className={styles.subCard}>
-          <h3 className={styles.subSectionTitle}>Contact Information</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
-              <label className={styles.label}>First Name</label>
+              <label className={styles.label}>
+                First Name <span className={styles.optional}>(Optional)</span>
+              </label>
               <input
                 className={`${styles.input} ${errors.trustedFirstName ? styles.inputError : ''}`}
                 name="firstName"
                 value={formData.trustedContact?.firstName || ''}
                 onChange={handleTrustedContactChange}
-                placeholder="Optional"
+                placeholder="Enter first name"
+                disabled={!isEditing}
               />
+              {errors.trustedFirstName && <span className={styles.errorText}>{errors.trustedFirstName}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Last Name</label>
+              <label className={styles.label}>
+                Last Name <span className={styles.optional}>(Optional)</span>
+              </label>
               <input
                 className={`${styles.input} ${errors.trustedLastName ? styles.inputError : ''}`}
                 name="lastName"
                 value={formData.trustedContact?.lastName || ''}
                 onChange={handleTrustedContactChange}
-                placeholder="Optional"
+                placeholder="Enter last name"
+                disabled={!isEditing}
               />
+              {errors.trustedLastName && <span className={styles.errorText}>{errors.trustedLastName}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Relationship</label>
+              <label className={styles.label}>
+                Relationship <span className={styles.optional}>(Optional)</span>
+              </label>
               <select
                 className={styles.input}
                 name="relationship"
                 value={formData.trustedContact?.relationship || ''}
                 onChange={handleTrustedContactChange}
+                disabled={!isEditing}
               >
                 <option value="">Select relationship</option>
                 <option value="spouse">Spouse</option>
@@ -1452,46 +1580,81 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
               </select>
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Email</label>
+              <label className={styles.label}>
+                Email <span className={styles.optional}>(Optional)</span>
+              </label>
               <input
                 className={`${styles.input} ${errors.trustedEmail ? styles.inputError : ''}`}
                 type="email"
                 name="email"
                 value={formData.trustedContact?.email || ''}
                 onChange={handleTrustedContactChange}
-                placeholder="Optional"
+                placeholder="email@example.com"
+                disabled={!isEditing}
               />
               {errors.trustedEmail && <span className={styles.errorText}>{errors.trustedEmail}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Phone</label>
+              <label className={styles.label}>
+                Phone <span className={styles.optional}>(Optional)</span>
+              </label>
               <input
                 className={`${styles.input} ${errors.trustedPhone ? styles.inputError : ''}`}
                 type="tel"
                 name="phone"
                 value={formData.trustedContact?.phone || ''}
                 onChange={handleTrustedContactChange}
-                placeholder="(555) 555-5555 - Optional"
+                placeholder="(555) 555-5555"
+                disabled={!isEditing}
               />
               {errors.trustedPhone && <span className={styles.errorText}>{errors.trustedPhone}</span>}
             </div>
           </div>
         </div>
 
-        <div className={styles.actions}>
-          <button
-            className={styles.saveButton}
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-          {saveSuccess && <span className={styles.success}>Saved!</span>}
+        <div className={styles.buttonRow}>
+          {isEditing ? (
+            <>
+              {hasTrustedContact && (
+                <button
+                  className={styles.secondaryButton}
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                className={styles.primaryButton}
+                onClick={handleSaveWrapper}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : (hasTrustedContact ? 'Save Changes' : 'Save Trusted Contact')}
+              </button>
+            </>
+          ) : (
+            <button
+              className={styles.primaryButton}
+              onClick={handleEdit}
+            >
+              Edit
+            </button>
+          )}
         </div>
+
+        {saveSuccess && (
+          <div className={styles.successMessage}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Trusted contact saved successfully!
+          </div>
+        )}
       </section>
     </div>
   )
 }
+
 
 function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank }) {
   const availableBanks = Array.isArray(userData?.bankAccounts) ? userData.bankAccounts : []

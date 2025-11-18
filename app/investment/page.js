@@ -311,7 +311,7 @@ function InvestmentPageContent() {
           }
         }
 
-        // Load user's account type and set as locked ONLY if user has confirmed/pending/active investments
+        // Load user's account type and set as locked ONLY if user has pending/active investments
         if (data.success && data.user) {
           const lockInfo = getInvestmentTypeLockInfo({ investments: userInvestments, accountType: data.user.accountType })
           if (lockInfo.lockedAccountType) {

@@ -793,7 +793,12 @@ function ClientContent() {
         */}
         {/* Funding method */}
         <div className={styles.subSection}>
-          <div className={styles.groupTitle}>Funding</div>
+          <div className={styles.fundingHeader}>
+            <div className={styles.groupTitle}>Funding</div>
+            <p className={styles.fundingDescription}>
+              Choose how you'll transfer funds to make your investment
+            </p>
+          </div>
           <div className={styles.radioGroup}>
             {!isSdira && !requiresWireTransfer && (
               <div 
@@ -970,91 +975,72 @@ function ClientContent() {
         {/* Payout method (only for monthly payments) */}
         {investment?.paymentFrequency === 'monthly' && (
           <div className={styles.subSection}>
-            <div className={styles.groupTitle}>Payout</div>
-            <div className={styles.radioGroup}>
-              <div 
-                className={styles.radioOption}
-                onClick={(e) => {
-                  // Only trigger if not clicking on nested interactive elements
-                  if (!e.target.closest('button') && !e.target.closest('[class*="Bank"]')) {
-                    setPayoutMethod('bank-account')
-                  }
-                }}
-              >
-                <label>
-                  <input
-                    type="radio"
-                    name="payout"
-                    value="bank-account"
-                    checked={payoutMethod === 'bank-account'}
-                    onChange={() => setPayoutMethod('bank-account')}
-                  />
-                  <span>Bank Account</span>
-                </label>
-              </div>
+            <div className={styles.payoutHeader}>
+              <div className={styles.groupTitle}>Payout</div>
+              <p className={styles.payoutDescription}>
+                Select the bank account where you'd like to receive your monthly earnings
+              </p>
             </div>
-            {payoutMethod === 'bank-account' && (
-              <div className={styles.bankConnectionSection}>
-                {availableBanks.length > 0 ? (
-                  <>
-                    <div className={styles.savedBanksGrid}>
-                      {availableBanks.slice(0, 2).map((bank) => (
-                        <div
-                          key={bank.id}
-                          className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
-                          onClick={() => setSelectedPayoutBankId(bank.id)}
-                        >
-                          <div className={styles.savedBankLeft}>
-                            <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
-                              {bank.bankLogo || '🏦'}
-                            </span>
-                            <div className={styles.savedBankDetails}>
-                              <div className={styles.savedBankName}>{bank.nickname || bank.bankName || 'Bank Account'}</div>
-                              <div className={styles.savedBankAccount}>
-                                {bank.accountType ? bank.accountType.charAt(0).toUpperCase() + bank.accountType.slice(1) : 'Account'} •••• {bank.last4 || '****'}
-                              </div>
+            <div className={styles.bankConnectionSection}>
+              {availableBanks.length > 0 ? (
+                <>
+                  <div className={styles.savedBanksGrid}>
+                    {availableBanks.slice(0, 2).map((bank) => (
+                      <div
+                        key={bank.id}
+                        className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
+                        onClick={() => setSelectedPayoutBankId(bank.id)}
+                      >
+                        <div className={styles.savedBankLeft}>
+                          <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
+                            {bank.bankLogo || '🏦'}
+                          </span>
+                          <div className={styles.savedBankDetails}>
+                            <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
+                            <div className={styles.savedBankAccount}>
+                              {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
                             </div>
                           </div>
-                          {selectedPayoutBankId === bank.id && (
-                            <span className={styles.selectedCheck}>✓</span>
-                          )}
                         </div>
-                      ))}
-                    </div>
-                    <div className={styles.bankActionButtons}>
-                      {availableBanks.length > 2 && (
-                        <button
-                          type="button"
-                          className={styles.viewAllBanksButton}
-                          onClick={() => {
-                            setBankSelectionMode('payout')
-                            setShowAllBanksModal(true)
-                          }}
-                        >
-                          View All Banks ({availableBanks.length})
-                        </button>
-                      )}
+                        {selectedPayoutBankId === bank.id && (
+                          <span className={styles.selectedCheck}>✓</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className={styles.bankActionButtons}>
+                    {availableBanks.length > 2 && (
                       <button
                         type="button"
-                        className={styles.addNewBankButton}
-                        onClick={() => setShowBankModal(true)}
+                        className={styles.viewAllBanksButton}
+                        onClick={() => {
+                          setBankSelectionMode('payout')
+                          setShowAllBanksModal(true)
+                        }}
                       >
-                        + Add New Bank
+                        View All Banks ({availableBanks.length})
                       </button>
-                    </div>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.connectBankButton}
-                    onClick={() => setShowBankModal(true)}
-                  >
-                    <span className={styles.connectIcon}>🏦</span>
-                    <span>Connect Bank Account</span>
-                  </button>
-                )}
-              </div>
-            )}
+                    )}
+                    <button
+                      type="button"
+                      className={styles.addNewBankButton}
+                      onClick={() => setShowBankModal(true)}
+                    >
+                      + Add New Bank
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.connectBankButton}
+                  onClick={() => setShowBankModal(true)}
+                >
+                  <span className={styles.connectIcon}>🏦</span>
+                  <span>Connect Bank Account</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
       </Section>

@@ -599,3 +599,446 @@
   cursor: not-allowed;
   opacity: 0.7;
 }
+
+/* Optional label styling */
+.optional {
+  font-weight: 400;
+  color: #9ca3af;
+  text-transform: none;
+  font-size: 11px;
+}
+
+/* Button row for action buttons */
+.buttonRow {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Primary button - main actions */
+.primaryButton {
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #000000;
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Secondary button - cancel/alternative actions */
+.secondaryButton {
+  background: #ffffff;
+  color: #374151;
+  border: 2px solid #d1d5db;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== TRUSTED CONTACT STYLES ===== */
+
+/* Header badge wrapper */
+.trustedContactHeaderBadge {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+
+.trustedContactBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #dcfce7;
+  color: #15803d;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.trustedContactBadge svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+/* Empty State */
+.trustedContactEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 32px;
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+  border-radius: 12px;
+  border: 2px dashed #d1d5db;
+  text-align: center;
+}
+
+.trustedContactEmptyIcon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 50%;
+  margin-bottom: 24px;
+  color: #9ca3af;
+}
+
+.trustedContactEmptyIcon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.trustedContactEmptyTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.trustedContactEmptyText {
+  font-size: 15px;
+  color: #6b7280;
+  margin: 0 0 28px 0;
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+.trustedContactAddButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trustedContactAddButton:hover {
+  background: #374151;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.trustedContactAddButton svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
+}
+
+/* View Card */
+.trustedContactCard {
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.3s ease;
+}
+
+.trustedContactCard:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.trustedContactCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.trustedContactAvatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a1a1a 0%, #374151 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.trustedContactCardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.trustedContactName {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 6px 0;
+}
+
+.trustedContactRelationship {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 500;
+}
+
+.trustedContactDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.trustedContactDetail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.trustedContactDetail svg {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.trustedContactDetail span {
+  font-size: 15px;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.trustedContactActions {
+  display: flex;
+  gap: 12px;
+}
+
+.trustedContactEditButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.trustedContactEditButton:hover {
+  background: #374151;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.trustedContactEditButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Form State */
+.trustedContactForm {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.trustedContactFormHeader {
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.trustedContactFormTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.trustedContactFormSubtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.trustedContactFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.trustedContactCancelButton {
+  background: #ffffff;
+  color: #374151;
+  border: 2px solid #d1d5db;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trustedContactCancelButton:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.trustedContactCancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trustedContactSaveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+}
+
+.trustedContactSaveButton:hover:not(:disabled) {
+  background: #374151;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.trustedContactSaveButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.trustedContactSaveButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Success message */
+.trustedContactSuccessMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #dcfce7;
+  color: #15803d;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid #bbf7d0;
+}
+
+.trustedContactSuccessMessage svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .trustedContactHeaderBadge {
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .trustedContactEmpty {
+    padding: 48px 24px;
+  }
+
+  .trustedContactCard {
+    padding: 24px;
+  }
+
+  .trustedContactCardHeader {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .trustedContactAvatar {
+    width: 64px;
+    height: 64px;
+    font-size: 20px;
+  }
+
+  .trustedContactFormActions {
+    flex-direction: column-reverse;
+  }
+
+  .trustedContactCancelButton,
+  .trustedContactSaveButton {
+    width: 100%;
+  }
+}
