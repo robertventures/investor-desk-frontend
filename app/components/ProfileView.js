@@ -236,7 +236,6 @@ export default function ProfileView() {
           entity: {
             name: data.user.entity?.name || '',
             title: data.user.entity?.title || '',
-            phone: formatPhone(data.user.entity?.phone || ''),
             registrationDate: data.user.entity?.registrationDate || data.user.entity?.formationDate || '',
             taxId: data.user.entity?.taxId || '',
             address: {
@@ -380,8 +379,6 @@ export default function ProfileView() {
     let formattedValue = value
     if (name === 'name') {
       formattedValue = formatEntityName(value)
-  } else if (name === 'phone') {
-      formattedValue = formatPhone(value)
     }
     setFormData(prev => ({ ...prev, entity: { ...prev.entity, [name]: formattedValue } }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
@@ -643,7 +640,6 @@ export default function ProfileView() {
           entity: {
             name: formData.entity?.name || '',
             title: formData.entity?.title?.trim() || '',
-            phone: normalizePhoneForDB(formData.entity?.phone || ''),
             formationDate: formData.entity?.registrationDate || '',
             registrationDate: formData.entity?.registrationDate || '',
             taxId: formData.entity?.taxId || '',
@@ -1315,19 +1311,6 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               maxLength={150}
             />
             {errors.entityName && <span className={styles.errorText}>{errors.entityName}</span>}
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label}>Phone</label>
-            <input
-              className={styles.input}
-              type="tel"
-              name="phone"
-              value={formData.entity?.phone || ''}
-              onChange={handleEntityChange}
-              placeholder="(555) 555-5555"
-              disabled={entityLocked}
-              maxLength={30}
-            />
           </div>
           <div className={styles.field}>
             <label className={styles.label}>Formation Date</label>
