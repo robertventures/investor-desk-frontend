@@ -326,6 +326,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
                     onFocus={() => setIsAmountFocused(true)}
                     onBlur={() => setIsAmountFocused(false)}
                     placeholder="0"
+                    maxLength={10}
                   />
                   <span className={styles.bondsSuffix}>= {formattedBonds} Bond{bonds !== 1 ? 's' : ''}</span>
                 </div>

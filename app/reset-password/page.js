@@ -147,6 +147,7 @@ function ResetPasswordContent() {
                   className={`${styles.input} ${styles.inputWithToggle} ${errors.password ? styles.inputError : ''}`}
                   placeholder="Enter new password"
                   disabled={isLoading}
+                  maxLength={128}
                 />
                 <button
                   type="button"
@@ -192,6 +193,7 @@ function ResetPasswordContent() {
                 className={`${styles.input} ${errors.confirmPassword ? styles.inputError : ''}`}
                 placeholder="Confirm new password"
                 disabled={isLoading}
+                maxLength={128}
               />
               {errors.confirmPassword && <span className={styles.errorText}>{errors.confirmPassword}</span>}
             </div>

@@ -102,6 +102,7 @@ export default function ForgotPasswordPage() {
                 className={`${styles.input} ${error ? styles.inputError : ''}`}
                 placeholder="Enter your email address"
                 disabled={isLoading}
+                maxLength={255}
               />
               {error && <span className={styles.errorText}>{error}</span>}
             </div>

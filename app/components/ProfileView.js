@@ -1045,11 +1045,11 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} name="firstName" value={formData.firstName} onChange={handleChange} disabled={hasInvestments} />
+              <input className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} name="firstName" value={formData.firstName} onChange={handleChange} disabled={hasInvestments} maxLength={100} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={formData.lastName} onChange={handleChange} disabled={hasInvestments} />
+              <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={formData.lastName} onChange={handleChange} disabled={hasInvestments} maxLength={100} />
             </div>
             {isEntityView && (
               <div className={styles.field}>
@@ -1061,6 +1061,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   onChange={handleAuthorizedRepChange}
                   placeholder="e.g., Manager, CEO"
                   disabled={hasInvestments}
+                  maxLength={100}
                 />
               </div>
             )}
@@ -1090,6 +1091,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   placeholder="123-45-6789"
                   readOnly={!showSSN || hasInvestments}
                   disabled={hasInvestments}
+                  maxLength={30}
                 />
                 <button
                   type="button"
@@ -1114,7 +1116,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Phone</label>
-              <input className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`} type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="(555) 555-5555" />
+              <input className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`} type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="(555) 555-5555" maxLength={30} />
             </div>
           </div>
         </div>
@@ -1134,6 +1136,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.street1}
                 onChange={handleAddressFormChange}
                 placeholder="123 Main St"
+                maxLength={200}
               />
               {errors.addressStreet1 && <span className={styles.errorText}>{errors.addressStreet1}</span>}
             </div>
@@ -1145,6 +1148,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.street2}
                 onChange={handleAddressFormChange}
                 placeholder="Apt, Suite, etc. (Optional)"
+                maxLength={200}
               />
             </div>
             <div className={styles.field}>
@@ -1155,6 +1159,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.city}
                 onChange={handleAddressFormChange}
                 placeholder="New York"
+                maxLength={100}
               />
               {errors.addressCity && <span className={styles.errorText}>{errors.addressCity}</span>}
             </div>
@@ -1166,6 +1171,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.state}
                 onChange={handleAddressFormChange}
                 placeholder="NY"
+                maxLength={100}
               />
               {errors.addressState && <span className={styles.errorText}>{errors.addressState}</span>}
             </div>
@@ -1177,7 +1183,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.zip}
                 onChange={handleAddressFormChange}
                 placeholder="10001"
-                maxLength={5}
+                maxLength={20}
               />
               {errors.addressZip && <span className={styles.errorText}>{errors.addressZip}</span>}
             </div>
@@ -1242,11 +1248,11 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} />
+              <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} maxLength={100} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} />
+              <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} maxLength={100} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Date of Birth</label>
@@ -1264,6 +1270,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                   onChange={handleJointHolderChange}
                   readOnly={!showJointSSN}
                   placeholder="123-45-6789"
+                  maxLength={30}
                 />
                 <button
                   type="button"
@@ -1283,11 +1290,11 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>Email</label>
-              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} />
+              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} maxLength={255} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Phone</label>
-              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" />
+              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" maxLength={30} />
             </div>
           </div>
         </div>
@@ -1301,26 +1308,26 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>Street Address 1</label>
-              <input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} placeholder="123 Main St" />
+              <input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} placeholder="123 Main St" maxLength={200} />
               {errors.jointStreet1 && <span className={styles.errorText}>{errors.jointStreet1}</span>}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Street Address 2</label>
-              <input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} placeholder="Apt, Suite, etc. (Optional)" />
+              <input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} placeholder="Apt, Suite, etc. (Optional)" maxLength={200} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>City</label>
-              <input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} placeholder="New York" />
+              <input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} placeholder="New York" maxLength={100} />
               {errors.jointCity && <span className={styles.errorText}>{errors.jointCity}</span>}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>State</label>
-              <input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} placeholder="NY" />
+              <input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} placeholder="NY" maxLength={100} />
               {errors.jointState && <span className={styles.errorText}>{errors.jointState}</span>}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>ZIP Code</label>
-              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" maxLength={5} />
+              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" maxLength={20} />
               {errors.jointZip && <span className={styles.errorText}>{errors.jointZip}</span>}
             </div>
             <div className={styles.field}>
@@ -1363,6 +1370,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.name || ''}
               onChange={handleEntityChange}
               disabled={entityLocked}
+              maxLength={150}
             />
             {errors.entityName && <span className={styles.errorText}>{errors.entityName}</span>}
           </div>
@@ -1376,6 +1384,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               onChange={handleEntityChange}
               placeholder="(555) 555-5555"
               disabled={entityLocked}
+              maxLength={30}
             />
           </div>
           <div className={styles.field}>
@@ -1401,6 +1410,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.taxId || ''}
               onChange={handleEntityChange}
               disabled={entityLocked}
+              maxLength={30}
             />
             {errors.entityTaxId && <span className={styles.errorText}>{errors.entityTaxId}</span>}
           </div>
@@ -1415,6 +1425,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.address?.street1 || ''}
               onChange={handleEntityAddressChange}
               disabled={entityLocked}
+              maxLength={200}
             />
             {errors.entityStreet1 && <span className={styles.errorText}>{errors.entityStreet1}</span>}
           </div>
@@ -1427,6 +1438,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.address?.street2 || ''}
               onChange={handleEntityAddressChange}
               disabled={entityLocked}
+              maxLength={200}
             />
           </div>
           <div className={styles.field}>
@@ -1438,6 +1450,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.address?.city || ''}
               onChange={handleEntityAddressChange}
               disabled={entityLocked}
+              maxLength={100}
             />
             {errors.entityCity && <span className={styles.errorText}>{errors.entityCity}</span>}
           </div>
@@ -1450,6 +1463,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.address?.state || ''}
               onChange={handleEntityAddressChange}
               disabled={entityLocked}
+              maxLength={100}
             />
             {errors.entityState && <span className={styles.errorText}>{errors.entityState}</span>}
           </div>
@@ -1462,6 +1476,7 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.address?.zip || ''}
               onChange={handleEntityAddressChange}
               disabled={entityLocked}
+              maxLength={20}
             />
             {errors.entityZip && <span className={styles.errorText}>{errors.entityZip}</span>}
           </div>
@@ -1564,6 +1579,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
                 onChange={handleTrustedContactChange}
                 placeholder="Enter first name"
                 disabled={!isEditing}
+                maxLength={100}
               />
               {errors.trustedFirstName && <span className={styles.errorText}>{errors.trustedFirstName}</span>}
             </div>
@@ -1578,6 +1594,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
                 onChange={handleTrustedContactChange}
                 placeholder="Enter last name"
                 disabled={!isEditing}
+                maxLength={100}
               />
               {errors.trustedLastName && <span className={styles.errorText}>{errors.trustedLastName}</span>}
             </div>
@@ -1615,6 +1632,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
                 onChange={handleTrustedContactChange}
                 placeholder="email@example.com"
                 disabled={!isEditing}
+                maxLength={255}
               />
               {errors.trustedEmail && <span className={styles.errorText}>{errors.trustedEmail}</span>}
             </div>
@@ -1630,6 +1648,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
                 onChange={handleTrustedContactChange}
                 placeholder="(555) 555-5555"
                 disabled={!isEditing}
+                maxLength={30}
               />
               {errors.trustedPhone && <span className={styles.errorText}>{errors.trustedPhone}</span>}
             </div>
@@ -1802,6 +1821,7 @@ function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, han
                   name="currentPassword" 
                   value={passwordForm.currentPassword} 
                   onChange={handlePasswordChange} 
+                  maxLength={128}
                 />
                 <button
                   type="button"
@@ -1824,6 +1844,7 @@ function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, han
                   value={passwordForm.newPassword} 
                   onChange={handlePasswordChange} 
                   placeholder="At least 8 chars, mixed case, number, symbol" 
+                  maxLength={128}
                 />
                 <button
                   type="button"
@@ -1845,6 +1866,7 @@ function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, han
                   name="confirmPassword" 
                   value={passwordForm.confirmPassword} 
                   onChange={handlePasswordChange} 
+                  maxLength={128}
                 />
                 <button
                   type="button"
@@ -1927,6 +1949,7 @@ function AddressTab({ addressForm, setAddressForm, formatCity, formatStreet, err
                 value={addressForm.street1}
                 onChange={handleAddressFormChange}
                 placeholder="123 Main St"
+                maxLength={200}
               />
               {errors.addressStreet1 && <span className={styles.errorText}>{errors.addressStreet1}</span>}
             </div>
@@ -1938,6 +1961,7 @@ function AddressTab({ addressForm, setAddressForm, formatCity, formatStreet, err
                 value={addressForm.street2}
                 onChange={handleAddressFormChange}
                 placeholder="Apt, Suite, etc. (Optional)"
+                maxLength={200}
               />
             </div>
             <div className={styles.field}>
@@ -1948,6 +1972,7 @@ function AddressTab({ addressForm, setAddressForm, formatCity, formatStreet, err
                 value={addressForm.city}
                 onChange={handleAddressFormChange}
                 placeholder="New York"
+                maxLength={100}
               />
               {errors.addressCity && <span className={styles.errorText}>{errors.addressCity}</span>}
             </div>
@@ -1959,6 +1984,7 @@ function AddressTab({ addressForm, setAddressForm, formatCity, formatStreet, err
                 value={addressForm.state}
                 onChange={handleAddressFormChange}
                 placeholder="NY"
+                maxLength={100}
               />
               {errors.addressState && <span className={styles.errorText}>{errors.addressState}</span>}
             </div>
@@ -1970,7 +1996,7 @@ function AddressTab({ addressForm, setAddressForm, formatCity, formatStreet, err
                 value={addressForm.zip}
                 onChange={handleAddressFormChange}
                 placeholder="10001"
-                maxLength={5}
+                maxLength={20}
               />
               {errors.addressZip && <span className={styles.errorText}>{errors.addressZip}</span>}
             </div>

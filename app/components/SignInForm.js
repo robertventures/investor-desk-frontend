@@ -128,6 +128,7 @@ export default function SignInForm() {
             className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
             placeholder="Enter your email address"
             disabled={isLoading}
+            maxLength={255}
           />
           {errors.email && <span className={styles.errorText}>{errors.email}</span>}
         </div>
@@ -146,6 +147,7 @@ export default function SignInForm() {
               className={`${styles.input} ${styles.inputWithToggle} ${errors.password ? styles.inputError : ''}`}
               placeholder="Enter your password"
               disabled={isLoading}
+              maxLength={128}
             />
             <button
               type="button"

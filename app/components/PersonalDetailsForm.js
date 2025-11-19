@@ -150,6 +150,7 @@ export default function PersonalDetailsForm() {
               onChange={handleInputChange}
               placeholder="Enter your first name"
               className={`${styles.fieldInput} ${errors.firstName ? styles.fieldInputError : ''}`}
+              maxLength={100}
             />
             {errors.firstName && (
               <span className={styles.errorMessage}>{errors.firstName}</span>
@@ -168,6 +169,7 @@ export default function PersonalDetailsForm() {
               onChange={handleInputChange}
               placeholder="Enter your last name"
               className={`${styles.fieldInput} ${errors.lastName ? styles.fieldInputError : ''}`}
+              maxLength={100}
             />
             {errors.lastName && (
               <span className={styles.errorMessage}>{errors.lastName}</span>
@@ -186,6 +188,7 @@ export default function PersonalDetailsForm() {
               onChange={handleInputChange}
               placeholder="Enter your phone number"
               className={`${styles.fieldInput} ${errors.phoneNumber ? styles.fieldInputError : ''}`}
+              maxLength={30}
             />
             {errors.phoneNumber && (
               <span className={styles.errorMessage}>{errors.phoneNumber}</span>

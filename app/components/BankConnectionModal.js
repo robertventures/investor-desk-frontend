@@ -293,6 +293,7 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
                   placeholder="John Doe"
+                  maxLength={100}
                 />
               </div>
               <div className={styles.formGroup}>
@@ -302,6 +303,7 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                   value={manualRouting}
                   onChange={(e) => setManualRouting(e.target.value.replace(/[^0-9]/g, '').slice(0, 9))}
                   placeholder="9 digits"
+                  maxLength={9}
                 />
               </div>
               <div className={styles.formGroup}>
@@ -311,6 +313,7 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                   value={manualAccount}
                   onChange={(e) => setManualAccount(e.target.value.replace(/[^0-9]/g, '').slice(0, 17))}
                   placeholder="Account number"
+                  maxLength={50}
                 />
               </div>
               <div className={styles.formGroup}>

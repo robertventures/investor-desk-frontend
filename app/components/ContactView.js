@@ -305,6 +305,7 @@ export default function ContactView() {
               className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`}
               placeholder="(XXX) XXX-XXXX"
               disabled={isSubmitting}
+              maxLength={30}
             />
             {errors.phoneNumber && <span className={styles.errorText}>{errors.phoneNumber}</span>}
           </div>

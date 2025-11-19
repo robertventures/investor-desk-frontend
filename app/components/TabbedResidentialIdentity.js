@@ -1340,12 +1340,12 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           <div className={styles.grid}>
             <div className={styles.field}> 
               <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors['authorizedRep.firstName'] ? styles.inputError : ''}`} name="authorizedRep.firstName" value={form.authorizedRep.firstName} onChange={handleChange} placeholder="Enter first name" disabled={hasActiveInvestments} />
+              <input className={`${styles.input} ${errors['authorizedRep.firstName'] ? styles.inputError : ''}`} name="authorizedRep.firstName" value={form.authorizedRep.firstName} onChange={handleChange} placeholder="Enter first name" disabled={hasActiveInvestments} maxLength={100} />
               {errors['authorizedRep.firstName'] && <span className={styles.error}>{errors['authorizedRep.firstName']}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors['authorizedRep.lastName'] ? styles.inputError : ''}`} name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} placeholder="Enter last name" disabled={hasActiveInvestments} />
+              <input className={`${styles.input} ${errors['authorizedRep.lastName'] ? styles.inputError : ''}`} name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} placeholder="Enter last name" disabled={hasActiveInvestments} maxLength={100} />
               {errors['authorizedRep.lastName'] && <span className={styles.error}>{errors['authorizedRep.lastName']}</span>}
             </div>
             <div className={styles.field}>
@@ -1357,30 +1357,31 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 onChange={handleChange}
                 placeholder="e.g., Manager, CEO"
                 disabled={hasActiveInvestments}
+                maxLength={100}
               />
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Phone Number</label>
-              <input className={`${styles.input} ${errors['authorizedRep.phone'] ? styles.inputError : ''}`} name="authorizedRep.phone" value={form.authorizedRep.phone} onChange={handleChange} placeholder="(555) 555-5555" inputMode="tel" />
+              <input className={`${styles.input} ${errors['authorizedRep.phone'] ? styles.inputError : ''}`} name="authorizedRep.phone" value={form.authorizedRep.phone} onChange={handleChange} placeholder="(555) 555-5555" inputMode="tel" maxLength={30} />
               {errors['authorizedRep.phone'] && <span className={styles.error}>{errors['authorizedRep.phone']}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Street Address</label>
-              <input className={`${styles.input} ${errors['authorizedRep.street1'] ? styles.inputError : ''}`} name="authorizedRep.street1" value={form.authorizedRep.street1} onChange={handleChange} placeholder="No PO Boxes" />
+              <input className={`${styles.input} ${errors['authorizedRep.street1'] ? styles.inputError : ''}`} name="authorizedRep.street1" value={form.authorizedRep.street1} onChange={handleChange} placeholder="No PO Boxes" maxLength={200} />
               {errors['authorizedRep.street1'] && <span className={styles.error}>{errors['authorizedRep.street1']}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Apt or Unit</label>
-              <input className={styles.input} name="authorizedRep.street2" value={form.authorizedRep.street2} onChange={handleChange} placeholder="Apt, unit, etc." />
+              <input className={styles.input} name="authorizedRep.street2" value={form.authorizedRep.street2} onChange={handleChange} placeholder="Apt, unit, etc." maxLength={200} />
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>City</label>
-              <input className={`${styles.input} ${errors['authorizedRep.city'] ? styles.inputError : ''}`} name="authorizedRep.city" value={form.authorizedRep.city} onChange={handleChange} placeholder="Enter city" />
+              <input className={`${styles.input} ${errors['authorizedRep.city'] ? styles.inputError : ''}`} name="authorizedRep.city" value={form.authorizedRep.city} onChange={handleChange} placeholder="Enter city" maxLength={100} />
               {errors['authorizedRep.city'] && <span className={styles.error}>{errors['authorizedRep.city']}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Zip Code</label>
-              <input className={`${styles.input} ${errors['authorizedRep.zip'] ? styles.inputError : ''}`} name="authorizedRep.zip" value={form.authorizedRep.zip} onChange={handleChange} placeholder="Enter ZIP code" inputMode="numeric" />
+              <input className={`${styles.input} ${errors['authorizedRep.zip'] ? styles.inputError : ''}`} name="authorizedRep.zip" value={form.authorizedRep.zip} onChange={handleChange} placeholder="Enter ZIP code" inputMode="numeric" maxLength={20} />
               {errors['authorizedRep.zip'] && <span className={styles.error}>{errors['authorizedRep.zip']}</span>}
             </div>
             <div className={styles.field}> 
@@ -1424,6 +1425,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 readOnly={hasActiveInvestments || form.authorizedRep.ssn === '•••-••-••••'}
                 autoComplete="off"
                 title={form.authorizedRep.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
+                maxLength={30}
               />
               {errors['authorizedRep.ssn'] && <span className={styles.error}>{errors['authorizedRep.ssn']}</span>}
               {showAuthorizedRepSsnHelp && (
@@ -1452,6 +1454,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 onChange={handleChange}
                 placeholder="Enter entity name"
                 disabled={hasActiveInvestments}
+                maxLength={150}
               />
               {errors['entity.name'] && <span className={styles.error}>{errors['entity.name']}</span>}
             </div>
@@ -1463,6 +1466,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 value={form.entity.street1}
                 onChange={handleChange}
                 placeholder="No PO Boxes"
+                maxLength={200}
               />
               {errors['entity.street1'] && <span className={styles.error}>{errors['entity.street1']}</span>}
             </div>
@@ -1474,6 +1478,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 value={form.entity.street2}
                 onChange={handleChange}
                 placeholder="Apt, unit, etc."
+                maxLength={200}
               />
             </div>
             <div className={styles.field}> 
@@ -1484,6 +1489,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 value={form.entity.city}
                 onChange={handleChange}
                 placeholder="Enter city"
+                maxLength={100}
               />
               {errors['entity.city'] && <span className={styles.error}>{errors['entity.city']}</span>}
             </div>
@@ -1496,6 +1502,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 onChange={handleChange}
                 placeholder="Enter ZIP code"
                 inputMode="numeric"
+                maxLength={20}
               />
               {errors['entity.zip'] && <span className={styles.error}>{errors['entity.zip']}</span>}
             </div>
@@ -1551,6 +1558,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 readOnly={hasActiveInvestments || form.entity.taxId === '•••-••-••••'}
                 autoComplete="off"
                 title={form.entity.taxId === '•••-••-••••' ? 'TIN on file - cannot be modified' : ''}
+                maxLength={30}
               />
               {errors['entity.taxId'] && <span className={styles.error}>{errors['entity.taxId']}</span>}
               {showSsnHelp && (
@@ -1564,36 +1572,36 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           <>
             <div className={styles.field}> 
               <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} name="firstName" value={form.firstName} onChange={handleChange} placeholder="Enter first name" disabled={hasActiveInvestments} />
+              <input className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} name="firstName" value={form.firstName} onChange={handleChange} placeholder="Enter first name" disabled={hasActiveInvestments} maxLength={100} />
               {errors.firstName && <span className={styles.error}>{errors.firstName}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={form.lastName} onChange={handleChange} placeholder="Enter last name" disabled={hasActiveInvestments} />
+              <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={form.lastName} onChange={handleChange} placeholder="Enter last name" disabled={hasActiveInvestments} maxLength={100} />
               {errors.lastName && <span className={styles.error}>{errors.lastName}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Phone Number</label>
-              <input className={`${styles.input} ${errors.phone ? styles.inputError : ''}`} name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" inputMode="tel" />
+              <input className={`${styles.input} ${errors.phone ? styles.inputError : ''}`} name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" inputMode="tel" maxLength={30} />
               {errors.phone && <span className={styles.error}>{errors.phone}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Street Address</label>
-              <input className={`${styles.input} ${errors.street1 ? styles.inputError : ''}`} name="street1" value={form.street1} onChange={handleChange} placeholder="No PO Boxes" />
+              <input className={`${styles.input} ${errors.street1 ? styles.inputError : ''}`} name="street1" value={form.street1} onChange={handleChange} placeholder="No PO Boxes" maxLength={200} />
               {errors.street1 && <span className={styles.error}>{errors.street1}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Apt or Unit</label>
-              <input className={styles.input} name="street2" value={form.street2} onChange={handleChange} placeholder="Apt, unit, etc." />
+              <input className={styles.input} name="street2" value={form.street2} onChange={handleChange} placeholder="Apt, unit, etc." maxLength={200} />
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>City</label>
-              <input className={`${styles.input} ${errors.city ? styles.inputError : ''}`} name="city" value={form.city} onChange={handleChange} placeholder="Enter city" />
+              <input className={`${styles.input} ${errors.city ? styles.inputError : ''}`} name="city" value={form.city} onChange={handleChange} placeholder="Enter city" maxLength={100} />
               {errors.city && <span className={styles.error}>{errors.city}</span>}
             </div>
             <div className={styles.field}> 
               <label className={styles.label}>Zip Code</label>
-              <input className={`${styles.input} ${errors.zip ? styles.inputError : ''}`} name="zip" value={form.zip} onChange={handleChange} placeholder="Enter ZIP code" inputMode="numeric" />
+              <input className={`${styles.input} ${errors.zip ? styles.inputError : ''}`} name="zip" value={form.zip} onChange={handleChange} placeholder="Enter ZIP code" inputMode="numeric" maxLength={20} />
               {errors.zip && <span className={styles.error}>{errors.zip}</span>}
             </div>
             <div className={styles.field}> 
@@ -1639,6 +1647,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 readOnly={hasActiveInvestments || form.ssn === '•••-••-••••'}
                 autoComplete="off"
                 title={form.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
+                maxLength={30}
               />
               {errors.ssn && <span className={styles.error}>{errors.ssn}</span>}
               {!form.ssn && !errors.ssn && hasActiveInvestments && (
@@ -1672,6 +1681,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 onChange={handleChange}
                 placeholder="Enter account name"
                 disabled={hasActiveInvestments}
+                maxLength={150}
               />
               {errors['entity.name'] && <span className={styles.error}>{errors['entity.name']}</span>}
             </div>
@@ -1683,6 +1693,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 value={form.entity.street1}
                 onChange={handleChange}
                 placeholder="No PO Boxes"
+                maxLength={200}
               />
               {errors['entity.street1'] && <span className={styles.error}>{errors['entity.street1']}</span>}
             </div>
@@ -1694,6 +1705,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 value={form.entity.street2}
                 onChange={handleChange}
                 placeholder="Apt, unit, etc."
+                maxLength={200}
               />
             </div>
             <div className={styles.field}> 
@@ -1704,6 +1716,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 value={form.entity.city}
                 onChange={handleChange}
                 placeholder="Enter city"
+                maxLength={100}
               />
               {errors['entity.city'] && <span className={styles.error}>{errors['entity.city']}</span>}
             </div>
@@ -1716,6 +1729,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 onChange={handleChange}
                 placeholder="Enter ZIP code"
                 inputMode="numeric"
+                maxLength={20}
               />
               {errors['entity.zip'] && <span className={styles.error}>{errors['entity.zip']}</span>}
             </div>

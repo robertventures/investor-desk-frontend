@@ -131,6 +131,7 @@ export default function AccountCreationForm() {
             className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
             placeholder="Enter your email"
             autoComplete="email"
+            maxLength={255}
           />
           {errors.email && <span className={styles.error}>{errors.email}</span>}
         </div>
@@ -150,6 +151,7 @@ export default function AccountCreationForm() {
               autoComplete="new-password"
               onFocus={() => setIsPasswordFocused(true)}
               onBlur={() => setIsPasswordFocused(false)}
+              maxLength={128}
             />
             <button
               type="button"
@@ -192,6 +194,7 @@ export default function AccountCreationForm() {
               className={`${styles.input} ${styles.inputWithToggle} ${errors.confirmPassword ? styles.inputError : ''}`}
               placeholder="Re-enter your password"
               autoComplete="new-password"
+              maxLength={128}
             />
             <button
               type="button"
