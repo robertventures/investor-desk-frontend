@@ -235,6 +235,7 @@ export default function ProfileView() {
           jointHoldingType: data.user.jointHoldingType || '',
           entity: {
             name: data.user.entity?.name || '',
+            title: data.user.entity?.title || '',
             phone: formatPhone(data.user.entity?.phone || ''),
             registrationDate: data.user.entity?.registrationDate || data.user.entity?.formationDate || '',
             taxId: data.user.entity?.taxId || '',
@@ -253,19 +254,6 @@ export default function ProfileView() {
             email: data.user.trustedContact?.email || '',
             phone: formatPhone(data.user.trustedContact?.phone || ''),
             relationship: data.user.trustedContact?.relationshipType || data.user.trustedContact?.relationship || ''
-          },
-          authorizedRepresentative: {
-            dob: data.user.authorizedRepresentative?.dob || '',
-            ssn: data.user.authorizedRepresentative?.ssn || '',
-            title: data.user.authorizedRepresentative?.title || '',
-            address: {
-              street1: data.user.authorizedRepresentative?.address?.street1 || '',
-              street2: data.user.authorizedRepresentative?.address?.street2 || '',
-              city: data.user.authorizedRepresentative?.address?.city || '',
-              state: data.user.authorizedRepresentative?.address?.state || '',
-              zip: data.user.authorizedRepresentative?.address?.zip || '',
-              country: data.user.authorizedRepresentative?.address?.country || 'United States'
-            }
           }
         })
         // Prefill single address form from user.address
@@ -387,7 +375,7 @@ export default function ProfileView() {
   }
 
 
-const handleEntityChange = (e) => {
+  const handleEntityChange = (e) => {
     const { name, value } = e.target
     let formattedValue = value
     if (name === 'name') {
@@ -455,7 +443,7 @@ const handleEntityChange = (e) => {
     if (passwordForm.newPassword && !/[A-Z]/.test(passwordForm.newPassword)) pwdErrors.newPassword = 'Include an uppercase letter'
     if (passwordForm.newPassword && !/[a-z]/.test(passwordForm.newPassword)) pwdErrors.newPassword = 'Include a lowercase letter'
     if (passwordForm.newPassword && !/[0-9]/.test(passwordForm.newPassword)) pwdErrors.newPassword = 'Include a number'
-    if (passwordForm.newPassword && !/[!@#$%^&*(),.?":{}|<>\-_=+\[\];']/ .test(passwordForm.newPassword)) pwdErrors.newPassword = 'Include a special character'
+    if (passwordForm.newPassword && !/[!@#$%^&*(),.?":{}|<>\-_=+\[\];']/.test(passwordForm.newPassword)) pwdErrors.newPassword = 'Include a special character'
     if (passwordForm.newPassword && passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword) pwdErrors.confirmPassword = 'Passwords do not match'
     setErrors(prev => ({ ...prev, ...pwdErrors }))
     return Object.keys(pwdErrors).length === 0
@@ -512,30 +500,6 @@ const handleEntityChange = (e) => {
     }
   }
 
-  const handleAuthorizedRepChange = (e) => {
-    const { name, value } = e.target
-    let formattedValue = value
-    if (name === 'firstName' || name === 'lastName') {
-      formattedValue = formatName(value)
-    }
-    setFormData(prev => ({ ...prev, authorizedRepresentative: { ...prev.authorizedRepresentative, [name]: formattedValue } }))
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
-    setSaveSuccess(false)
-  }
-
-  const handleAuthorizedRepAddressChange = (e) => {
-    const { name, value } = e.target
-    let formattedValue = value
-    if (name === 'city') {
-      formattedValue = formatCity(value)
-    } else if (name === 'street1' || name === 'street2') {
-      formattedValue = formatStreet(value)
-    }
-    setFormData(prev => ({ ...prev, authorizedRepresentative: { ...prev.authorizedRepresentative, address: { ...prev.authorizedRepresentative.address, [name]: formattedValue } } }))
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
-    setSaveSuccess(false)
-  }
-
   const handleTrustedContactChange = (e) => {
     const { name, value } = e.target
     let formattedValue = value
@@ -581,20 +545,6 @@ const handleEntityChange = (e) => {
           else if (/[0-9]/.test(formData.entity.address.city)) newErrors.entityCity = 'No numbers allowed'
           if (!formData.entity.address.state) newErrors.entityState = 'Required'
           if (!formData.entity.address.zip.trim()) newErrors.entityZip = 'Required'
-        }
-      }
-    }
-
-    if (hasPendingOrActiveEntity && formData.authorizedRepresentative) {
-      if (activeTab === 'entity-info') {
-        if (!formData.authorizedRepresentative.dob || !isAdultDob(formData.authorizedRepresentative.dob)) newErrors.repDob = `Enter a valid date (YYYY-MM-DD). Min ${MIN_DOB}. Must be 18+.`
-        if (!formData.authorizedRepresentative.ssn.trim()) newErrors.repSsn = 'Required'
-        if (formData.authorizedRepresentative.address) {
-          if (!formData.authorizedRepresentative.address.street1.trim()) newErrors.repStreet1 = 'Required'
-          if (!formData.authorizedRepresentative.address.city.trim()) newErrors.repCity = 'Required'
-          else if (/[0-9]/.test(formData.authorizedRepresentative.address.city)) newErrors.repCity = 'No numbers allowed'
-          if (!formData.authorizedRepresentative.address.state) newErrors.repState = 'Required'
-          if (!formData.authorizedRepresentative.address.zip.trim()) newErrors.repZip = 'Required'
         }
       }
     }
@@ -682,7 +632,8 @@ const handleEntityChange = (e) => {
           }
         }
       } else if (activeTab === 'entity-info') {
-        // Save both authorized representative and entity information
+        // Save authorized representative and entity information
+        // For entity accounts, the user's dob/ssn represent the authorized rep
         payload = {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -691,6 +642,7 @@ const handleEntityChange = (e) => {
           ssn: formData.ssn,
           entity: {
             name: formData.entity?.name || '',
+            title: formData.entity?.title?.trim() || '',
             phone: normalizePhoneForDB(formData.entity?.phone || ''),
             formationDate: formData.entity?.registrationDate || '',
             registrationDate: formData.entity?.registrationDate || '',
@@ -701,21 +653,6 @@ const handleEntityChange = (e) => {
               city: formData.entity?.address?.city || '',
               state: formData.entity?.address?.state || '',
               zip: formData.entity?.address?.zip || ''
-            }
-          },
-          authorizedRepresentative: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            phone: normalizePhoneForDB(formData.phoneNumber),
-            dob: formData.authorizedRepresentative?.dob || formData.dob,
-            ssn: formData.authorizedRepresentative?.ssn || formData.ssn,
-            title: formData.authorizedRepresentative?.title?.trim() || '',
-            address: {
-              street1: formData.authorizedRepresentative?.address?.street1 || addressForm.street1 || '',
-              street2: formData.authorizedRepresentative?.address?.street2 || addressForm.street2 || '',
-              city: formData.authorizedRepresentative?.address?.city || addressForm.city || '',
-              state: formData.authorizedRepresentative?.address?.state || addressForm.state || '',
-              zip: formData.authorizedRepresentative?.address?.zip || addressForm.zip || ''
             }
           }
         }
@@ -927,7 +864,7 @@ const handleEntityChange = (e) => {
             setShowSSN={setShowSSN}
             maskSSN={maskSSN}
             handleChange={handleChange}
-            handleAuthorizedRepChange={handleAuthorizedRepChange}
+            handleEntityChange={handleEntityChange}
             addressForm={addressForm}
             handleAddressFormChange={handleAddressFormChange}
             handleSave={handleSave}
@@ -968,8 +905,6 @@ const handleEntityChange = (e) => {
             maskSSN={maskSSN}
             handleEntityChange={handleEntityChange}
             handleEntityAddressChange={handleEntityAddressChange}
-            handleAuthorizedRepChange={handleAuthorizedRepChange}
-            handleAuthorizedRepAddressChange={handleAuthorizedRepAddressChange}
             handleSave={handleSave}
             isSaving={isSaving}
             saveSuccess={saveSuccess}
@@ -1029,7 +964,7 @@ const handleEntityChange = (e) => {
 }
 
 // Individual Tab Components
-function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleAuthorizedRepChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, isEntityView }) {
+function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleEntityChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, isEntityView }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
@@ -1057,8 +992,8 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 <input
                   className={styles.input}
                   name="title"
-                  value={formData.authorizedRepresentative?.title || ''}
-                  onChange={handleAuthorizedRepChange}
+                  value={formData.entity?.title || ''}
+                  onChange={handleEntityChange}
                   placeholder="e.g., Manager, CEO"
                   disabled={hasInvestments}
                   maxLength={100}
@@ -1071,8 +1006,8 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 className={`${styles.input} ${errors.dob ? styles.inputError : ''}`}
                 type="date"
                 name="dob"
-                value={isEntityView ? (formData.authorizedRepresentative?.dob || '') : formData.dob}
-                onChange={isEntityView ? handleAuthorizedRepChange : handleChange}
+                value={formData.dob}
+                onChange={handleChange}
                 min={MIN_DOB}
                 max={maxDob}
                 disabled={hasInvestments}
@@ -1086,8 +1021,8 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   className={`${styles.input} ${styles.inputWithToggle}`}
                   type="text"
                   name="ssn" 
-                  value={showSSN ? (isEntityView ? (formData.authorizedRepresentative?.ssn || '') : formData.ssn) : maskSSN(isEntityView ? (formData.authorizedRepresentative?.ssn || '') : formData.ssn)} 
-                  onChange={isEntityView ? handleAuthorizedRepChange : handleChange} 
+                  value={showSSN ? formData.ssn : maskSSN(formData.ssn)} 
+                  onChange={handleChange} 
                   placeholder="123-45-6789"
                   readOnly={!showSSN || hasInvestments}
                   disabled={hasInvestments}
@@ -1352,7 +1287,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
   )
 }
 
-function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleAuthorizedRepChange, handleAuthorizedRepAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, entityLocked }) {
+function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, entityLocked }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>

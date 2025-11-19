@@ -995,15 +995,6 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
               lastName: form.authorizedRep.lastName.trim(),
               dob: form.authorizedRep.dob,
               ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
-              authorizedRepresentative: {
-                firstName: form.authorizedRep.firstName.trim(),
-                lastName: form.authorizedRep.lastName.trim(),
-                title: form.authorizedRep.title.trim(),
-                phone: normalizedAuthorizedRepPhone,
-                dob: form.authorizedRep.dob,
-                ...(isAuthRepSsnMasked ? {} : { ssn: form.authorizedRep.ssn }),
-                address: formatAddressForBackend(primaryAddress)
-              },
               entityName: entityPayload.name,
               entity: {
                 ...entityPayload,
@@ -1104,20 +1095,26 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
 
       // No longer persist client-side snapshots; rely solely on backend as source of truth
 
-      // Use apiClient to call backend (background save). If profile is locked (403), silently ignore.
+      // Use apiClient to call backend (background save). 
+      // We attempt to update the user profile so that the dashboard/profile page is populated.
+      // If the profile is locked (403 or specific error message), we silently ignore it because
+      // the data is also being saved to the investment record below, which is sufficient for the deal.
       console.log('💾 Saving user profile data:', {
         accountType: userData.accountType,
         hasEntity: !!userData.entity,
-        entityName: userData.entity?.name || userData.entityName
+        entityName: userData.entity?.name || userData.entityName,
+        entityTitle: userData.entity?.title,
+        formAuthorizedRepTitle: form.authorizedRep?.title
       })
       console.log('📋 FULL USER PROFILE BEING SAVED:', JSON.stringify(userData, null, 2))
+      
       apiClient.updateUser(userId, userData)
         .then(userResponse => {
           if (!userResponse.success) {
             // If backend returned structured failure, only warn when actionable
             const msg = String(userResponse.error || '').toLowerCase()
             if (msg.includes('profile is complete') || msg.includes('cannot be modified')) {
-              console.log('ℹ️ Profile is complete; skipping profile update.')
+              console.log('ℹ️ Profile is complete; skipping profile update (data saved to investment).')
             } else {
               console.error('Failed to update user profile:', userResponse.error)
             }
@@ -1139,9 +1136,10 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           }
         })
         .catch(e => {
-          const msg = String(e?.message || '').toLowerCase()
+          const msg = String(e?.message || e?.responseData?.error || '').toLowerCase()
+          // Handle both status code 403 and specific error messages
           if (e?.statusCode === 403 || msg.includes('profile is complete') || msg.includes('cannot be modified')) {
-            console.log('ℹ️ Profile is complete; skipping profile update.')
+            console.log('ℹ️ Profile is complete/locked; skipping profile update (data saved to investment).')
           } else {
             console.error('Failed saving user data', e)
           }
