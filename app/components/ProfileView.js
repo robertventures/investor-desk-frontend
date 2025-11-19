@@ -667,8 +667,15 @@ export default function ProfileView() {
         }
         
         try {
-          // Always use PUT to create or update the trusted contact
-          const data = await apiClient.updateTrustedContact(trustedContactData)
+          // Check if trusted contact already exists (use saved userData, not form data)
+          const contactExists = userData?.trustedContact && 
+            (userData.trustedContact.firstName || userData.trustedContact.lastName || 
+             userData.trustedContact.email || userData.trustedContact.phone)
+          
+          // Use POST to create or PUT to update
+          const data = contactExists 
+            ? await apiClient.updateTrustedContact(trustedContactData)
+            : await apiClient.createTrustedContact(trustedContactData)
           
           if (data.success && data.trustedContact) {
             // Update local state with new trusted contact
@@ -701,7 +708,7 @@ export default function ProfileView() {
         } catch (e) {
           logger.error('Failed to save trusted contact', e)
           const errorMsg = e?.responseData?.error || e?.message || 'Unknown error'
-          alert(`Failed to save trusted contact: ${errorMsg}\n\nThe backend /api/profile/trusted_contact endpoint may not be fully implemented yet.`)
+          alert(`Failed to save trusted contact: ${errorMsg}`)
           setIsSaving(false)
           return false // Return failure
         }
@@ -1446,28 +1453,28 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
 function TrustedContactTab({ formData, errors, handleTrustedContactChange, handleSave, isSaving, saveSuccess, setFormData, userData, formatPhone }) {
   const [isEditing, setIsEditing] = useState(false)
   
-  // Check if trusted contact exists and has meaningful data
-  const hasTrustedContact = formData.trustedContact && 
-    (formData.trustedContact.firstName || formData.trustedContact.lastName || 
-     formData.trustedContact.email || formData.trustedContact.phone)
+  // Check if trusted contact exists and has meaningful data FROM SAVED DATA (not form data)
+  const hasSavedTrustedContact = userData?.trustedContact && 
+    (userData.trustedContact.firstName || userData.trustedContact.lastName || 
+     userData.trustedContact.email || userData.trustedContact.phone)
 
-  // Set editing mode based on whether contact exists
+  // Set editing mode based on whether contact exists - ONLY on mount or when userData changes
   // If contact exists: locked (not editing)
   // If no contact: unlocked (editing)
   useEffect(() => {
-    if (!hasTrustedContact) {
+    if (!hasSavedTrustedContact) {
       setIsEditing(true)
     } else {
       setIsEditing(false)
     }
-  }, [hasTrustedContact])
+  }, [userData?.trustedContact])
 
   const handleEdit = () => {
     setIsEditing(true)
   }
 
   const handleCancel = () => {
-    if (!hasTrustedContact) {
+    if (!hasSavedTrustedContact) {
       // Cannot cancel if no contact exists
       return
     }
@@ -1593,7 +1600,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
         <div className={styles.buttonRow}>
           {isEditing ? (
             <>
-              {hasTrustedContact && (
+              {hasSavedTrustedContact && (
                 <button
                   className={styles.secondaryButton}
                   onClick={handleCancel}
@@ -1607,7 +1614,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
                 onClick={handleSaveWrapper}
                 disabled={isSaving}
               >
-                {isSaving ? 'Saving...' : (hasTrustedContact ? 'Save Changes' : 'Save Trusted Contact')}
+                {isSaving ? 'Saving...' : (hasSavedTrustedContact ? 'Save Changes' : 'Save Trusted Contact')}
               </button>
             </>
           ) : (
