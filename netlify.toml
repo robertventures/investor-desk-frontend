@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Tell Netlify's secrets scanner to ignore NEXT_PUBLIC_* environment variables
+# These are public URLs and configuration flags that are intentionally embedded in the client bundle
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_API_URL,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_BASE_URL,NEXT_PUBLIC_PLAID_ENV,NEXT_PUBLIC_USE_SERVER_IDENTITY_DRAFTS"
+
