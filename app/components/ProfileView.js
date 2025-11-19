@@ -96,6 +96,7 @@ export default function ProfileView() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [errors, setErrors] = useState({})
+  const [investmentsLoading, setInvestmentsLoading] = useState(true) // Track if investments are still loading
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false)
@@ -192,7 +193,8 @@ export default function ProfileView() {
       // Use apiClient to route to Python backend (not Next.js)
       const data = await apiClient.getUser(userId)
       if (data.success && data.user) {
-        setUserData(data.user)
+        // Ensure investments array is included even if empty
+        setUserData({ ...data.user, investments: data.user.investments || [] })
         
         setFormData({
           firstName: data.user.firstName || '',
@@ -269,6 +271,13 @@ export default function ProfileView() {
         try {
           const investmentsResp = await apiClient.getInvestments()
           const invs = investmentsResp?.investments || []
+          
+          // Update userData with investments so hasInvestments check works properly
+          setUserData(prev => ({ ...prev, investments: invs }))
+          
+          // Mark investments as loaded so fields can be properly enabled/disabled
+          setInvestmentsLoading(false)
+          
           // Determine if the user has a joint investment (pending or active)
           const jointCandidates = invs.filter(inv => inv.accountType === 'joint' && (inv.status === 'pending' || inv.status === 'active'))
           setHasJointInvestments(jointCandidates.length > 0)
@@ -314,6 +323,8 @@ export default function ProfileView() {
           }
         } catch (e) {
           logger.warn('Failed to load investments for joint prefill', e)
+          // Still mark as loaded even if error, to avoid keeping fields disabled forever
+          setInvestmentsLoading(false)
         }
       }
       } catch (e) {
@@ -822,9 +833,12 @@ export default function ProfileView() {
   const hasEntityInvestments = Array.isArray(userData?.investments) && 
     userData.investments.some(inv => inv.accountType === 'entity' && (inv.status === 'pending' || inv.status === 'active'))
 
-  // Check if user has any investment (pending, active, or withdrawn) - if so, lock personal info
+  // Check if user has any investment (pending or active) - if so, lock personal info
   const hasInvestments = Array.isArray(userData?.investments) && 
-    userData.investments.some(inv => ['pending', 'active', 'withdrawn'].includes(inv.status))
+    userData.investments.some(inv => ['pending', 'active'].includes(inv.status))
+
+  // Disable fields while loading investments OR if user has pending/active investments
+  const shouldDisableFields = investmentsLoading || hasInvestments
 
   const isEntityView = (userData?.accountType === 'entity') || hasEntityInvestments
   const tabs = [
@@ -877,6 +891,7 @@ export default function ProfileView() {
             maxDob={maxDob}
             maxToday={maxToday}
             hasInvestments={hasInvestments}
+            shouldDisableFields={shouldDisableFields}
             isEntityView={isEntityView}
           />
         )}
@@ -895,6 +910,8 @@ export default function ProfileView() {
             saveSuccess={saveSuccess}
             MIN_DOB={MIN_DOB}
             maxDob={maxDob}
+            hasInvestments={hasInvestments}
+            shouldDisableFields={shouldDisableFields}
           />
         )}
 
@@ -914,7 +931,8 @@ export default function ProfileView() {
             MIN_DOB={MIN_DOB}
             maxDob={maxDob}
             maxToday={maxToday}
-            entityLocked={hasInvestments}
+            entityLocked={shouldDisableFields}
+            hasInvestments={hasInvestments}
           />
         )}
 
@@ -967,14 +985,14 @@ export default function ProfileView() {
 }
 
 // Individual Tab Components
-function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleEntityChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, isEntityView }) {
+function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleEntityChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, shouldDisableFields, isEntityView }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{isEntityView ? 'Authorized Representative' : 'Primary Holder'}</h2>
         {hasInvestments && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
-            ⚠️ Your name, date of birth, and SSN are locked because you have active investments.
+            ⚠️ Your profile information is locked because you have pending or active investments.
           </p>
         )}
 
@@ -983,11 +1001,11 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} name="firstName" value={formData.firstName} onChange={handleChange} disabled={hasInvestments} maxLength={100} />
+              <input className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} name="firstName" value={formData.firstName} onChange={handleChange} disabled={shouldDisableFields} maxLength={100} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={formData.lastName} onChange={handleChange} disabled={hasInvestments} maxLength={100} />
+              <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={formData.lastName} onChange={handleChange} disabled={shouldDisableFields} maxLength={100} />
             </div>
             {isEntityView && (
               <div className={styles.field}>
@@ -998,7 +1016,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   value={formData.entity?.title || ''}
                   onChange={handleEntityChange}
                   placeholder="e.g., Manager, CEO"
-                  disabled={hasInvestments}
+                  disabled={shouldDisableFields}
                   maxLength={100}
                 />
               </div>
@@ -1013,7 +1031,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 onChange={handleChange}
                 min={MIN_DOB}
                 max={maxDob}
-                disabled={hasInvestments}
+                disabled={shouldDisableFields}
               />
               {errors.dob && <span className={styles.errorText}>{errors.dob}</span>}
             </div>
@@ -1028,7 +1046,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   onChange={handleChange} 
                   placeholder="123-45-6789"
                   readOnly={!showSSN || hasInvestments}
-                  disabled={hasInvestments}
+                  disabled={shouldDisableFields}
                   maxLength={30}
                 />
                 <button
@@ -1036,7 +1054,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   className={styles.toggleButton}
                   onClick={() => setShowSSN(!showSSN)}
                   aria-label={showSSN ? 'Hide SSN' : 'Show SSN'}
-                  disabled={hasInvestments}
+                  disabled={shouldDisableFields}
                 >
                   {showSSN ? 'Hide' : 'Show'}
                 </button>
@@ -1054,7 +1072,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Phone</label>
-              <input className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`} type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="(555) 555-5555" maxLength={30} />
+              <input className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`} type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="(555) 555-5555" disabled={shouldDisableFields} maxLength={30} />
             </div>
           </div>
         </div>
@@ -1074,6 +1092,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.street1}
                 onChange={handleAddressFormChange}
                 placeholder="123 Main St"
+                disabled={shouldDisableFields}
                 maxLength={200}
               />
               {errors.addressStreet1 && <span className={styles.errorText}>{errors.addressStreet1}</span>}
@@ -1086,6 +1105,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.street2}
                 onChange={handleAddressFormChange}
                 placeholder="Apt, Suite, etc. (Optional)"
+                disabled={shouldDisableFields}
                 maxLength={200}
               />
             </div>
@@ -1097,6 +1117,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.city}
                 onChange={handleAddressFormChange}
                 placeholder="New York"
+                disabled={shouldDisableFields}
                 maxLength={100}
               />
               {errors.addressCity && <span className={styles.errorText}>{errors.addressCity}</span>}
@@ -1109,6 +1130,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.state}
                 onChange={handleAddressFormChange}
                 placeholder="NY"
+                disabled={shouldDisableFields}
                 maxLength={100}
               />
               {errors.addressState && <span className={styles.errorText}>{errors.addressState}</span>}
@@ -1121,6 +1143,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                 value={addressForm.zip}
                 onChange={handleAddressFormChange}
                 placeholder="10001"
+                disabled={shouldDisableFields}
                 maxLength={20}
               />
               {errors.addressZip && <span className={styles.errorText}>{errors.addressZip}</span>}
@@ -1153,11 +1176,16 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
   )
 }
 
-function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskSSN, handleJointHolderChange, handleJointAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob }) {
+function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskSSN, handleJointHolderChange, handleJointAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, hasInvestments, shouldDisableFields }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Joint Holder</h2>
+        {hasInvestments && (
+          <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
+            ⚠️ Joint holder information is locked because you have pending or active investments.
+          </p>
+        )}
 
         <div className={styles.subCard}>
           <h3 className={styles.subSectionTitle}>Joint Details</h3>
@@ -1169,6 +1197,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                 name="jointHoldingType"
                 value={formData.jointHoldingType || ''}
                 onChange={handleJointHolderChange}
+                disabled={shouldDisableFields}
               >
                 <option value="">Select relationship to primary holder</option>
                 <option value="spouse">Spouse</option>
@@ -1186,15 +1215,15 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} maxLength={100} />
+              <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} disabled={shouldDisableFields} maxLength={100} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} maxLength={100} />
+              <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} disabled={shouldDisableFields} maxLength={100} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Date of Birth</label>
-              <input className={`${styles.input} ${errors.jointDob ? styles.inputError : ''}`} type="date" name="dob" value={formData.jointHolder?.dob || ''} onChange={handleJointHolderChange} min={MIN_DOB} max={maxDob} />
+              <input className={`${styles.input} ${errors.jointDob ? styles.inputError : ''}`} type="date" name="dob" value={formData.jointHolder?.dob || ''} onChange={handleJointHolderChange} min={MIN_DOB} max={maxDob} disabled={shouldDisableFields} />
               {errors.jointDob && <span className={styles.errorText}>{errors.jointDob}</span>}
             </div>
             <div className={styles.field}>
@@ -1206,7 +1235,8 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                   name="ssn" 
                   value={showJointSSN ? (formData.jointHolder?.ssn || '') : maskSSN(formData.jointHolder?.ssn || '')} 
                   onChange={handleJointHolderChange}
-                  readOnly={!showJointSSN}
+                  readOnly={!showJointSSN || hasInvestments}
+                  disabled={shouldDisableFields}
                   placeholder="123-45-6789"
                   maxLength={30}
                 />
@@ -1215,6 +1245,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                   className={styles.toggleButton}
                   onClick={() => setShowJointSSN(!showJointSSN)}
                   aria-label={showJointSSN ? 'Hide SSN' : 'Show SSN'}
+                  disabled={shouldDisableFields}
                 >
                   {showJointSSN ? 'Hide' : 'Show'}
                 </button>
@@ -1228,11 +1259,11 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>Email</label>
-              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} maxLength={255} />
+              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} disabled={shouldDisableFields} maxLength={255} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Phone</label>
-              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" maxLength={30} />
+              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" disabled={shouldDisableFields} maxLength={30} />
             </div>
           </div>
         </div>
@@ -1246,26 +1277,26 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>Street Address 1</label>
-              <input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} placeholder="123 Main St" maxLength={200} />
+              <input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} placeholder="123 Main St" disabled={shouldDisableFields} maxLength={200} />
               {errors.jointStreet1 && <span className={styles.errorText}>{errors.jointStreet1}</span>}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Street Address 2</label>
-              <input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} placeholder="Apt, Suite, etc. (Optional)" maxLength={200} />
+              <input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} placeholder="Apt, Suite, etc. (Optional)" disabled={shouldDisableFields} maxLength={200} />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>City</label>
-              <input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} placeholder="New York" maxLength={100} />
+              <input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} placeholder="New York" disabled={shouldDisableFields} maxLength={100} />
               {errors.jointCity && <span className={styles.errorText}>{errors.jointCity}</span>}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>State</label>
-              <input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} placeholder="NY" maxLength={100} />
+              <input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} placeholder="NY" disabled={shouldDisableFields} maxLength={100} />
               {errors.jointState && <span className={styles.errorText}>{errors.jointState}</span>}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>ZIP Code</label>
-              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" maxLength={20} />
+              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" disabled={shouldDisableFields} maxLength={20} />
               {errors.jointZip && <span className={styles.errorText}>{errors.jointZip}</span>}
             </div>
             <div className={styles.field}>
@@ -1290,7 +1321,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
   )
 }
 
-function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, entityLocked }) {
+function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, entityLocked, hasInvestments }) {
   return (
     <div className={styles.content}>
       <section className={styles.section}>
@@ -1298,6 +1329,11 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
         <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
           Information about the entity associated with your investments. Note: Different LLCs require separate accounts with different email addresses.
         </p>
+        {hasInvestments && (
+          <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
+            ⚠️ Entity information is locked because you have pending or active investments.
+          </p>
+        )}
         <div className={styles.compactGrid}>
           <div className={styles.field}>
             <label className={styles.label}>Entity Name</label>
