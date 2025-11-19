@@ -468,21 +468,45 @@ const handleEntityChange = (e) => {
     try {
       if (typeof window === 'undefined') return
       
-      const userId = localStorage.getItem('currentUserId')
-      const data = await apiClient.updateUser(userId, {
-        _action: 'changePassword',
-        currentPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword
-      })
+      const data = await apiClient.changePassword(passwordForm.currentPassword, passwordForm.newPassword)
+      
       if (!data.success) {
-        alert(data.error || 'Failed to change password')
+        // Handle 422 Validation Error format
+        if (data.detail && Array.isArray(data.detail)) {
+          const validationErrors = {}
+          data.detail.forEach(err => {
+            // Map backend field names to frontend form fields
+            // e.g., "new_password" -> "newPassword"
+            const field = err.loc && err.loc[1]
+            if (field === 'current_password') validationErrors.currentPassword = err.msg
+            else if (field === 'new_password') validationErrors.newPassword = err.msg
+            else validationErrors.currentPassword = err.msg // Fallback
+          })
+          setErrors(prev => ({ ...prev, ...validationErrors }))
+        } else {
+          alert(data.error || 'Failed to change password')
+        }
         return
       }
+      
       setPasswordChangeSuccess(true)
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (e) {
       logger.error('Failed to change password', e)
-      alert('An error occurred. Please try again.')
+      // Handle API client errors that might contain responseData
+      const errorData = e.responseData
+      if (errorData && errorData.detail && Array.isArray(errorData.detail)) {
+        const validationErrors = {}
+        errorData.detail.forEach(err => {
+          const field = err.loc && err.loc[1]
+          if (field === 'current_password') validationErrors.currentPassword = err.msg
+          else if (field === 'new_password') validationErrors.newPassword = err.msg
+          else validationErrors.currentPassword = err.msg
+        })
+        setErrors(prev => ({ ...prev, ...validationErrors }))
+      } else {
+        alert(e.message || 'An error occurred. Please try again.')
+      }
     } finally {
       setIsChangingPassword(false)
     }
@@ -1757,33 +1781,88 @@ function BankAccountCard({ bank, isDefault, onSetDefault, onRemove, isRemoving }
 }
 
 function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, handleChangePassword, isChangingPassword, passwordChangeSuccess }) {
+  const [showPasswords, setShowPasswords] = useState(false)
+
+  const togglePasswords = () => setShowPasswords(prev => !prev)
+
   return (
     <div className={styles.content}>
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Security</h2>
         <div className={styles.subCard}>
           <h3 className={styles.subSectionTitle}>Change Password</h3>
-          <div className={styles.oneColumnGrid}>
+          
+          <div className={styles.passwordFormLayout}>
             <div className={styles.field}>
               <label className={styles.label}>Current Password</label>
-              <input className={`${styles.input} ${errors.currentPassword ? styles.inputError : ''}`} type="password" name="currentPassword" value={passwordForm.currentPassword} onChange={handlePasswordChange} />
+              <div className={styles.inputWrapper}>
+                <input 
+                  className={`${styles.input} ${styles.inputWithToggle} ${errors.currentPassword ? styles.inputError : ''}`} 
+                  type={showPasswords ? 'text' : 'password'} 
+                  name="currentPassword" 
+                  value={passwordForm.currentPassword} 
+                  onChange={handlePasswordChange} 
+                />
+                <button
+                  type="button"
+                  className={styles.toggleButton}
+                  onClick={togglePasswords}
+                  aria-label={showPasswords ? 'Hide password' : 'Show password'}
+                >
+                  {showPasswords ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
-          </div>
-          <div className={`${styles.compactGrid} ${styles.blockTopGap}`}>
+
             <div className={styles.field}>
               <label className={styles.label}>New Password</label>
-              <input className={`${styles.input} ${errors.newPassword ? styles.inputError : ''}`} type="password" name="newPassword" value={passwordForm.newPassword} onChange={handlePasswordChange} placeholder="At least 8 chars, mixed case, number, symbol" />
+              <div className={styles.inputWrapper}>
+                <input 
+                  className={`${styles.input} ${styles.inputWithToggle} ${errors.newPassword ? styles.inputError : ''}`} 
+                  type={showPasswords ? 'text' : 'password'} 
+                  name="newPassword" 
+                  value={passwordForm.newPassword} 
+                  onChange={handlePasswordChange} 
+                  placeholder="At least 8 chars, mixed case, number, symbol" 
+                />
+                <button
+                  type="button"
+                  className={styles.toggleButton}
+                  onClick={togglePasswords}
+                  aria-label={showPasswords ? 'Hide password' : 'Show password'}
+                >
+                  {showPasswords ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
+
             <div className={styles.field}>
               <label className={styles.label}>Confirm New Password</label>
-              <input className={`${styles.input} ${errors.confirmPassword ? styles.inputError : ''}`} type="password" name="confirmPassword" value={passwordForm.confirmPassword} onChange={handlePasswordChange} />
+              <div className={styles.inputWrapper}>
+                <input 
+                  className={`${styles.input} ${styles.inputWithToggle} ${errors.confirmPassword ? styles.inputError : ''}`} 
+                  type={showPasswords ? 'text' : 'password'} 
+                  name="confirmPassword" 
+                  value={passwordForm.confirmPassword} 
+                  onChange={handlePasswordChange} 
+                />
+                <button
+                  type="button"
+                  className={styles.toggleButton}
+                  onClick={togglePasswords}
+                  aria-label={showPasswords ? 'Hide password' : 'Show password'}
+                >
+                  {showPasswords ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
-          </div>
-          <div className={`${styles.actions} ${styles.actionsInset}`}>
-            <button className={styles.saveButton} onClick={handleChangePassword} disabled={isChangingPassword}>
-              {isChangingPassword ? 'Updating...' : 'Update Password'}
-            </button>
-            {passwordChangeSuccess && <span className={styles.success}>Password updated</span>}
+
+            <div className={`${styles.actions} ${styles.actionsInset}`}>
+              <button className={styles.saveButton} onClick={handleChangePassword} disabled={isChangingPassword}>
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
+              </button>
+              {passwordChangeSuccess && <span className={styles.success}>Password updated</span>}
+            </div>
           </div>
         </div>
       </section>

@@ -262,6 +262,15 @@
   gap: 16px;
 }
 
+/* Password Form Layout - Narrow vertical stack */
+.passwordFormLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 440px;
+  margin-top: 8px;
+}
+
 /* Utility spacing for separating stacked form rows */
 .blockTopGap {
   margin-top: 12px;
@@ -305,7 +314,6 @@
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
 }
-
 
 
 
