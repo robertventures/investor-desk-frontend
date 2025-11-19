@@ -158,7 +158,9 @@ function OnboardingContent() {
           investments = investmentsResponse.investments
         }
       } catch (err) {
-        console.warn('Failed to load investments:', err)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to load investments:', err)
+        }
       }
       
       // Check if bank account is needed (only for monthly payment investments)
@@ -179,16 +181,22 @@ function OnboardingContent() {
       })
       setInvestmentBankAssignments(initialAssignments)
       
-      console.log('✅ User auto-logged in:', data.user.email)
-      console.log('Bank account required:', needsBank)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ User auto-logged in:', data.user.email)
+        console.log('Bank account required:', needsBank)
+      }
       
       setCurrentStep(ONBOARDING_STEPS.PASSWORD)
     } catch (err) {
-      console.error('❌ Error verifying token:', err)
-      console.error('Error details:', err.message, err.stack)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Error verifying token:', err)
+        console.error('Error details:', err.message, err.stack)
+      }
       setError(`Connection error: ${err.message}. Please try again or contact support.`)
     } finally {
-      console.log('🏁 Token verification completed')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🏁 Token verification completed')
+      }
       setIsLoading(false)
     }
   }
@@ -197,12 +205,16 @@ function OnboardingContent() {
   useEffect(() => {
     if (token) {
       // Via email link - full onboarding with password
-      console.log('🔗 Onboarding via token link')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔗 Onboarding via token link')
+      }
       verifyToken(token)
       setRequiresPasswordChange(true)
     } else {
       // Direct access (testing) - skip password, just SSN + Bank
-      console.log('🧪 Onboarding via direct access (testing mode)')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧪 Onboarding via direct access (testing mode)')
+      }
       if (typeof window !== 'undefined') {
         const userId = localStorage.getItem('currentUserId')
         if (userId) {

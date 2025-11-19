@@ -217,10 +217,14 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
           // Map "sdira" to "ira" for user profile (backend expects "ira" for SDIRA accounts)
           const profileAccountType = accountType === 'sdira' ? 'ira' : accountType
           await apiClient.patchUserProfile({ accountType: profileAccountType })
-          console.log(`✅ Account type saved to profile: ${profileAccountType}`)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ Account type saved to profile: ${profileAccountType}`)
+          }
         } catch (e) {
           // Silently ignore if profile is locked or backend rejects partial data
-          console.log('Account type profile update skipped/failed:', e?.message || e)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Account type profile update skipped/failed:', e?.message || e)
+          }
         }
       }
 
@@ -235,7 +239,9 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
       const draftPaymentMethod = determineDraftPaymentMethod(accountType, formData.investmentAmount)
       persistDraftPaymentMethod(DRAFT_PAYMENT_METHOD_KEY, draftPaymentMethod)
 
-      console.log('Creating investment with payload:', investmentPayload)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Creating investment with payload:', investmentPayload)
+      }
 
       // Check if resuming an existing draft investment
       const existingInvestmentId = localStorage.getItem('currentInvestmentId')
@@ -246,7 +252,9 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         if (!data.success) {
           // If investment not found, clear stale ID and create new one
           if (data.error && data.error.includes('not found')) {
-            console.log('Investment not found, clearing stale ID and creating new investment')
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Investment not found, clearing stale ID and creating new investment')
+            }
             localStorage.removeItem('currentInvestmentId')
             // Create new investment with payment method
             const createPayload = { ...investmentPayload }
@@ -298,7 +306,9 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
         notifyCompletion(data.investment?.id, lockupPeriod)
       }
     } catch (err) {
-      console.error('Error starting investment', err)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error starting investment', err)
+      }
       alert('An error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)

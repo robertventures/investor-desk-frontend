@@ -116,7 +116,9 @@ function ClientContent() {
       if (signedUrl) {
         const win = window.open(signedUrl, '_blank')
         if (!win) {
-          console.warn('Agreement pop-up was blocked.')
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Agreement pop-up was blocked.')
+          }
           return false
         }
         try {
@@ -152,7 +154,9 @@ function ClientContent() {
           agreementBlobUrlRef.current = blobUrl
           const win = window.open(blobUrl, '_blank')
           if (!win) {
-            console.warn('Agreement pop-up was blocked.')
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Agreement pop-up was blocked.')
+            }
             releaseAgreementBlobUrl()
             return false
           }
@@ -161,7 +165,9 @@ function ClientContent() {
           } catch {}
           return true
         } catch (err) {
-          console.error('Failed to decode agreement PDF', err)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to decode agreement PDF', err)
+          }
           releaseAgreementBlobUrl()
           return false
         }
@@ -220,25 +226,29 @@ function ClientContent() {
       })
 
       try {
-        console.log('[FinalizeInvestment] Fetching agreement for investment', {
-          investmentId: investment.id,
-          lockupPeriod: investment.lockupPeriod,
-          paymentFrequency: investment.paymentFrequency,
-          amount: investment.amount,
-          status: investment.status
-        })
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[FinalizeInvestment] Fetching agreement for investment', {
+            investmentId: investment.id,
+            lockupPeriod: investment.lockupPeriod,
+            paymentFrequency: investment.paymentFrequency,
+            amount: investment.amount,
+            status: investment.status
+          })
+        }
         const response = await apiClient.generateBondAgreement(investment.id, user?.id)
         if (agreementRequestIdRef.current !== requestId) {
           return { success: false, cancelled: true }
         }
 
         if (response?.success && response.data) {
-          console.log('[FinalizeInvestment] Agreement response received', {
-            hasSignedUrl: Boolean(response.data?.signed_url),
-            hasPdfBase64: Boolean(response.data?.pdf_base64),
-            fileName: response.data?.file_name,
-            expiresAt: response.data?.expires_at
-          })
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[FinalizeInvestment] Agreement response received', {
+              hasSignedUrl: Boolean(response.data?.signed_url),
+              hasPdfBase64: Boolean(response.data?.pdf_base64),
+              fileName: response.data?.file_name,
+              expiresAt: response.data?.expires_at
+            })
+          }
           const nextState = {
             status: 'ready',
             data: response.data,
@@ -296,53 +306,77 @@ function ClientContent() {
     const load = async () => {
       const userId = localStorage.getItem('currentUserId')
       const investmentId = localStorage.getItem('currentInvestmentId')
-      console.log('[FinalizeInvestment] Loading page - userId:', userId, 'investmentId:', investmentId)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[FinalizeInvestment] Loading page - userId:', userId, 'investmentId:', investmentId)
+      }
       
       if (!userId) {
-        console.log('[FinalizeInvestment] No userId found, redirecting to home')
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[FinalizeInvestment] No userId found, redirecting to home')
+        }
         window.location.href = '/'
         return
       }
       
-      console.log('[FinalizeInvestment] Fetching user data...')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[FinalizeInvestment] Fetching user data...')
+      }
       const data = await apiClient.getUser(userId)
-      console.log('[FinalizeInvestment] User data:', data)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[FinalizeInvestment] User data:', data)
+      }
       
       if (data.success && data.user) {
         setUser(data.user)
         
         // Fetch investments separately (API doesn't return them in profile)
-        console.log('[FinalizeInvestment] Fetching investments...')
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[FinalizeInvestment] Fetching investments...')
+        }
         const investmentsData = await apiClient.getInvestments(userId)
-        console.log('[FinalizeInvestment] Investments data:', investmentsData)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[FinalizeInvestment] Investments data:', investmentsData)
+        }
         
         const investments = investmentsData?.investments || []
-        console.log('[FinalizeInvestment] User investments:', investments)
-        console.log('[FinalizeInvestment] Investment IDs and statuses:', investments.map(i => ({ id: i.id, status: i.status })))
-        console.log('[FinalizeInvestment] Looking for investmentId:', investmentId)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[FinalizeInvestment] User investments:', investments)
+          console.log('[FinalizeInvestment] Investment IDs and statuses:', investments.map(i => ({ id: i.id, status: i.status })))
+          console.log('[FinalizeInvestment] Looking for investmentId:', investmentId)
+        }
         
         let inv = investments.find(i => i.id.toString() === investmentId?.toString()) || null
-        console.log('[FinalizeInvestment] Found investment:', inv)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[FinalizeInvestment] Found investment:', inv)
+        }
         
         // If no specific investment ID, try to find the most recent draft
         if (!inv && investments.length > 0) {
           const draftInvestments = investments.filter(i => i.status === 'draft')
-          console.log('[FinalizeInvestment] Draft investments found:', draftInvestments.length)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[FinalizeInvestment] Draft investments found:', draftInvestments.length)
+          }
           if (draftInvestments.length > 0) {
             const mostRecentDraft = draftInvestments[0] // Assuming API returns most recent first
-            console.log('[FinalizeInvestment] Using most recent draft:', mostRecentDraft.id)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[FinalizeInvestment] Using most recent draft:', mostRecentDraft.id)
+            }
             // Update localStorage with this ID for future use
             localStorage.setItem('currentInvestmentId', mostRecentDraft.id)
             // Use this investment directly instead of reloading
             inv = mostRecentDraft
-            console.log('[FinalizeInvestment] Using draft investment:', inv)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[FinalizeInvestment] Using draft investment:', inv)
+            }
           }
         }
         
         // SECURITY: Only allow finalization of draft investments
         // If no draft investment exists, redirect to dashboard
         if (!inv) {
-          console.error('[FinalizeInvestment] No investment found with ID:', investmentId)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[FinalizeInvestment] No investment found with ID:', investmentId)
+          }
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
@@ -351,7 +385,9 @@ function ClientContent() {
         }
         
         if (inv.status !== 'draft') {
-          console.error('[FinalizeInvestment] Investment is not in draft status:', inv.status)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[FinalizeInvestment] Investment is not in draft status:', inv.status)
+          }
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
@@ -607,7 +643,7 @@ function ClientContent() {
           setInvestment(detail.investment)
         }
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && process.env.NODE_ENV === 'development') {
           console.warn('[FinalizeInvestment] Failed to refresh investment details', err)
         }
       }
@@ -1120,13 +1156,17 @@ function ClientContent() {
               setValidationErrors(errors)
               return
             }
-            console.log('Starting investment submission...')
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Starting investment submission...')
+            }
             setIsSaving(true)
             try {
               const userId = user.id
               const investmentId = investment.id
               const earningsMethod = investment.paymentFrequency === 'monthly' ? payoutMethod : 'compounding'
-              console.log('Investment details:', { userId, investmentId, paymentMethod: fundingMethod, earningsMethod })
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Investment details:', { userId, investmentId, paymentMethod: fundingMethod, earningsMethod })
+              }
 
               // Fetch current app time (Time Machine) from server - only if user is admin
               let appTime = new Date().toISOString()
@@ -1135,10 +1175,14 @@ function ClientContent() {
                   const timeData = await apiClient.getAppTime()
                   appTime = timeData?.success ? timeData.appTime : appTime
                 } catch (err) {
-                  console.warn('Failed to get app time, using system time:', err)
+                  if (process.env.NODE_ENV === 'development') {
+                    console.warn('Failed to get app time, using system time:', err)
+                  }
                 }
               }
-              console.log('Using app time for timestamps:', appTime)
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Using app time for timestamps:', appTime)
+              }
 
               // Determine bank account to use for funding and payout
               let fundingBankToUse = null
@@ -1164,31 +1208,41 @@ function ClientContent() {
               const paymentMethod = fundingMethod === 'bank-transfer' ? 'ach' : 'wire'
               
               // Log finalization data for debugging
-              console.log('Finalizing investment with data:', {
-                investmentId,
-                paymentMethod,
-                fundingMethod,
-                earningsMethod,
-                accredited,
-                accreditedType,
-                tenPercentConfirmed,
-                fundingBank: fundingBankToUse?.nickname,
-                payoutBank: payoutBankToUse?.nickname
-              })
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Finalizing investment with data:', {
+                  investmentId,
+                  paymentMethod,
+                  fundingMethod,
+                  earningsMethod,
+                  accredited,
+                  accreditedType,
+                  tenPercentConfirmed,
+                  fundingBank: fundingBankToUse?.nickname,
+                  payoutBank: payoutBankToUse?.nickname
+                })
+              }
               
               // Update the investment's payment method using the investments endpoint
-              console.log('Updating investment payment method...')
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Updating investment payment method...')
+              }
               const investmentUpdateData = await apiClient.updateInvestment(userId, investmentId, {
                 paymentMethod
               })
 
-              console.log('Investment update API response:', investmentUpdateData)
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Investment update API response:', investmentUpdateData)
+              }
               if (!investmentUpdateData.success) {
-                console.error('Investment update failed:', investmentUpdateData.error)
+                if (process.env.NODE_ENV === 'development') {
+                  console.error('Investment update failed:', investmentUpdateData.error)
+                }
                 setSubmitError(`Failed to submit investment: ${investmentUpdateData.error || 'Unknown error'}. Please try again.`)
                 return
               }
-              console.log('Investment updated successfully!')
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Investment updated successfully!')
+              }
 
               // Create accreditation attestation BEFORE submitting (immutable once created)
               try {
@@ -1199,11 +1253,17 @@ function ClientContent() {
                     accreditedType: accredited === 'accredited' ? accreditedType : null,
                     tenPercentLimitConfirmed: accredited === 'not_accredited' ? !!tenPercentConfirmed : null
                   }
-                  console.log('Creating accreditation attestation with payload:', attestationPayload)
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Creating accreditation attestation with payload:', attestationPayload)
+                  }
                   await apiClient.createAttestation(investmentId, attestationPayload)
-                  console.log('Accreditation attestation created successfully')
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Accreditation attestation created successfully')
+                  }
                 } else {
-                  console.log('Accreditation attestation already exists for this investment; skipping creation')
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Accreditation attestation already exists for this investment; skipping creation')
+                  }
                 }
               } catch (attErr) {
                 const msg = (attErr && attErr.message) ? attErr.message : 'Unknown error'
@@ -1214,43 +1274,59 @@ function ClientContent() {
                 const lower = (combined || '').toLowerCase()
                 const isAlreadyExists = attErr?.statusCode === 409 || lower.includes('already') || lower.includes('exists')
                 if (!isAlreadyExists) {
-                  console.error('Creating accreditation attestation failed:', attErr)
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error('Creating accreditation attestation failed:', attErr)
+                  }
                   setSubmitError(`Failed to save accreditation attestation: ${combined}`)
                   return
                 } else {
-                  console.log('Attestation appears to already exist; proceeding with submission.')
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Attestation appears to already exist; proceeding with submission.')
+                  }
                 }
               }
               
               // Submit the investment to move it from DRAFT to PENDING status
-              console.log('Submitting investment...')
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Submitting investment...')
+              }
               const submitResponse = await apiClient.submitInvestment(investmentId)
-              console.log('Investment submit API response:', submitResponse)
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Investment submit API response:', submitResponse)
+              }
               
               if (!submitResponse.success) {
-                console.error('Investment submission failed:', submitResponse.error)
+                if (process.env.NODE_ENV === 'development') {
+                  console.error('Investment submission failed:', submitResponse.error)
+                }
                 setSubmitError(`Failed to submit investment: ${submitResponse.error || 'Unknown error'}. Please try again.`)
                 return
               }
-              console.log('Investment submitted successfully! Status changed to PENDING.')
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Investment submitted successfully! Status changed to PENDING.')
+              }
 
               // Initiate ACH funding if bank-transfer selected and amount <= $100,000
               if (paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000) {
                 try {
-                  console.log('[FinalizeInvestment] Initiating ACH funding...', {
-                    investmentId,
-                    paymentMethodId: selectedFundingBankId,
-                    amount: investment.amount,
-                    paymentMethod
-                  })
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[FinalizeInvestment] Initiating ACH funding...', {
+                      investmentId,
+                      paymentMethodId: selectedFundingBankId,
+                      amount: investment.amount,
+                      paymentMethod
+                    })
+                  }
                   
                   const amountCents = Math.round((investment.amount || 0) * 100)
                   const idempotencyKey = generateIdempotencyKey()
                   
-                  console.log('[FinalizeInvestment] Calling fundInvestment API:', {
-                    amountCents,
-                    idempotencyKey
-                  })
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[FinalizeInvestment] Calling fundInvestment API:', {
+                      amountCents,
+                      idempotencyKey
+                    })
+                  }
                   
                   const fundRes = await apiClient.fundInvestment(
                     investmentId,
@@ -1260,11 +1336,15 @@ function ClientContent() {
                     `Investment ${investmentId}`
                   )
                   
-                  console.log('[FinalizeInvestment] Funding initiated successfully:', fundRes)
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[FinalizeInvestment] Funding initiated successfully:', fundRes)
+                  }
                   setFundingInfo(fundRes?.funding || null)
                   setFundingError('')
                 } catch (fe) {
-                  console.error('[FinalizeInvestment] Funding initiation failed:', fe)
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error('[FinalizeInvestment] Funding initiation failed:', fe)
+                  }
                   const errorMessage = fe?.message || 'Failed to initiate funding'
                   
                   // Special handling for investment status errors
@@ -1306,21 +1386,31 @@ function ClientContent() {
               
               try {
                 localStorage.setItem(`investment_${investmentId}_finalization`, JSON.stringify(finalizationData))
-                console.log('Finalization data stored in localStorage')
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Finalization data stored in localStorage')
+                }
               } catch (err) {
-                console.warn('Failed to store finalization data in localStorage:', err)
+                if (process.env.NODE_ENV === 'development') {
+                  console.warn('Failed to store finalization data in localStorage:', err)
+                }
               }
               
               // If we started funding, remain on page for polling in next step; otherwise redirect
               if (!(paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000)) {
                 // Small delay to ensure UI doesn't flash before redirect
-                console.log('Investment submitted successfully, redirecting to dashboard...')
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Investment submitted successfully, redirecting to dashboard...')
+                }
                 await new Promise(resolve => setTimeout(resolve, 500))
-                console.log('Redirecting to dashboard...')
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Redirecting to dashboard...')
+                }
                 window.location.href = '/dashboard'
               }
             } catch (e) {
-              console.error('Failed to save finalization data', e)
+              if (process.env.NODE_ENV === 'development') {
+                console.error('Failed to save finalization data', e)
+              }
               setSubmitError('An error occurred while submitting your investment. Please try again. If the problem persists, contact support.')
             } finally {
               setIsSaving(false)
@@ -1351,7 +1441,9 @@ function ClientContent() {
         isOpen={showBankModal}
         onClose={() => !isSavingBank && setShowBankModal(false)}
         onAccountSelected={async (method) => {
-          console.log('[FinalizeInvestment] Bank account selected from Plaid:', method)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[FinalizeInvestment] Bank account selected from Plaid:', method)
+          }
           
           // Ensure the payment method has the expected structure
           const paymentMethod = {

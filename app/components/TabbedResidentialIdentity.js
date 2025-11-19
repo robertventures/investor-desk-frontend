@@ -341,10 +341,12 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       const snap = JSON.parse(raw)
       
       // Log which storage was used for debugging
-      if (sessionRaw) {
-        console.log('📝 Restored form data from sessionStorage (includes sensitive fields)')
-      } else if (localRaw) {
-        console.log('📝 Restored form data from localStorage (sanitized, without sensitive fields)')
+      if (process.env.NODE_ENV === 'development') {
+        if (sessionRaw) {
+          console.log('📝 Restored form data from sessionStorage (includes sensitive fields)')
+        } else if (localRaw) {
+          console.log('📝 Restored form data from localStorage (sanitized, without sensitive fields)')
+        }
       }
       
       if (snap?.accountType && !accountTypeProp) {
@@ -396,7 +398,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
     const isAuthRepSsnOnFile = savedAuthRepSsn && (savedAuthRepSsn === '•••-••-••••' || savedAuthRepSsn.includes(':') || savedAuthRepSsn.length > 20)
 
     // Only log once when data is first loaded to reduce console noise
-    if (!hasLoadedUserDataRef.current) {
+    if (!hasLoadedUserDataRef.current && process.env.NODE_ENV === 'development') {
       console.log('✅ User data loaded for investment form:', { userId: u.id, hasSSN: !!u.ssn })
       hasLoadedUserDataRef.current = true
     }
@@ -514,13 +516,15 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         // Only populate if this is a draft investment
         if (investment.status !== 'draft') return
         
-        console.log('✅ Investment-specific data loaded:', { 
-          investmentId, 
-          accountType: investment.accountType,
-          hasJointHolder: !!investment.jointHolder,
-          hasEntity: !!investment.entity,
-          hasAuthorizedRep: !!investment.authorizedRepresentative
-        })
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Investment-specific data loaded:', { 
+            investmentId, 
+            accountType: investment.accountType,
+            hasJointHolder: !!investment.jointHolder,
+            hasEntity: !!investment.entity,
+            hasAuthorizedRep: !!investment.authorizedRepresentative
+          })
+        }
         
         // Populate form with investment-specific data if available
         setForm(prev => {
@@ -555,11 +559,13 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 ...sdiraEntityFields
               }
             }
-            console.log('✅ Loaded SDIRA data from investment:', {
-              hasTaxId: !!sdira.taxId,
-              taxIdLength: sdira.taxId?.length,
-              entityName: sdiraEntityFields.name
-            })
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Loaded SDIRA data from investment:', {
+                hasTaxId: !!sdira.taxId,
+                taxIdLength: sdira.taxId?.length,
+                entityName: sdiraEntityFields.name
+              })
+            }
           }
           
           // Authorized representative for entity accounts
@@ -583,14 +589,16 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           // Joint holder for joint accounts
           if (investment.jointHolder) {
             const joint = investment.jointHolder
-            console.log('✅ Loading joint holder data:', {
-              hasFirstName: !!joint.firstName,
-              hasLastName: !!joint.lastName,
-              hasEmail: !!joint.email,
-              hasPhone: !!joint.phone,
-              hasDob: !!joint.dob,
-              hasAddress: !!joint.address
-            })
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Loading joint holder data:', {
+                hasFirstName: !!joint.firstName,
+                hasLastName: !!joint.lastName,
+                hasEmail: !!joint.email,
+                hasPhone: !!joint.phone,
+                hasDob: !!joint.dob,
+                hasAddress: !!joint.address
+              })
+            }
             updated.jointHolder = {
               firstName: joint.firstName || prev.jointHolder.firstName,
               lastName: joint.lastName || prev.jointHolder.lastName,
@@ -619,7 +627,9 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           // Joint holding type
           if (investment.jointHoldingType) {
             updated.jointHoldingType = investment.jointHoldingType
-            console.log('✅ Loaded joint holding type:', investment.jointHoldingType)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Loaded joint holding type:', investment.jointHoldingType)
+            }
           }
           
           // Individual draft (identityDraft.holder)
@@ -642,7 +652,9 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           return updated
         })
       } catch (error) {
-        console.error('❌ Failed to load investment data:', error)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ Failed to load investment data:', error)
+        }
         // If the stored investmentId is stale, clear it to avoid repeated 404s
         try {
           const msg = String(error?.message || error || '').toLowerCase()
@@ -1099,14 +1111,16 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
       // We attempt to update the user profile so that the dashboard/profile page is populated.
       // If the profile is locked (403 or specific error message), we silently ignore it because
       // the data is also being saved to the investment record below, which is sufficient for the deal.
-      console.log('💾 Saving user profile data:', {
-        accountType: userData.accountType,
-        hasEntity: !!userData.entity,
-        entityName: userData.entity?.name || userData.entityName,
-        entityTitle: userData.entity?.title,
-        formAuthorizedRepTitle: form.authorizedRep?.title
-      })
-      console.log('📋 FULL USER PROFILE BEING SAVED:', JSON.stringify(userData, null, 2))
+      if (process.env.NODE_ENV === 'development') {
+        console.log('💾 Saving user profile data:', {
+          accountType: userData.accountType,
+          hasEntity: !!userData.entity,
+          entityName: userData.entity?.name || userData.entityName,
+          entityTitle: userData.entity?.title,
+          formAuthorizedRepTitle: form.authorizedRep?.title
+        })
+        console.log('📋 FULL USER PROFILE BEING SAVED:', JSON.stringify(userData, null, 2))
+      }
       
       apiClient.updateUser(userId, userData)
         .then(userResponse => {
@@ -1114,34 +1128,46 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
             // If backend returned structured failure, only warn when actionable
             const msg = String(userResponse.error || '').toLowerCase()
             if (msg.includes('profile is complete') || msg.includes('cannot be modified')) {
-              console.log('ℹ️ Profile is complete; skipping profile update (data saved to investment).')
+              if (process.env.NODE_ENV === 'development') {
+                console.log('ℹ️ Profile is complete; skipping profile update (data saved to investment).')
+              }
             } else {
-              console.error('Failed to update user profile:', userResponse.error)
+              if (process.env.NODE_ENV === 'development') {
+                console.error('Failed to update user profile:', userResponse.error)
+              }
             }
           } else {
-            console.log('✅ User profile updated successfully', {
-              returnedUser: userResponse.user,
-              entityName: userResponse.user?.entity?.name || userResponse.user?.entityName
-            })
-            console.log('📋 FULL USER PROFILE RETURNED FROM SERVER:', JSON.stringify(userResponse.user, null, 2))
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ User profile updated successfully', {
+                returnedUser: userResponse.user,
+                entityName: userResponse.user?.entity?.name || userResponse.user?.entityName
+              })
+              console.log('📋 FULL USER PROFILE RETURNED FROM SERVER:', JSON.stringify(userResponse.user, null, 2))
+            }
             
             // Fetch current profile from database to verify what's actually stored
-            apiClient.getUserProfile()
-              .then(profileData => {
-                console.log('🔍 CURRENT PROFILE FROM DATABASE (api/profile):', JSON.stringify(profileData, null, 2))
+            if (process.env.NODE_ENV === 'development') {
+              apiClient.getUserProfile()
+                .then(profileData => {
+                  console.log('🔍 CURRENT PROFILE FROM DATABASE (api/profile):', JSON.stringify(profileData, null, 2))
+                })
+                .catch(err => {
+                  console.error('Failed to fetch profile from database:', err)
               })
-              .catch(err => {
-                console.error('Failed to fetch profile from database:', err)
-            })
+            }
           }
         })
         .catch(e => {
           const msg = String(e?.message || e?.responseData?.error || '').toLowerCase()
           // Handle both status code 403 and specific error messages
           if (e?.statusCode === 403 || msg.includes('profile is complete') || msg.includes('cannot be modified')) {
-            console.log('ℹ️ Profile is complete/locked; skipping profile update (data saved to investment).')
+            if (process.env.NODE_ENV === 'development') {
+              console.log('ℹ️ Profile is complete/locked; skipping profile update (data saved to investment).')
+            }
           } else {
-            console.error('Failed saving user data', e)
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Failed saving user data', e)
+            }
           }
         })
 
@@ -1240,49 +1266,65 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
         }
 
         try {
-          console.log('💾 Saving investment identity fields:', { investmentId, keys: Object.keys(investmentFields || {}) })
-          console.log('📋 FULL INVESTMENT DATA BEING SAVED:', JSON.stringify(investmentFields, null, 2))
+          if (process.env.NODE_ENV === 'development') {
+            console.log('💾 Saving investment identity fields:', { investmentId, keys: Object.keys(investmentFields || {}) })
+            console.log('📋 FULL INVESTMENT DATA BEING SAVED:', JSON.stringify(investmentFields, null, 2))
+          }
           const investmentResponse = await apiClient.updateInvestment(userId, investmentId, investmentFields)
           if (!investmentResponse.success) {
-            console.error('Failed to update investment:', investmentResponse.error)
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Failed to update investment:', investmentResponse.error)
+            }
           } else {
-            console.log('✅ Investment data saved (investment):', {
-              success: investmentResponse.success,
-              hasInvestment: !!investmentResponse.investment,
-              returnedAccountType: investmentResponse.investment?.accountType
-            })
-            console.log('📋 FULL INVESTMENT RETURNED FROM SERVER:', JSON.stringify(investmentResponse.investment, null, 2))
-            
-            // Fetch current investment from database to verify what's actually stored
-            apiClient.getInvestment(investmentId)
-              .then(investmentData => {
-                console.log('🔍 CURRENT INVESTMENT FROM DATABASE:', JSON.stringify(investmentData, null, 2))
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Investment data saved (investment):', {
+                success: investmentResponse.success,
+                hasInvestment: !!investmentResponse.investment,
+                returnedAccountType: investmentResponse.investment?.accountType
               })
-              .catch(err => {
-                console.error('Failed to fetch investment from database:', err)
-              })
+              console.log('📋 FULL INVESTMENT RETURNED FROM SERVER:', JSON.stringify(investmentResponse.investment, null, 2))
+              
+              // Fetch current investment from database to verify what's actually stored
+              apiClient.getInvestment(investmentId)
+                .then(investmentData => {
+                  console.log('🔍 CURRENT INVESTMENT FROM DATABASE:', JSON.stringify(investmentData, null, 2))
+                })
+                .catch(err => {
+                  console.error('Failed to fetch investment from database:', err)
+                })
+            }
             
             // Fallback: if backend doesn't include accountType on investment, persist on user profile
             if (!investmentResponse.investment?.accountType && accountType === 'individual') {
               try {
                 const userResp = await apiClient.updateUser(userId, { accountType: backendAccountType })
-                console.log('ℹ️ Fallback user accountType update after identity save (individual):', {
-                  success: userResp?.success,
-                  accountType
-                })
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('ℹ️ Fallback user accountType update after identity save (individual):', {
+                    success: userResp?.success,
+                    accountType
+                  })
+                }
               } catch (e) {
-                console.warn('⚠️ Fallback user accountType update failed after identity save:', e)
+                if (process.env.NODE_ENV === 'development') {
+                  console.warn('⚠️ Fallback user accountType update failed after identity save:', e)
+                }
               }
             } else if (!investmentResponse.investment?.accountType) {
-              console.log('ℹ️ Skipping profile fallback for non-individual accountType after identity save')
+              if (process.env.NODE_ENV === 'development') {
+                console.log('ℹ️ Skipping profile fallback for non-individual accountType after identity save')
+              }
             }
           }
         } catch (error) {
-          console.error('Failed to update investment:', error)
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to update investment:', error)
+          }
         }
       }
     } catch (e) {
-      console.error('Failed saving address & identity', e)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed saving address & identity', e)
+      }
     } finally {
       setIsSaving(false)
     }
