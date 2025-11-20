@@ -325,19 +325,21 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             <div className={styles.inputGroup}>
               <div className={styles.currencyInputWrapper}>
                 <div className={styles.currencyInput}>
-                  <span className={styles.currencyPrefix}>$</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    name="investmentAmount"
-                    value={isAmountFocused ? displayAmount : (formData.investmentAmount > 0 ? formData.investmentAmount.toLocaleString() : '')}
-                    onChange={handleInputChange}
-                    className={styles.amountInput}
-                    onFocus={() => setIsAmountFocused(true)}
-                    onBlur={() => setIsAmountFocused(false)}
-                    placeholder="0"
-                    maxLength={10}
-                  />
+                  <div className={styles.inputWrapper}>
+                    <span className={styles.currencyPrefix}>$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      name="investmentAmount"
+                      value={isAmountFocused ? displayAmount : (formData.investmentAmount > 0 ? formData.investmentAmount.toLocaleString() : '')}
+                      onChange={handleInputChange}
+                      className={styles.amountInput}
+                      onFocus={() => setIsAmountFocused(true)}
+                      onBlur={() => setIsAmountFocused(false)}
+                      placeholder="0"
+                      maxLength={10}
+                    />
+                  </div>
                   <span className={styles.bondsSuffix}>= {formattedBonds} Bond{bonds !== 1 ? 's' : ''}</span>
                 </div>
                 {errors.investmentAmount && (

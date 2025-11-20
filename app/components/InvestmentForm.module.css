@@ -53,19 +53,30 @@
   gap: 8px;
 }
 
+.inputWrapper {
+  position: relative;
+  width: 100%;
+  flex-grow: 1;
+}
+
 .currencyPrefix {
-  position: static;
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   color: #6b7280;
   font-weight: 600;
   font-family: 'Inter', sans-serif;
   font-size: 18px;
   line-height: 1;
   user-select: none;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .amountInput {
   width: 100%;
-  padding: 16px 20px;
+  padding: 16px 20px 16px 40px;
   border: 2px solid #e5e7eb;
   border-radius: 6px;
   font-size: 18px;
@@ -100,9 +111,13 @@
 .bondsSuffix {
   position: absolute;
   right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   color: #6b7280;
   font-weight: 500;
   font-family: 'Inter', sans-serif;
+  z-index: 2;
+  white-space: nowrap;
 }
 
 /* Payment Frequency Section */
@@ -319,6 +334,14 @@
     margin-bottom: 20px;
   }
   
+  .currencyInput {
+    /* Keep desktop layout */
+  }
+
+  .bondsSuffix {
+    /* Keep desktop layout */
+  }
+  
   .inputGroup {
     flex-direction: column;
     align-items: flex-start;
@@ -326,7 +349,8 @@
   
   .amountInput {
     width: 100%;
-    max-width: 300px;
+    max-width: none;
+    padding-right: 110px; /* Ensure space for suffix */
   }
   
   .radioGroup {
@@ -379,7 +403,7 @@
   
   .amountInput {
     font-size: 16px;
-    padding: 14px 16px;
+    padding: 14px 110px 14px 40px;
   }
   
   .investmentCard {
