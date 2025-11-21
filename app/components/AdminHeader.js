@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { apiClient } from '../../lib/apiClient'
 import styles from './AdminHeader.module.css'
 
@@ -96,7 +97,14 @@ export default function AdminHeader({ onTabChange, activeTab }) {
     <header className={styles.header}>
       <div className={styles.container}>
         <div className={styles.logo}>
-          <span className={styles.logoText}>ROBERT VENTURES</span>
+          <Image
+            src="/images/logo.png"
+            alt="Robert Ventures"
+            width={160}
+            height={40}
+            className={styles.logoImage}
+            priority
+          />
         </div>
 
         <nav className={styles.nav}>

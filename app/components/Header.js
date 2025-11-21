@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import styles from './Header.module.css'
 
 export default function Header({ showBackButton = false, backLink = '/dashboard', backText = 'Dashboard' }) {
@@ -15,7 +16,16 @@ export default function Header({ showBackButton = false, backLink = '/dashboard'
             <span>{backText}</span>
           </Link>
         )}
-        <h1 className={styles.logo}>Robert Ventures</h1>
+        <div className={styles.logo}>
+          <Image
+            src="/images/logo.png"
+            alt="Robert Ventures"
+            width={192}
+            height={48}
+            className={styles.logoImage}
+            priority
+          />
+        </div>
       </div>
     </header>
   )

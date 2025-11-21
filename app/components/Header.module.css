@@ -54,18 +54,21 @@
 }
 
 .logo {
-  font-size: 32px;
-  font-weight: 600;
-  color: #1a1a1a;
-  text-align: center;
-  letter-spacing: -0.02em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+}
+
+.logoImage {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
 }
 
 @media (max-width: 768px) {
-  .logo {
-    font-size: 28px;
+  .logoImage {
+    height: 40px;
   }
   
   .header {
