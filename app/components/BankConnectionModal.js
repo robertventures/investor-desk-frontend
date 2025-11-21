@@ -237,7 +237,7 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
             )}
           </div>
           <div className={styles.headerCenter}>
-            {showManualEntry ? 'Enter bank details' : 'Connect your bank'}
+            {/* {showManualEntry ? 'Enter bank details' : 'Connect your bank'} */}
           </div>
           <button className={styles.closeButton} onClick={onClose}>✕</button>
         </div>
@@ -297,15 +297,15 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                     Loading Plaid...
                   </>
                 ) : (
-                  'Continue with Plaid'
+                  'Connect Bank Account'
                 )}
               </button>
               <div style={{ textAlign: 'center', color: '#6b7280' }}>or</div>
               <button
-                className={styles.submitButton}
+                className={styles.secondaryButton}
                 onClick={() => setShowManualEntry(true)}
               >
-                Enter bank details manually
+                Enter Bank Details Manually
               </button>
             </div>
           ) : (

@@ -133,7 +133,7 @@
 .bankSelection {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
 .searchBox {
@@ -359,6 +359,35 @@
   transform: none;
 }
 
+.secondaryButton {
+  width: 100%;
+  padding: 14px 24px;
+  background: transparent;
+  color: #4b5563;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: #1a1a1a;
+  color: #1a1a1a;
+  background: #f9fafb;
+}
+
+.secondaryButton:disabled {
+  color: #9ca3af;
+  border-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
 .spinner {
   width: 16px;
   height: 16px;
@@ -567,4 +596,3 @@
     font-size: 15px;
   }
 }
-

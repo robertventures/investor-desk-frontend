@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
+import { formatCurrency } from '../../lib/formatters.js'
 import styles from './TransactionsTable.module.css'
 
 export default function TransactionsTable() {
@@ -99,8 +100,8 @@ export default function TransactionsTable() {
               term: inv.lockupPeriod === '1-year' ? '1' : '3',
               isCompounded: inv.paymentFrequency === 'compounding' ? 'Yes' : 'No',
               maturityDate: '-',
-              ytdEarned: `$${actualEarnings.toFixed(2)}`,
-              total: `$${actualEarnings.toFixed(2)}`
+              ytdEarned: formatCurrency(actualEarnings),
+              total: formatCurrency(actualEarnings)
             }
           })
           
@@ -122,8 +123,8 @@ export default function TransactionsTable() {
               term: ev.lockupPeriod === '1-year' ? '1' : '3',
               isCompounded: 'No',
               maturityDate: '-',
-              ytdEarned: `$${Number(ev.amount || 0).toFixed(2)}`,
-              total: `$${Number(ev.amount || 0).toFixed(2)}`
+              ytdEarned: formatCurrency(ev.amount || 0),
+              total: formatCurrency(ev.amount || 0)
             }))
 
           // Fetch withdrawals for this user and include them
@@ -143,8 +144,8 @@ export default function TransactionsTable() {
             term: wd.investment?.lockupPeriod === '1-year' ? '1' : '3',
             isCompounded: wd.investment?.paymentFrequency === 'compounding' ? 'Yes' : 'No',
             maturityDate: wd.investment?.lockupEndDate ? new Date(wd.investment.lockupEndDate).toLocaleDateString() : '-',
-            ytdEarned: `$${(wd.earningsAmount || 0).toFixed(2)}`,
-            total: `$${(wd.amount || 0).toFixed(2)}`
+            ytdEarned: formatCurrency(wd.earningsAmount || 0),
+            total: formatCurrency(wd.amount || 0)
           }))
           
           setTransactions(transactionData)
@@ -261,7 +262,7 @@ export default function TransactionsTable() {
                         )
                       })()}
                     </td>
-                    <td className={styles.amount}>${tx.amount.toLocaleString()}</td>
+                    <td className={styles.amount}>{formatCurrency(tx.amount)}</td>
                     <td>{tx.bonds}</td>
                     <td>{tx.rate}</td>
                     <td>{tx.term}</td>

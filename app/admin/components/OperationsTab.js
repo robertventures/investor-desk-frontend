@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiClient } from '../../../lib/apiClient'
+import { formatCurrency } from '../../../lib/formatters.js'
 import SectionCard from './SectionCard'
 import TimeMachineTab from './TimeMachineTab'
 import DocumentManagerSection from './DocumentManagerSection'
@@ -224,7 +225,7 @@ export default function OperationsTab({
                     <td>{w.userId}</td>
                     <td>{w.userEmail}</td>
                     <td>{w.investmentId}</td>
-                    <td>${(w.amount || 0).toLocaleString()}</td>
+                    <td>{formatCurrency(w.amount || 0)}</td>
                     <td>
                       <span className={`${styles.badge} ${styles[w.status]}`}>
                         {w.status === 'approved' ? 'Completed' : w.status}
@@ -252,10 +253,10 @@ export default function OperationsTab({
                       {w.quotedAmount != null && w.finalAmount != null && (
                         <div className={styles.withdrawalMeta}>
                           <div>
-                            <strong>Quoted:</strong> ${(w.quotedAmount || 0).toLocaleString()} (earnings ${(w.quotedEarnings || 0).toLocaleString()})
+                            <strong>Quoted:</strong> {formatCurrency(w.quotedAmount || 0)} (earnings {formatCurrency(w.quotedEarnings || 0)})
                           </div>
                           <div>
-                            <strong>Final:</strong> ${(w.finalAmount || 0).toLocaleString()} (earnings ${(w.finalEarnings || 0).toLocaleString()})
+                            <strong>Final:</strong> {formatCurrency(w.finalAmount || 0)} (earnings {formatCurrency(w.finalEarnings || 0)})
                           </div>
                         </div>
                       )}

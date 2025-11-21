@@ -9,6 +9,7 @@ import {
   investmentPaymentMethodKey,
   persistDraftPaymentMethod
 } from '../../lib/paymentMethodPreferences'
+import { formatCurrency, formatNumber } from '../../lib/formatters.js'
 import styles from './InvestmentForm.module.css'
 
 export default function InvestmentForm({ onCompleted, onReviewSummary, disableAuthGuard = false, accountType, initialAmount, initialPaymentFrequency, initialLockup, onValuesChange }) {
@@ -129,14 +130,14 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
   useEffect(() => {
     if (typeof initialAmount === 'number') {
       setFormData(prev => ({ ...prev, investmentAmount: initialAmount }))
-      setDisplayAmount(initialAmount > 0 ? initialAmount.toLocaleString() : '')
+      setDisplayAmount(initialAmount > 0 ? formatNumber(initialAmount) : '')
     }
   }, [initialAmount])
 
   // Update display amount when formData changes
   useEffect(() => {
     if (!isAmountFocused) {
-      setDisplayAmount(formData.investmentAmount > 0 ? formData.investmentAmount.toLocaleString() : '')
+      setDisplayAmount(formData.investmentAmount > 0 ? formatNumber(formData.investmentAmount) : '')
     }
   }, [formData.investmentAmount, isAmountFocused])
   useEffect(() => {
@@ -390,7 +391,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
           </div>
           {formData.paymentFrequency === 'monthly' && compoundingVsMonthlyDelta > 0 && (
             <div className={styles.radioDescription}>
-              You could earn <strong>${compoundingVsMonthlyDelta.toLocaleString()}</strong> more by choosing compounding for the {selectedLockup === '3-year' ? '3-year' : '1-year'} option.
+              You could earn <strong>{formatCurrency(compoundingVsMonthlyDelta)}</strong> more by choosing compounding for the {selectedLockup === '3-year' ? '3-year' : '1-year'} option.
             </div>
           )}
           {errors.paymentFrequency && (
@@ -413,7 +414,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
                 <div className={styles.cardYield}>10% APY</div>
               </div>
               <div className={styles.cardEarnings}>
-                Estimated annual earnings: <span className={styles.earningsAmount}>${parseFloat(annualEarnings3Year).toLocaleString()}</span>
+                Estimated annual earnings: <span className={styles.earningsAmount}>{formatCurrency(parseFloat(annualEarnings3Year))}</span>
               </div>
             </div>
 
@@ -427,7 +428,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
                 <div className={styles.cardYield}>8% APY</div>
               </div>
               <div className={styles.cardEarnings}>
-                Estimated annual earnings: <span className={styles.earningsAmount}>${parseFloat(annualEarnings1Year).toLocaleString()}</span>
+                Estimated annual earnings: <span className={styles.earningsAmount}>{formatCurrency(parseFloat(annualEarnings1Year))}</span>
               </div>
             </div>
           </div>

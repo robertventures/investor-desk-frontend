@@ -248,13 +248,13 @@ const DashboardTab = memo(function DashboardTab({
                     </div>
                   </div>
                   <div className={styles.pendingItemAmount}>
-                    ${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(inv.amount)}
                   </div>
                 </div>
                 <div className={styles.pendingItemActions}>
                   <button
                     onClick={() => {
-                      if (confirm(`Approve investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nAmount: $${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nAccount Type: ${inv.accountType}\nLockup: ${inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'}\nPayment Method: ${inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH Transfer'}\n\nThis will activate the investment and lock the user's account type.`)) {
+                      if (confirm(`Approve investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nAmount: ${formatCurrency(inv.amount)}\nAccount Type: ${inv.accountType}\nLockup: ${inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'}\nPayment Method: ${inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH Transfer'}\n\nThis will activate the investment and lock the user's account type.`)) {
                         onApprove(inv.user.id, inv.id)
                       }
                     }}
@@ -357,7 +357,7 @@ const DashboardTab = memo(function DashboardTab({
                   />
                 </th>
                 <th>User</th>
-                <th>Investment ID</th>
+                    <th>Investment ID</th>
                 <th>Amount</th>
                 <th>Scheduled Date</th>
                 <th>Bank Account</th>
@@ -394,7 +394,7 @@ const DashboardTab = memo(function DashboardTab({
                       </div>
                     </td>
                     <td className={styles.monospaceCell}>{payout.investmentId}</td>
-                    <td><strong>${(payout.amount || 0).toFixed(2)}</strong></td>
+                    <td><strong>{formatCurrency(payout.amount || 0)}</strong></td>
                     <td className={styles.dateCell}>{new Date(payout.date).toLocaleDateString()}</td>
                     <td className={styles.bankCell}>{payout.payoutBankNickname || 'Not configured'}</td>
                     <td>
@@ -516,7 +516,7 @@ const DashboardTab = memo(function DashboardTab({
                       <div className={styles.activityItemDetails}>
                         <span>{inv.userName}</span>
                         <span className={styles.activityItemAmount}>
-                          ${inv.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatCurrency(inv.amount)}
                         </span>
                       </div>
                     </div>
