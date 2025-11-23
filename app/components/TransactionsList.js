@@ -279,7 +279,7 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
       {/* Show "View All" button when using limit */}
       {limit && events.length > limit && showViewAll && (
         <div className={styles.footer}>
-          <button className={styles.viewAllButton} onClick={() => router.push('/dashboard?section=activity')}>View all activity →</button>
+          <button className={styles.viewAllButton} onClick={() => router.push('/dashboard')}>View all activity →</button>
         </div>
       )}
       

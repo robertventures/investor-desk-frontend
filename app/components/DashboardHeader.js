@@ -1,14 +1,24 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { apiClient } from '@/lib/apiClient'
 import logger from '@/lib/logger'
 import { useUser } from '../contexts/UserContext'
 import styles from './DashboardHeader.module.css'
 
-export default function DashboardHeader({ onViewChange, activeView }) {
+const NAV_ITEMS = [
+  { id: 'portfolio', label: 'Dashboard', href: '/dashboard' },
+  { id: 'investments', label: 'Investments', href: '/dashboard/investments' },
+  { id: 'profile', label: 'Profile', href: '/dashboard/profile' },
+  { id: 'documents', label: 'Documents', href: '/dashboard/documents' },
+  { id: 'contact', label: 'Contact', href: '/dashboard/contact' }
+]
+
+export default function DashboardHeader({ forceActiveView = null }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const { userData } = useUser()
   const [showMobileNav, setShowMobileNav] = useState(false)
@@ -63,10 +73,27 @@ export default function DashboardHeader({ onViewChange, activeView }) {
     setShowMobileNav(prev => !prev)
   }
 
-  const handleNavSelect = (view) => {
-    onViewChange(view)
+  const handleNavSelect = (href) => {
+    router.push(href)
     setShowMobileNav(false)
   }
+
+  const activeView = useMemo(() => {
+    if (forceActiveView) return forceActiveView
+    const match = NAV_ITEMS.find(item => {
+      if (item.href === '/dashboard') {
+        return pathname === '/dashboard'
+      }
+      return pathname.startsWith(item.href)
+    })
+    return match?.id || 'portfolio'
+  }, [pathname, forceActiveView])
+
+  useEffect(() => {
+    if (showMobileNav) {
+      setShowMobileNav(false)
+    }
+  }, [pathname])
 
   // Close mobile nav when clicking outside
   useEffect(() => {
@@ -87,7 +114,7 @@ export default function DashboardHeader({ onViewChange, activeView }) {
   return (
     <header className={styles.header}>
       <div className={styles.container}>
-        <div className={styles.logo}>
+        <Link href="/dashboard" className={styles.logo}>
           <Image
             src="/images/logo.png"
             alt="Robert Ventures"
@@ -96,39 +123,18 @@ export default function DashboardHeader({ onViewChange, activeView }) {
             className={styles.logoImage}
             priority
           />
-        </div>
+        </Link>
         
         <nav className={styles.nav}>
-          <button 
-            onClick={() => onViewChange('portfolio')} 
-            className={`${styles.navItem} ${activeView === 'portfolio' ? styles.active : ''}`}
-          >
-            Dashboard
-          </button>
-          <button 
-            onClick={() => onViewChange('investments')} 
-            className={`${styles.navItem} ${activeView === 'investments' ? styles.active : ''}`}
-          >
-            Investments
-          </button>
-          <button 
-            onClick={() => onViewChange('profile')} 
-            className={`${styles.navItem} ${activeView === 'profile' ? styles.active : ''}`}
-          >
-            Profile
-          </button>
-          <button 
-            onClick={() => onViewChange('documents')} 
-            className={`${styles.navItem} ${activeView === 'documents' ? styles.active : ''}`}
-          >
-            Documents
-          </button>
-          <button
-            onClick={() => onViewChange('contact')}
-            className={`${styles.navItem} ${activeView === 'contact' ? styles.active : ''}`}
-          >
-            Contact
-          </button>
+          {NAV_ITEMS.map(item => (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={`${styles.navItem} ${activeView === item.id ? styles.active : ''}`}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
         
         <div className={styles.userActions}>
@@ -142,29 +148,22 @@ export default function DashboardHeader({ onViewChange, activeView }) {
       {showMobileNav && (
         <div className={styles.mobileNavWrapper}>
           <div className={styles.mobileNav}>
-            <div className={styles.mobileHeader}>
-              <div className={styles.mobileUserName}>{userData.firstName} {userData.lastName}</div>
-              <div className={styles.mobileUserEmail}>{userData.email}</div>
-            </div>
-            <button className={styles.mobileNavItem} onClick={() => handleNavSelect('portfolio')}>Dashboard</button>
-            <button className={styles.mobileNavItem} onClick={() => handleNavSelect('investments')}>Investments</button>
-            <button className={styles.mobileNavItem} onClick={() => handleNavSelect('profile')}>Profile</button>
-            <button className={styles.mobileNavItem} onClick={() => handleNavSelect('documents')}>Documents</button>
-            <button className={styles.mobileNavItem} onClick={() => handleNavSelect('contact')}>Contact</button>
-            <button className={styles.mobileNavItem} onClick={() => { 
-              setShowMobileNav(false); 
-              try { 
-                if (typeof window !== 'undefined') {
-                  localStorage.removeItem('currentInvestmentId')
-                }
-              } catch {}
-              router.push('/investment?context=new') 
-            }}>Make an Investment</button>
+            {NAV_ITEMS.map(item => (
+              <button
+                key={item.id}
+                className={`${styles.mobileNavItem} ${activeView === item.id ? styles.active : ''}`}
+                onClick={() => handleNavSelect(item.href)}
+              >
+                {item.label}
+              </button>
+            ))}
             <div className={styles.mobileDivider}></div>
             <button className={styles.mobileNavItem} onClick={() => { 
               setShowMobileNav(false); 
               handleLogout(); 
-            }}>Sign Out</button>
+            }}>
+              Sign Out
+            </button>
           </div>
         </div>
       )}

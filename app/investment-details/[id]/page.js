@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '@/lib/apiClient'
 import DashboardHeader from '../../components/DashboardHeader'
@@ -11,7 +11,6 @@ export default function InvestmentDetailsPage() {
   const params = useParams()
   const id = params?.id
   const router = useRouter()
-  const [activeView, setActiveView] = useState('investments')
 
   // Guard against missing/removed account
   useEffect(() => {
@@ -38,10 +37,6 @@ export default function InvestmentDetailsPage() {
     verify()
   }, [router])
 
-  const handleViewChange = (view) => {
-    router.push(`/dashboard?section=${view}`)
-  }
-
   // Show loading state if id is not yet available
   if (!id) {
     return (
@@ -55,11 +50,11 @@ export default function InvestmentDetailsPage() {
 
   return (
     <main className={styles.main}>
-      <DashboardHeader onViewChange={handleViewChange} activeView={activeView} />
+      <DashboardHeader forceActiveView="investments" />
       <div className={styles.container}>
         <div className={styles.headerSection}>
           <button 
-            onClick={() => router.push('/dashboard?section=investments')} 
+            onClick={() => router.push('/dashboard/investments')} 
             className={styles.backButton}
           >
             ← Back to Investments

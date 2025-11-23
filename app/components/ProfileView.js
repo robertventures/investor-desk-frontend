@@ -117,20 +117,20 @@ export default function ProfileView() {
     country: 'United States'
   })
 
-  // Build and replace dashboard URL with a single section=profile and optional tab
+  // Build and replace dashboard URL with optional profile tab param
   const replaceProfileUrl = (options = {}) => {
     const next = new URLSearchParams()
-    // Copy existing params except section, from, and optionally tab (if provided)
+    // Copy existing params except from, and optionally tab (if provided)
     for (const [key, value] of searchParams.entries()) {
-      if (key === 'section' || key === 'from') continue
+      if (key === 'from') continue
       if (options.tab !== undefined && key === 'tab') continue
       next.append(key, value)
     }
-    next.set('section', 'profile')
     if (options.tab !== undefined) {
       next.set('tab', options.tab)
     }
-    router.replace(`/dashboard?${next.toString()}`, { scroll: false })
+    const query = next.toString()
+    router.replace(query ? `/dashboard/profile?${query}` : '/dashboard/profile', { scroll: false })
   }
 
   useEffect(() => {
@@ -609,6 +609,7 @@ export default function ProfileView() {
         payload = {
           firstName: formData.firstName,
           lastName: formData.lastName,
+          email: formData.email,
           phoneNumber: normalizePhoneForDB(formData.phoneNumber),
           dob: formData.dob,
           ssn: formData.ssn,
@@ -735,9 +736,12 @@ export default function ProfileView() {
       if (data.success && data.user) {
         setUserData(data.user)
         setSaveSuccess(true)
+        return true
       }
+      return false
     } catch (e) {
       logger.error('Failed to save profile', e)
+      return false
     } finally {
       setIsSaving(false)
     }
@@ -857,6 +861,22 @@ export default function ProfileView() {
         <p className={styles.subtitle}>Manage your account details and preferences</p>
       </div>
 
+      {/* Mobile Tab Navigation (Dropdown) */}
+      <div className={styles.mobileTabNavigation}>
+        <select
+          value={activeTab}
+          onChange={(e) => handleTabChange(e.target.value)}
+          className={styles.mobileTabSelect}
+          aria-label="Profile section navigation"
+        >
+          {tabs.map(tab => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Tab Navigation */}
       <div className={styles.tabNavigation}>
         {tabs.map(tab => (
@@ -875,6 +895,7 @@ export default function ProfileView() {
         {activeTab === 'primary-holder' && (
           <PrimaryHolderTab
             formData={formData}
+            setFormData={setFormData}
             userData={userData}
             errors={errors}
             showSSN={showSSN}
@@ -883,6 +904,7 @@ export default function ProfileView() {
             handleChange={handleChange}
             handleEntityChange={handleEntityChange}
             addressForm={addressForm}
+            setAddressForm={setAddressForm}
             handleAddressFormChange={handleAddressFormChange}
             handleSave={handleSave}
             isSaving={isSaving}
@@ -893,6 +915,7 @@ export default function ProfileView() {
             hasInvestments={hasInvestments}
             shouldDisableFields={shouldDisableFields}
             isEntityView={isEntityView}
+            formatPhone={formatPhone}
           />
         )}
 
@@ -985,11 +1008,17 @@ export default function ProfileView() {
 }
 
 // Individual Tab Components
-function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleEntityChange, addressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, shouldDisableFields, isEntityView }) {
+function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleEntityChange, addressForm, setAddressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, shouldDisableFields, isEntityView, formatPhone }) {
   return (
     <div className={styles.content}>
+      {/* Identity Section */}
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>{isEntityView ? 'Authorized Representative' : 'Primary Holder'}</h2>
+        <div className={styles.sectionHeaderRow} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '6px', marginBottom: '16px'}}>
+            <h2 className={styles.sectionTitle} style={{borderBottom: 'none', paddingBottom: 0, marginBottom: 0}}>
+                {isEntityView ? 'Authorized Representative' : 'Identity Information'}
+            </h2>
+        </div>
+        
         {hasInvestments && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Your profile information is locked because you have pending or active investments.
@@ -997,15 +1026,28 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
         )}
 
         <div className={styles.subCard}>
-          <h3 className={styles.subSectionTitle}>Personal Information</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} name="firstName" value={formData.firstName} onChange={handleChange} disabled={shouldDisableFields} maxLength={100} />
+              <input 
+                className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} 
+                name="firstName" 
+                value={formData.firstName} 
+                onChange={handleChange} 
+                disabled={shouldDisableFields} 
+                maxLength={100} 
+              />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} name="lastName" value={formData.lastName} onChange={handleChange} disabled={shouldDisableFields} maxLength={100} />
+              <input 
+                className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} 
+                name="lastName" 
+                value={formData.lastName} 
+                onChange={handleChange} 
+                disabled={shouldDisableFields} 
+                maxLength={100} 
+              />
             </div>
             {isEntityView && (
               <div className={styles.field}>
@@ -1045,7 +1087,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   value={showSSN ? formData.ssn : maskSSN(formData.ssn)} 
                   onChange={handleChange} 
                   placeholder="123-45-6789"
-                  readOnly={!showSSN || hasInvestments}
+                  readOnly={!showSSN || shouldDisableFields}
                   disabled={shouldDisableFields}
                   maxLength={30}
                 />
@@ -1054,7 +1096,7 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
                   className={styles.toggleButton}
                   onClick={() => setShowSSN(!showSSN)}
                   aria-label={showSSN ? 'Hide SSN' : 'Show SSN'}
-                  disabled={shouldDisableFields}
+                  disabled={shouldDisableFields} 
                 >
                   {showSSN ? 'Hide' : 'Show'}
                 </button>
@@ -1062,25 +1104,43 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Contact & Address Section */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeaderRow} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '6px', marginBottom: '16px'}}>
+             <h2 className={styles.sectionTitle} style={{borderBottom: 'none', paddingBottom: 0, marginBottom: 0}}>Contact & Address Information</h2>
+        </div>
 
         <div className={styles.subCard}>
-          <h3 className={styles.subSectionTitle}>Contact Information</h3>
+          <h3 className={styles.subSectionTitle}>Contact Details</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
               <label className={styles.label}>Email</label>
-              <input className={`${styles.input} ${errors.email ? styles.inputError : ''}`} name="email" value={formData.email} disabled />
+              <input 
+                className={`${styles.input} ${errors.email ? styles.inputError : ''}`} 
+                name="email" 
+                value={formData.email} 
+                onChange={handleChange}
+                disabled={shouldDisableFields} 
+              />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Phone</label>
-              <input className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`} type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="(555) 555-5555" disabled={shouldDisableFields} maxLength={30} />
+              <input 
+                className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`} 
+                type="tel" 
+                name="phoneNumber" 
+                value={formData.phoneNumber} 
+                onChange={handleChange} 
+                placeholder="(555) 555-5555" 
+                disabled={shouldDisableFields} 
+                maxLength={30} 
+              />
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Primary Address */}
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Address</h2>
         <div className={styles.subCard}>
           <h3 className={styles.subSectionTitle}>Primary Address</h3>
           <div className={styles.compactGrid}>
@@ -1161,17 +1221,18 @@ function PrimaryHolderTab({ formData, userData, errors, showSSN, setShowSSN, mas
         </div>
       </section>
 
-
-      <div className={styles.actions}>
-        <button
-          className={styles.saveButton}
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Saving...' : 'Save Changes'}
-        </button>
-        {saveSuccess && <span className={styles.success}>Saved!</span>}
-      </div>
+      {!shouldDisableFields && (
+        <div className={styles.actions}>
+          <button
+            className={styles.saveButton}
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+          {saveSuccess && <span className={styles.success}>Saved!</span>}
+        </div>
+      )}
     </div>
   )
 }

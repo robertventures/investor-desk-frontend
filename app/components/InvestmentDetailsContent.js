@@ -107,7 +107,7 @@ export default function InvestmentDetailsContent({ investmentId }) {
       if (wd) setWithdrawalInfo(wd)
     } else {
       console.error('Investment not found:', investmentId)
-      router.push('/dashboard?section=investments')
+      router.push('/dashboard/investments')
     }
   }, [investmentId, router, userData, userLoading])
 

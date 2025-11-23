@@ -16,7 +16,7 @@ export default function Header({ showBackButton = false, backLink = '/dashboard'
             <span>{backText}</span>
           </Link>
         )}
-        <div className={styles.logo}>
+        <Link href="/dashboard" className={styles.logo}>
           <Image
             src="/images/logo.png"
             alt="Robert Ventures"
@@ -25,7 +25,7 @@ export default function Header({ showBackButton = false, backLink = '/dashboard'
             className={styles.logoImage}
             priority
           />
-        </div>
+        </Link>
       </div>
     </header>
   )

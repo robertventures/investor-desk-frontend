@@ -19,3 +19,9 @@
     padding-bottom: 84px; /* Slightly reduced */
   }
 }
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--color-muted);
+}

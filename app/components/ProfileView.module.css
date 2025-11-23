@@ -1050,3 +1050,46 @@
     width: 100%;
   }
 }
+
+/* Mobile Navigation Styles */
+.mobileTabNavigation {
+  display: none; /* Hidden on desktop */
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.mobileTabSelect {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+  background-color: #ffffff;
+  /* Custom dropdown arrow */
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%221.67%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.mobileTabSelect:focus {
+  outline: none;
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .tabNavigation {
+    display: none;
+  }
+  
+  .mobileTabNavigation {
+    display: block;
+  }
+}
