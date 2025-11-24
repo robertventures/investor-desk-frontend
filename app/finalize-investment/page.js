@@ -90,6 +90,7 @@ function ClientContent() {
   const agreementStateRef = useRef(agreementState)
   const agreementBlobUrlRef = useRef(null)
   const agreementRequestIdRef = useRef(0)
+  const router = useRouter()
 
   useEffect(() => {
     agreementStateRef.current = agreementState
@@ -315,7 +316,7 @@ function ClientContent() {
         if (process.env.NODE_ENV === 'development') {
           console.log('[FinalizeInvestment] No userId found, redirecting to home')
         }
-        window.location.href = '/'
+        router.push('/')
         return
       }
       
@@ -381,7 +382,7 @@ function ClientContent() {
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
-          window.location.href = '/dashboard'
+          router.push('/dashboard')
           return
         }
         
@@ -392,7 +393,7 @@ function ClientContent() {
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
-          window.location.href = '/dashboard'
+          router.push('/dashboard')
           return
         }
         
@@ -428,7 +429,7 @@ function ClientContent() {
           localStorage.removeItem('signupEmail')
           localStorage.removeItem('currentInvestmentId')
         } catch {}
-        window.location.href = '/'
+        router.push('/')
         return
       }
     }
@@ -1354,7 +1355,7 @@ function ClientContent() {
               if (process.env.NODE_ENV === 'development') {
                 console.log('Redirecting to dashboard...')
               }
-              window.location.href = '/dashboard'
+              router.push('/dashboard')
             } catch (e) {
               if (process.env.NODE_ENV === 'development') {
                 console.error('Failed to save finalization data', e)

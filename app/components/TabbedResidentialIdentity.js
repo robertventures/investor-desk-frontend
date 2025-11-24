@@ -218,13 +218,22 @@ const STATE_ABBR_TO_NAME = {
   WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming'
 }
 
-const toFullStateName = (value = '') => {
+  const toFullStateName = (value = '') => {
   const trimmed = (value || '').trim()
   if (!trimmed) return ''
   if (trimmed.length === 2) {
     return STATE_ABBR_TO_NAME[trimmed.toUpperCase()] || trimmed
   }
   return trimmed
+}
+
+// Mask SSN/TIN values to show only last 4 digits
+const maskSsnValue = (value = '') => {
+  if (!value || value === '•••-••-••••') return value
+  const clean = value.replace(/\D/g, '')
+  if (clean.length < 4) return '•••-••-••••'
+  const last4 = clean.slice(-4)
+  return `•••-••-${last4}`
 }
 
 export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary, accountType: accountTypeProp }) {
@@ -294,8 +303,14 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   const [showJointSsnHelp, setShowJointSsnHelp] = useState(false)
   const [hasActiveInvestments, setHasActiveInvestments] = useState(false)
   
+  // SSN visibility toggles
+  const [showSsnValue, setShowSsnValue] = useState(false)
+  const [showJointSsnValue, setShowJointSsnValue] = useState(false)
+  const [showAuthRepSsnValue, setShowAuthRepSsnValue] = useState(false)
+  const [showEntityTaxId, setShowEntityTaxId] = useState(false)
+  
   // Get user data first before using it
-  const { userData, refreshUser } = useUser()
+  const { userData, refreshUser, loadInvestments } = useUser()
   const hasLoadedUserDataRef = useRef(false)
   
   const idLabel = accountType === 'entity' ? 'EIN or TIN' : 'SSN'
@@ -374,7 +389,8 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
   // Refresh user data when component mounts to ensure we have the latest investor information
   useEffect(() => {
     refreshUser()
-  }, [refreshUser])
+    loadInvestments()
+  }, [refreshUser, loadInvestments])
 
   useEffect(() => {
     if (!userData) return
@@ -1453,20 +1469,36 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 <label className={styles.label}>SSN</label>
                 <button type="button" className={styles.helpLink} onClick={() => setShowAuthorizedRepSsnHelp(v => !v)}>Why do we need this?</button>
               </div>
-              <input 
-                className={`${styles.input} ${errors['authorizedRep.ssn'] ? styles.inputError : ''}`} 
-                type="text"
-                name="authorizedRep.ssn" 
-                value={form.authorizedRep.ssn} 
-                onChange={handleChange} 
-                placeholder="123-45-6789" 
-                inputMode="numeric" 
-                disabled={hasActiveInvestments || form.authorizedRep.ssn === '•••-••-••••'} 
-                readOnly={hasActiveInvestments || form.authorizedRep.ssn === '•••-••-••••'}
-                autoComplete="off"
-                title={form.authorizedRep.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
-                maxLength={30}
-              />
+              <div className={styles.ssnInputWrapper}>
+                <input 
+                  className={`${styles.input} ${errors['authorizedRep.ssn'] ? styles.inputError : ''} ${hasActiveInvestments ? styles.inputLocked : ''}`} 
+                  type="text"
+                  name="authorizedRep.ssn" 
+                  value={hasActiveInvestments && !showAuthRepSsnValue ? maskSsnValue(form.authorizedRep.ssn) : form.authorizedRep.ssn} 
+                  onChange={handleChange} 
+                  placeholder="123-45-6789" 
+                  inputMode="numeric" 
+                  disabled={hasActiveInvestments || form.authorizedRep.ssn === '•••-••-••••'} 
+                  readOnly={hasActiveInvestments || form.authorizedRep.ssn === '•••-••-••••'}
+                  autoComplete="off"
+                  title={form.authorizedRep.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
+                  maxLength={30}
+                />
+                {hasActiveInvestments && form.authorizedRep.ssn !== '•••-••-••••' && (
+                  <button 
+                    type="button" 
+                    className={styles.ssnToggleButton}
+                    onClick={() => setShowAuthRepSsnValue(!showAuthRepSsnValue)}
+                    aria-label={showAuthRepSsnValue ? "Hide SSN" : "Show SSN"}
+                  >
+                    {showAuthRepSsnValue ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    )}
+                  </button>
+                )}
+              </div>
               {errors['authorizedRep.ssn'] && <span className={styles.error}>{errors['authorizedRep.ssn']}</span>}
               {showAuthorizedRepSsnHelp && (
                 <div className={styles.helpText}>
@@ -1586,20 +1618,36 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                   Why do we need this?
                 </button>
               </div>
-              <input 
-                className={`${styles.input} ${errors['entity.taxId'] ? styles.inputError : ''}`} 
-                type="text"
-                name="entity.taxId" 
-                value={form.entity.taxId} 
-                onChange={handleChange} 
-                placeholder="Enter EIN or TIN"
-                inputMode="numeric" 
-                disabled={hasActiveInvestments || form.entity.taxId === '•••-••-••••'} 
-                readOnly={hasActiveInvestments || form.entity.taxId === '•••-••-••••'}
-                autoComplete="off"
-                title={form.entity.taxId === '•••-••-••••' ? 'TIN on file - cannot be modified' : ''}
-                maxLength={30}
-              />
+              <div className={styles.ssnInputWrapper}>
+                <input 
+                  className={`${styles.input} ${errors['entity.taxId'] ? styles.inputError : ''} ${hasActiveInvestments ? styles.inputLocked : ''}`} 
+                  type="text"
+                  name="entity.taxId" 
+                  value={hasActiveInvestments && !showEntityTaxId ? maskSsnValue(form.entity.taxId) : form.entity.taxId} 
+                  onChange={handleChange} 
+                  placeholder="Enter EIN or TIN"
+                  inputMode="numeric" 
+                  disabled={hasActiveInvestments || form.entity.taxId === '•••-••-••••'} 
+                  readOnly={hasActiveInvestments || form.entity.taxId === '•••-••-••••'}
+                  autoComplete="off"
+                  title={form.entity.taxId === '•••-••-••••' ? 'TIN on file - cannot be modified' : ''}
+                  maxLength={30}
+                />
+                {hasActiveInvestments && form.entity.taxId !== '•••-••-••••' && (
+                  <button 
+                    type="button" 
+                    className={styles.ssnToggleButton}
+                    onClick={() => setShowEntityTaxId(!showEntityTaxId)}
+                    aria-label={showEntityTaxId ? "Hide TIN" : "Show TIN"}
+                  >
+                    {showEntityTaxId ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    )}
+                  </button>
+                )}
+              </div>
               {errors['entity.taxId'] && <span className={styles.error}>{errors['entity.taxId']}</span>}
               {showSsnHelp && (
                 <div className={styles.helpText}>
@@ -1675,20 +1723,36 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                   Why do we need this?
                 </button>
               </div>
-              <input 
-                className={`${styles.input} ${errors.ssn ? styles.inputError : ''}`} 
-                type="text"
-                name="ssn" 
-                value={form.ssn} 
-                onChange={handleChange} 
-                placeholder="123-45-6789"
-                inputMode="numeric" 
-                disabled={hasActiveInvestments || form.ssn === '•••-••-••••'} 
-                readOnly={hasActiveInvestments || form.ssn === '•••-••-••••'}
-                autoComplete="off"
-                title={form.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
-                maxLength={30}
-              />
+              <div className={styles.ssnInputWrapper}>
+                <input 
+                  className={`${styles.input} ${errors.ssn ? styles.inputError : ''} ${hasActiveInvestments ? styles.inputLocked : ''}`} 
+                  type="text"
+                  name="ssn" 
+                  value={hasActiveInvestments && !showSsnValue ? maskSsnValue(form.ssn) : form.ssn} 
+                  onChange={handleChange} 
+                  placeholder="123-45-6789"
+                  inputMode="numeric" 
+                  disabled={hasActiveInvestments || form.ssn === '•••-••-••••'} 
+                  readOnly={hasActiveInvestments || form.ssn === '•••-••-••••'}
+                  autoComplete="off"
+                  title={form.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
+                  maxLength={30}
+                />
+                {hasActiveInvestments && form.ssn !== '•••-••-••••' && (
+                  <button 
+                    type="button" 
+                    className={styles.ssnToggleButton}
+                    onClick={() => setShowSsnValue(!showSsnValue)}
+                    aria-label={showSsnValue ? "Hide SSN" : "Show SSN"}
+                  >
+                    {showSsnValue ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    )}
+                  </button>
+                )}
+              </div>
               {errors.ssn && <span className={styles.error}>{errors.ssn}</span>}
               {!form.ssn && !errors.ssn && hasActiveInvestments && (
                 <span className={styles.helpText} style={{color: '#f59e0b', marginTop: '4px'}}>
@@ -1799,19 +1863,35 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                   Why do we need this?
                 </button>
               </div>
-              <input 
-                className={`${styles.input} ${errors['entity.taxId'] ? styles.inputError : ''}`} 
-                type="text"
-                name="entity.taxId" 
-                value={form.entity.taxId} 
-                onChange={handleChange} 
-                placeholder="Enter EIN/TIN"
-                inputMode="numeric" 
-                disabled={hasActiveInvestments || form.entity.taxId === '•••-••-••••'} 
-                readOnly={hasActiveInvestments || form.entity.taxId === '•••-••-••••'}
-                autoComplete="off"
-                title={form.entity.taxId === '•••-••-••••' ? 'EIN/TIN on file - cannot be modified' : ''}
-              />
+              <div className={styles.ssnInputWrapper}>
+                <input 
+                  className={`${styles.input} ${errors['entity.taxId'] ? styles.inputError : ''} ${hasActiveInvestments ? styles.inputLocked : ''}`} 
+                  type="text"
+                  name="entity.taxId" 
+                  value={hasActiveInvestments && !showEntityTaxId ? maskSsnValue(form.entity.taxId) : form.entity.taxId} 
+                  onChange={handleChange} 
+                  placeholder="Enter EIN/TIN"
+                  inputMode="numeric" 
+                  disabled={hasActiveInvestments || form.entity.taxId === '•••-••-••••'} 
+                  readOnly={hasActiveInvestments || form.entity.taxId === '•••-••-••••'}
+                  autoComplete="off"
+                  title={form.entity.taxId === '•••-••-••••' ? 'EIN/TIN on file - cannot be modified' : ''}
+                />
+                {hasActiveInvestments && form.entity.taxId !== '•••-••-••••' && (
+                  <button 
+                    type="button" 
+                    className={styles.ssnToggleButton}
+                    onClick={() => setShowEntityTaxId(!showEntityTaxId)}
+                    aria-label={showEntityTaxId ? "Hide TIN" : "Show TIN"}
+                  >
+                    {showEntityTaxId ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    )}
+                  </button>
+                )}
+              </div>
               {errors['entity.taxId'] && <span className={styles.error}>{errors['entity.taxId']}</span>}
               {showSsnHelp && (
                 <div className={styles.helpText}>
@@ -1864,19 +1944,35 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
                 <label className={styles.label}>SSN</label>
                 <button type="button" className={styles.helpLink} onClick={() => setShowJointSsnHelp(v => !v)}>Why do we need this?</button>
               </div>
-              <input 
-                className={`${styles.input} ${errors['jointHolder.ssn'] ? styles.inputError : ''}`} 
-                type="text"
-                name="jointHolder.ssn" 
-                value={form.jointHolder.ssn} 
-                onChange={handleChange} 
-                placeholder="123-45-6789" 
-                inputMode="numeric" 
-                disabled={hasActiveInvestments || form.jointHolder.ssn === '•••-••-••••'} 
-                readOnly={hasActiveInvestments || form.jointHolder.ssn === '•••-••-••••'}
-                autoComplete="off"
-                title={form.jointHolder.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
-              />
+              <div className={styles.ssnInputWrapper}>
+                <input 
+                  className={`${styles.input} ${errors['jointHolder.ssn'] ? styles.inputError : ''} ${hasActiveInvestments ? styles.inputLocked : ''}`} 
+                  type="text"
+                  name="jointHolder.ssn" 
+                  value={hasActiveInvestments && !showJointSsnValue ? maskSsnValue(form.jointHolder.ssn) : form.jointHolder.ssn} 
+                  onChange={handleChange} 
+                  placeholder="123-45-6789" 
+                  inputMode="numeric" 
+                  disabled={hasActiveInvestments || form.jointHolder.ssn === '•••-••-••••'} 
+                  readOnly={hasActiveInvestments || form.jointHolder.ssn === '•••-••-••••'}
+                  autoComplete="off"
+                  title={form.jointHolder.ssn === '•••-••-••••' ? 'SSN on file - cannot be modified' : ''}
+                />
+                {hasActiveInvestments && form.jointHolder.ssn !== '•••-••-••••' && (
+                  <button 
+                    type="button" 
+                    className={styles.ssnToggleButton}
+                    onClick={() => setShowJointSsnValue(!showJointSsnValue)}
+                    aria-label={showJointSsnValue ? "Hide SSN" : "Show SSN"}
+                  >
+                    {showJointSsnValue ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    )}
+                  </button>
+                )}
+              </div>
               {errors['jointHolder.ssn'] && <span className={styles.error}>{errors['jointHolder.ssn']}</span>}
               {showJointSsnHelp && (
                 <div className={styles.helpText}>

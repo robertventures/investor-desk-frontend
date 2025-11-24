@@ -83,7 +83,7 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
         const baseEvents = Array.isArray(user.activity) ? user.activity : []
         const investmentEvents = (user.investments || []).flatMap(inv => {
           const transactions = Array.isArray(inv.transactions) ? inv.transactions : []
-          return transactions.map(tx => ({
+          const txEvents = transactions.map(tx => ({
             ...tx,
             // Extract metadata fields if they exist in JSONB
             monthIndex: tx.monthIndex || tx.metadata?.monthIndex,
@@ -97,6 +97,25 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
             investmentId: inv.id,
             investmentAmount: inv.amount || 0
           }))
+
+          // Create synthetic events for investment lifecycle if they don't exist in activity
+          // This ensures we show something even if the activity log is empty
+          const lifecycleEvents = []
+          
+          // 1. Creation event
+          if (inv.createdAt) {
+            lifecycleEvents.push({
+              id: `inv-create-${inv.id}`,
+              type: 'investment_created',
+              date: inv.createdAt,
+              investmentId: inv.id,
+              amount: inv.amount,
+              status: inv.status,
+              isSynthetic: true
+            })
+          }
+
+          return [...txEvents, ...lifecycleEvents]
         })
         // No filtering needed - backend now only creates relevant activity events
         const combined = [...baseEvents, ...investmentEvents]

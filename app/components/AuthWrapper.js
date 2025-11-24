@@ -31,7 +31,19 @@ export default function AuthWrapper({ children }) {
     const checkAuth = async () => {
       try {
         apiClient.ensureTokensLoaded()
-        const hasToken = apiClient.isAuthenticated()
+        let hasToken = apiClient.isAuthenticated()
+
+        // Attempt to refresh access token if only refresh token is present
+        if (!hasToken && apiClient.refreshToken) {
+          try {
+            await apiClient.refreshAccessToken()
+            hasToken = apiClient.isAuthenticated()
+          } catch (refreshError) {
+            logger.warn('Token refresh failed:', refreshError)
+            apiClient.clearTokens()
+            hasToken = false
+          }
+        }
 
         if (!hasToken) {
           // Clear localStorage if not authenticated

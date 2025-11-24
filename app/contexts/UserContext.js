@@ -1,15 +1,41 @@
 'use client'
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { apiClient } from '@/lib/apiClient'
 import logger from '@/lib/logger'
 
 const UserContext = createContext(null)
 
 export function UserProvider({ children }) {
-  const [userData, setUserData] = useState(null)
+  // Split state to prevent circular dependency loops
+  // userProfile: Identity and core user details
+  // investments: List of investments (heavy data)
+  // activity: Activity log (heavy data)
+  const [userProfile, setUserProfile] = useState(null)
+  const [investments, setInvestments] = useState(null)
+  const [activity, setActivity] = useState(null)
+  
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const isLoadingUserRef = useRef(false)
+
+  // Memoize the constructed userData to prevent unnecessary re-renders of consumers
+  // We use a ref to break the loop: if only investments update, we don't want 
+  // to trigger effects that depend on user identity, BUT we do want components 
+  // reading userData.investments to update.
+  const legacyUserData = useMemo(() => {
+    if (!userProfile) return null
+    const combined = {
+      ...userProfile,
+      investments: investments || (userProfile.investments || []), // Fallback to profile's investments if preloaded
+      activity: activity || (userProfile.activity || [])
+    }
+    console.log('[UserContext] legacyUserData updated:', { 
+      hasProfile: !!userProfile, 
+      investmentsCount: combined.investments.length,
+      activityCount: combined.activity.length
+    })
+    return combined
+  }, [userProfile, investments, activity])
 
   const loadUser = useCallback(async () => {
     if (typeof window === 'undefined') return null
@@ -21,7 +47,9 @@ export function UserProvider({ children }) {
       setLoading(true)
       apiClient.ensureTokensLoaded()
       if (!apiClient.isAuthenticated()) {
-        setUserData(null)
+        setUserProfile(null)
+        setInvestments(null)
+        setActivity(null)
         setError(null)
         return null
       }
@@ -36,16 +64,20 @@ export function UserProvider({ children }) {
           // ignore storage errors
         }
 
-        setUserData(data.user)
+        setUserProfile(data.user)
+        // If the user object already has these fields (e.g. preloaded), use them
+        if (data.user.investments) setInvestments(data.user.investments)
+        if (data.user.activity) setActivity(data.user.activity)
+        
         setError(null)
         return data.user
       }
-      setUserData(null)
+      setUserProfile(null)
       return null
     } catch (e) {
       logger.error('Failed to load user data', e)
       setError(e.message)
-      setUserData(null)
+      setUserProfile(null)
       return null
     } finally {
       setLoading(false)
@@ -65,7 +97,9 @@ export function UserProvider({ children }) {
       if (preloaded) {
         const parsed = JSON.parse(preloaded)
         if (parsed && typeof parsed === 'object') {
-          setUserData(parsed)
+          setUserProfile(parsed)
+          if (parsed.investments) setInvestments(parsed.investments)
+          if (parsed.activity) setActivity(parsed.activity)
           setLoading(false)
         }
         sessionStorage.removeItem('preloadedUser')
@@ -82,19 +116,21 @@ export function UserProvider({ children }) {
   const isLoadingActivityRef = useRef(false)
 
   const loadInvestments = useCallback(async () => {
+    console.log('[UserContext] loadInvestments called')
     // Prevent concurrent calls
     if (isLoadingInvestmentsRef.current) return []
     
     try {
       isLoadingInvestmentsRef.current = true
       const response = await apiClient.getInvestments()
-      const investments = response?.investments || []
-      setUserData(prev => prev ? { ...prev, investments } : prev)
-      return investments
+      const newInvestments = response?.investments || []
+      console.log('[UserContext] investments loaded:', newInvestments.length)
+      setInvestments(newInvestments)
+      return newInvestments
     } catch (e) {
       logger.warn('Failed to load investments data', e)
-      // Set empty array on error to prevent infinite retries
-      setUserData(prev => prev ? { ...prev, investments: [] } : prev)
+      // Don't wipe data on error to prevent flashing empty state if we have fallback data
+      // setInvestments([]) 
       return []
     } finally {
       isLoadingInvestmentsRef.current = false
@@ -102,6 +138,7 @@ export function UserProvider({ children }) {
   }, [])
 
   const loadActivity = useCallback(async () => {
+    console.log('[UserContext] loadActivity called')
     // Prevent concurrent calls
     if (isLoadingActivityRef.current) return []
     
@@ -110,7 +147,7 @@ export function UserProvider({ children }) {
       const activityResponse = await apiClient.getActivityEvents()
       const items = activityResponse?.items || []
       // Minimal normalization
-      const activity = items.map(event => ({
+      const newActivity = items.map(event => ({
         id: event.id,
         type: event.activityType,
         date: event.eventDate,
@@ -118,12 +155,13 @@ export function UserProvider({ children }) {
         status: event.status,
         ...(typeof event.eventMetadata === 'string' ? (() => { try { return JSON.parse(event.eventMetadata) } catch { return {} } })() : (event.eventMetadata || {}))
       }))
-      setUserData(prev => prev ? { ...prev, activity } : prev)
-      return activity
+      console.log('[UserContext] activity loaded:', newActivity.length)
+      setActivity(newActivity)
+      return newActivity
     } catch (e) {
       logger.warn('Failed to load activity data', e)
-      // Set empty array to prevent retries
-      setUserData(prev => prev ? { ...prev, activity: [] } : prev)
+      // Don't wipe data on error
+      // setActivity([])
       return []
     } finally {
       isLoadingActivityRef.current = false
@@ -131,7 +169,17 @@ export function UserProvider({ children }) {
   }, [])
 
   return (
-    <UserContext.Provider value={{ userData, loading, error, refreshUser, loadInvestments, loadActivity }}>
+    <UserContext.Provider value={{ 
+      userData: legacyUserData, 
+      userProfile,
+      investments,
+      activity,
+      loading, 
+      error, 
+      refreshUser, 
+      loadInvestments, 
+      loadActivity 
+    }}>
       {children}
     </UserContext.Provider>
   )
@@ -144,4 +192,3 @@ export function useUser() {
   }
   return context
 }
-

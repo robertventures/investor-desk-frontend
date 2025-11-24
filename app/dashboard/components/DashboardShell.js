@@ -73,11 +73,20 @@ export default function DashboardShell({ children }) {
 
   // Lazy load investments and activity when the user data becomes available
   useEffect(() => {
+    console.log('[DashboardShell] Effect triggered:', { 
+      loading, 
+      hasUserData: !!userData, 
+      userId: userData?.id 
+    })
+
     if (!loading && userData) {
-      loadInvestments?.().catch(() => {})
-      loadActivity?.().catch(() => {})
+      console.log('[DashboardShell] Triggering lazy loads')
+      loadInvestments?.().catch(err => console.error('[DashboardShell] loadInvestments failed:', err))
+      loadActivity?.().catch(err => console.error('[DashboardShell] loadActivity failed:', err))
     }
-  }, [loading, userData, loadInvestments, loadActivity])
+    // Use userData.id to prevent infinite loops
+    // If we used userData, loading investments would update userData, triggering this again
+  }, [loading, userData?.id, loadInvestments, loadActivity])
 
   if (!ready || loading) {
     return (
@@ -91,4 +100,3 @@ export default function DashboardShell({ children }) {
 
   return children
 }
-

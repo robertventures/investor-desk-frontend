@@ -229,7 +229,7 @@ function InvestmentPageContent() {
     
     const userId = localStorage.getItem('currentUserId')
     if (!userId) {
-      window.location.href = '/'
+      router.push('/')
     }
     const checkAdmin = async () => {
       try {
@@ -241,17 +241,17 @@ function InvestmentPageContent() {
             localStorage.removeItem('signupEmail')
             localStorage.removeItem('currentInvestmentId')
           } catch {}
-          window.location.href = '/'
+          router.push('/')
           return
         }
         if (data.success && data.user?.isAdmin) {
-          window.location.href = '/dashboard'
+          router.push('/dashboard')
           return
         }
         
         // Check if user is verified before allowing investment
         if (data.success && data.user && !data.user.isVerified) {
-          window.location.href = '/confirmation'
+          router.push('/confirmation')
           return
         }
         
@@ -281,6 +281,10 @@ function InvestmentPageContent() {
                 }
                 if (existingInvestment.paymentFrequency) setInvestmentPaymentFrequency(existingInvestment.paymentFrequency)
                 if (existingInvestment.lockupPeriod) setInvestmentLockup(existingInvestment.lockupPeriod)
+                // Extract accountType from draft investment
+                if (existingInvestment.accountType) {
+                  draftAccountType = existingInvestment.accountType
+                }
               } else {
                 // Investment is no longer a draft - clear it
                 logger.log('⚠️ Investment is no longer a draft, clearing from localStorage')
@@ -315,55 +319,34 @@ function InvestmentPageContent() {
         if (data.success && data.user) {
           const lockInfo = getInvestmentTypeLockInfo({ investments: userInvestments, accountType: data.user.accountType })
           if (lockInfo.lockedAccountType) {
-            setUserAccountType(data.user.accountType || lockInfo.lockedAccountType)
-            // Map "ira" from backend to "sdira" for frontend
+            // User has pending/active investments - lock to that type
             const mappedLockedType = lockInfo.lockedAccountType === 'ira' ? 'sdira' : lockInfo.lockedAccountType
+            setUserAccountType(data.user.accountType || lockInfo.lockedAccountType)
             setLockedAccountType(mappedLockedType)
             setLockingStatus(lockInfo.lockingStatus)
             setSelectedAccountType(mappedLockedType)
           } else {
+            // No lock - determine accountType from priority order
             setLockingStatus(null)
             setLockedAccountType(null)
-            // User has no confirmed investments yet - use profile accountType if available; otherwise use local draft fallback
-            if (data.user.accountType) setUserAccountType(data.user.accountType)
-            const localFallback = (() => {
-              try {
-                const key = investmentId ? `investment_${investmentId}_accountType` : 'investment_draft_accountType'
-                const val = localStorage.getItem(key)
-                return val && val !== 'undefined' ? val : null
-              } catch {
-                return null
-              }
-            })()
-            if (data.user.accountType) {
-              // Map "ira" from backend to "sdira" for frontend
-              const mappedAccountType = data.user.accountType === 'ira' ? 'sdira' : data.user.accountType
-              setSelectedAccountType(mappedAccountType)
-              logger.log('✅ Using user profile accountType:', mappedAccountType)
-            } else if (localFallback) {
-              setSelectedAccountType(localFallback)
-              logger.log('✅ Restored draft accountType from local storage:', localFallback)
-            } else {
-              setSelectedAccountType('individual')
-              logger.log('ℹ️ No accountType found, defaulting to individual')
+            
+            let accountType = null
+            
+            // Priority 1: Draft investment accountType (if resuming draft)
+            if (draftAccountType) {
+              accountType = draftAccountType === 'ira' ? 'sdira' : draftAccountType
             }
-          }
-        } else {
-          setLockedAccountType(null)
-          setLockingStatus(null)
-          // Fallback for missing user data: try local storage only
-          const localFallback = (() => {
-            try {
-              const key = investmentId ? `investment_${investmentId}_accountType` : 'investment_draft_accountType'
-              const val = localStorage.getItem(key)
-              return val && val !== 'undefined' ? val : null
-            } catch {
-              return null
+            // Priority 2: User profile accountType
+            else if (data.user.accountType) {
+              accountType = data.user.accountType === 'ira' ? 'sdira' : data.user.accountType
             }
-          })()
-          if (localFallback) {
-            setSelectedAccountType(localFallback)
-            logger.log('✅ Restored draft accountType (no user data):', localFallback)
+            // Priority 3: Default to 'individual'
+            else {
+              accountType = 'individual'
+            }
+            
+            setSelectedAccountType(accountType)
+            setUserAccountType(data.user.accountType || null)
           }
         }
         
@@ -375,7 +358,7 @@ function InvestmentPageContent() {
       }
     }
     if (userId) checkAdmin()
-  }, [])
+  }, [router])
 
   // If user switches to SDIRA and payment frequency is monthly, force compounding
   useEffect(() => {

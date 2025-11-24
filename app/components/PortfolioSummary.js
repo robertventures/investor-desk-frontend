@@ -61,6 +61,12 @@ export default function PortfolioSummary() {
         
         // Calculate portfolio metrics from investments using the new calculation functions
         const investments = userData.investments || []
+        
+        console.log('[PortfolioSummary] Calculating metrics for investments:', {
+          count: investments.length,
+          statuses: investments.map(i => i.status)
+        })
+
         // Include active, withdrawal_notice, and withdrawn investments in the dashboard
         // Investors should see all their investment history
         const confirmedInvestments = investments.filter(inv => 
@@ -335,8 +341,12 @@ export default function PortfolioSummary() {
       <div className={styles.content}>
         <div className={styles.metrics}>
           <div className={styles.metric}>
-            <span className={styles.metricLabel}>TOTAL INVESTED</span>
-            <span className={styles.metricValue}>{formatCurrency(portfolioData.totalInvested)}</span>
+            <span className={styles.metricLabel}>
+              {portfolioData.totalInvested === 0 && portfolioData.totalPending > 0 ? 'PENDING INVESTMENT' : 'TOTAL INVESTED'}
+            </span>
+            <span className={styles.metricValue}>
+              {formatCurrency(portfolioData.totalInvested === 0 && portfolioData.totalPending > 0 ? portfolioData.totalPending : portfolioData.totalInvested)}
+            </span>
           </div>
           <div className={styles.metric}>
             <span className={styles.metricLabel}>CURRENT VALUE</span>
