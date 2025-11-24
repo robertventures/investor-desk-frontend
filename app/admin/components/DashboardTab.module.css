@@ -684,6 +684,14 @@
   cursor: not-allowed;
 }
 
+.autoApproveText {
+  font-size: 13px;
+  color: #6b7280;
+  font-style: italic;
+  white-space: nowrap;
+  padding: 6px 12px;
+}
+
 @media (max-width: 768px) {
   .primaryMetricsGrid {
     grid-template-columns: 1fr 1fr;
@@ -869,4 +877,3 @@
     font-size: 12px;
   }
 }
-

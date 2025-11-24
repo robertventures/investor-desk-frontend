@@ -23,7 +23,7 @@ function eventMeta(ev, { isDraftInvestment = false } = {}) {
       }
       return { icon: '🧾', iconClass: styles.created, title: 'Investment Created' }
     case 'investment_submitted':
-      return { icon: '⏳', iconClass: styles.pending, title: 'Investment Pending' }
+      return { icon: '⏳', iconClass: styles.pending, title: 'Investment Submitted' }
     case 'investment_confirmed':
       return { icon: '✅', iconClass: styles.confirmed, title: 'Investment Confirmed' }
     case 'investment_rejected':
@@ -102,8 +102,15 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
           // This ensures we show something even if the activity log is empty
           const lifecycleEvents = []
           
-          // 1. Creation event
-          if (inv.createdAt) {
+          // Check if we already have a creation/submission event from the backend
+          // We check both baseEvents (global activity) and txEvents (investment specific transactions)
+          const hasBackendEvent = [...baseEvents, ...txEvents].some(ev => 
+            String(ev.investmentId) === String(inv.id) && 
+            ['investment_created', 'investment_submitted', 'investment'].includes(ev.type)
+          )
+          
+          // 1. Creation event - only if no backend event exists
+          if (inv.createdAt && !hasBackendEvent) {
             lifecycleEvents.push({
               id: `inv-create-${inv.id}`,
               type: 'investment_created',

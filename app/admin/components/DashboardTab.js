@@ -252,28 +252,36 @@ const DashboardTab = memo(function DashboardTab({
                   </div>
                 </div>
                 <div className={styles.pendingItemActions}>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Approve investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nAmount: ${formatCurrency(inv.amount)}\nAccount Type: ${inv.accountType}\nLockup: ${inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'}\nPayment Method: ${inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH Transfer'}\n\nThis will activate the investment and lock the user's account type.`)) {
-                        onApprove(inv.user.id, inv.id)
-                      }
-                    }}
-                    disabled={savingId === inv.id}
-                    className={styles.approveButton}
-                  >
-                    {savingId === inv.id ? 'Approving...' : 'Approve'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Reject investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nThis action cannot be undone.`)) {
-                        onReject(inv.user.id, inv.id)
-                      }
-                    }}
-                    disabled={savingId === inv.id}
-                    className={styles.rejectButton}
-                  >
-                    Reject
-                  </button>
+                  {inv.paymentMethod === 'wire' ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Approve investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nAmount: ${formatCurrency(inv.amount)}\nAccount Type: ${inv.accountType}\nLockup: ${inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'}\nPayment Method: ${inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH Transfer'}\n\nThis will activate the investment and lock the user's account type.`)) {
+                            onApprove(inv.user.id, inv.id)
+                          }
+                        }}
+                        disabled={savingId === inv.id}
+                        className={styles.approveButton}
+                      >
+                        {savingId === inv.id ? 'Approving...' : 'Approve'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Reject investment ${inv.id} for ${inv.user.firstName} ${inv.user.lastName}?\n\nThis action cannot be undone.`)) {
+                            onReject(inv.user.id, inv.id)
+                          }
+                        }}
+                        disabled={savingId === inv.id}
+                        className={styles.rejectButton}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : (
+                    <span className={styles.autoApproveText}>
+                      Auto-approves on settlement
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
