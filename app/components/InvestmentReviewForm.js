@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { apiClient } from '../../lib/apiClient'
 import styles from './InvestmentReviewForm.module.css'
 
 export default function InvestmentReviewForm() {
@@ -42,25 +43,13 @@ export default function InvestmentReviewForm() {
     try {
       if (typeof window === 'undefined') return
       
-      const userId = localStorage.getItem('currentUserId')
       const investmentId = localStorage.getItem('currentInvestmentId')
       
-      const res = await fetch(`/api/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          _action: 'updateInvestment', 
-          investmentId, 
-          fields: { 
-            status: 'pending',
-            signedAt: new Date().toISOString()
-          } 
-        })
-      })
+      // Use the submit endpoint which generates and stores the bond document
+      const response = await apiClient.submitInvestment(investmentId)
       
-      const data = await res.json()
-      if (!data.success) {
-        alert(data.error || 'Failed to sign investment')
+      if (!response.success) {
+        alert(response.error || 'Failed to sign investment')
         return
       }
       
