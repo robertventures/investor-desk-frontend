@@ -30,6 +30,26 @@
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease;
+  position: relative; /* Ensure relative positioning for absolute children */
+}
+
+.modalInvisible {
+  /* Removed invisibility style - we will use a cover overlay instead */
+}
+
+.plaidCover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
 }
 
 @keyframes slideUp {
@@ -567,32 +587,41 @@
   color: #9ca3af;
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-  .modal {
-    max-height: 95vh;
-    border-radius: 12px;
-  }
 
-  .header {
-    padding: 16px 20px;
-  }
+/* Loading State */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
 
-  .headerCenter {
-    font-size: 16px;
-  }
+.loadingState p {
+  margin: 16px 0 4px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
 
-  .content {
-    padding: 20px;
-  }
+.subtext {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 400 !important;
+}
 
-  .bankLogo {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-  }
+.linkTextButton {
+  font-size: 14px;
+  color: #2563eb;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 12px;
+}
 
-  .bankName {
-    font-size: 15px;
-  }
+.linkTextButton:hover {
+  color: #1d4ed8;
 }
