@@ -100,7 +100,7 @@ function OnboardingContent() {
           setCurrentStep(ONBOARDING_STEPS.BANK)
         } else {
           // No banks needed, complete onboarding immediately
-          await completeOnboarding()
+          await completeOnboarding(data.user)
         }
       } else {
         setError('Failed to load user data')
@@ -179,9 +179,16 @@ function OnboardingContent() {
 
 
   // Complete onboarding
-  const completeOnboarding = async () => {
+  const completeOnboarding = async (userOverride = null) => {
+    const userToUpdate = userOverride || userData
+    
+    if (!userToUpdate) {
+      console.error('No user data available for completion')
+      return
+    }
+
     try {
-      await fetch(`/api/users/${userData.id}`, {
+      const res = await fetch(`/api/users/${userToUpdate.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,13 +199,16 @@ function OnboardingContent() {
         })
       })
       
+      if (!res.ok) {
+        throw new Error('Failed to update user status')
+      }
+      
       console.log('✅ Onboarding completed!')
       sessionStorage.removeItem('onboarding_via_token')
       setCurrentStep(ONBOARDING_STEPS.COMPLETE)
     } catch (err) {
       console.error('Error completing onboarding:', err)
-      // Still proceed to complete step
-      setCurrentStep(ONBOARDING_STEPS.COMPLETE)
+      setError('Failed to complete onboarding. Please try again.')
     }
   }
 
@@ -532,7 +542,7 @@ function OnboardingContent() {
               
               {getInvestmentsNeedingBanks().every(inv => investmentHasAllRequiredBanks(inv)) && (
                 <button 
-                  onClick={completeOnboarding}
+                  onClick={() => completeOnboarding()}
                   className={styles.submitButton}
                   disabled={isLoading}
                   style={{ marginTop: '20px' }}

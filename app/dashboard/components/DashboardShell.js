@@ -93,7 +93,9 @@ export default function DashboardShell({ children }) {
 
       // Check for monthly payment investments
       const hasMonthlyInvestment = investments.some(inv => 
-        inv.paymentFrequency === 'monthly'
+        inv.paymentFrequency === 'monthly' &&
+        inv.status !== 'withdrawn' &&
+        inv.paymentMethod !== 'wire-transfer'
       )
 
       if (hasMonthlyInvestment) {
