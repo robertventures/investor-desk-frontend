@@ -99,6 +99,27 @@ export default function ConfirmationPage() {
     }
   }
 
+  const handlePasteButton = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      const pastedData = text.trim().toUpperCase()
+      
+      // Only process if it's 6 characters (alphanumeric)
+      if (/^[A-Z0-9]{6}$/.test(pastedData)) {
+        const newCode = pastedData.split('')
+        setCode(newCode)
+        setError('')
+        // Focus last input
+        inputRefs.current[5]?.focus()
+      } else {
+        setError('Invalid code format. Please paste a 6-character code.')
+      }
+    } catch (err) {
+      // Clipboard API might not be available or user denied permission
+      setError('Unable to access clipboard. Please paste manually.')
+    }
+  }
+
   const handleResendCode = () => {
     // Reset countdown
     setCountdown(26)
@@ -254,6 +275,14 @@ export default function ConfirmationPage() {
           <form onSubmit={handleSubmit}>
             <div className={styles.codeInputContainer}>
               <label className={styles.label}>Verification Code</label>
+              <button
+                type="button"
+                onClick={handlePasteButton}
+                className={styles.pasteButton}
+                disabled={isLoading}
+              >
+                Paste Code
+              </button>
               <div className={styles.codeInputs}>
                 {code.map((digit, index) => (
                   <input
