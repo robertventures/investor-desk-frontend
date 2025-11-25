@@ -112,103 +112,16 @@ function OnboardingContent() {
     }
   }
 
-  // Verify token and auto-login
-  const verifyToken = async (tokenValue) => {
-    setIsLoading(true)
-    setError(null)
-    
-    console.log('🔍 Starting token verification:', tokenValue)
-    
-    try {
-      console.log('📡 Calling verify-onboarding-token API...')
-      const response = await fetchWithCsrf('/api/auth/verify-onboarding-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ token: tokenValue })
-      })
-      
-      console.log('📡 API response status:', response.status)
-      
-      if (!response.ok) {
-        console.error('❌ API returned non-OK status:', response.status, response.statusText)
-        setError(`Server error (${response.status}). Please contact support.`)
-        return
-      }
-      
-      const data = await response.json()
-      console.log('📦 API response data:', { success: data.success, error: data.error })
-      
-      if (!data.success) {
-        console.error('❌ Token verification failed:', data.error)
-        setError(data.error || 'Invalid or expired setup link. Please contact your administrator for a new link.')
-        return
-      }
-      
-      console.log('✅ Token verified successfully')
-      setUserData(data.user)
-      localStorage.setItem('currentUserId', data.user.id)
-      sessionStorage.setItem('onboarding_via_token', 'true')
-      
-      // Fetch investments separately
-      let investments = []
-      try {
-        const investmentsResponse = await apiClient.getInvestments()
-        if (investmentsResponse && investmentsResponse.investments) {
-          investments = investmentsResponse.investments
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('Failed to load investments:', err)
-        }
-      }
-      
-      // Check if bank account is needed (only for monthly payment investments)
-      const needsBank = investments.some(inv => 
-        inv.paymentFrequency === 'monthly' && 
-        inv.status !== 'withdrawn' &&
-        inv.paymentMethod !== 'wire-transfer'
-      )
-      setBankAccountRequired(needsBank)
-      
-      // Initialize bank assignments for investments that already have banks
-      const initialAssignments = {}
-      investments.forEach(inv => {
-        if (inv.bankAccountId) {
-          // Mark as having a bank (we'll show it as connected)
-          initialAssignments[inv.id] = { id: inv.bankAccountId }
-        }
-      })
-      setInvestmentBankAssignments(initialAssignments)
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ User auto-logged in:', data.user.email)
-        console.log('Bank account required:', needsBank)
-      }
-      
-      setCurrentStep(ONBOARDING_STEPS.PASSWORD)
-    } catch (err) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Error verifying token:', err)
-        console.error('Error details:', err.message, err.stack)
-      }
-      setError(`Connection error: ${err.message}. Please try again or contact support.`)
-    } finally {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🏁 Token verification completed')
-      }
-      setIsLoading(false)
-    }
-  }
 
   // Initialize on mount
   useEffect(() => {
     if (token) {
-      // Via email link - full onboarding with password
+      // Via email link - assume valid token and show password form
       if (process.env.NODE_ENV === 'development') {
         console.log('🔗 Onboarding via token link')
       }
-      verifyToken(token)
+      // We don't verify token upfront anymore as the endpoint doesn't exist
+      // Validation happens when submitting the password
       setRequiresPasswordChange(true)
     } else {
       // Direct access (testing) - skip password, just SSN + Bank
@@ -218,9 +131,9 @@ function OnboardingContent() {
       if (typeof window !== 'undefined') {
         const userId = localStorage.getItem('currentUserId')
         if (userId) {
+          // Only load user data for testing flow
           loadUserData(userId)
           setRequiresPasswordChange(false)
-          // Don't set step here - let loadUserData determine if bank is needed
         } else {
           setError('Please sign in first')
           setTimeout(() => router.push('/sign-in'), 2000)
@@ -247,32 +160,18 @@ function OnboardingContent() {
     setError(null)
     
     try {
-      // For imported users setting password for first time, use direct auth update
-      const response = await fetch(`/api/users/${userData.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          _action: 'setInitialPassword',
-          password: password
-        })
-      })
-
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to set password')
-      }
+      // Use resetPassword with the token directly
+      // This endpoint verifies the token and sets the password in one go
+      await apiClient.resetPassword(token, password)
       
       console.log('✅ Password set successfully')
       
-      // Check if bank needed
-      if (bankAccountRequired) {
-        setCurrentStep(ONBOARDING_STEPS.BANK)
-      } else {
-        await completeOnboarding()
-      }
+      // Since we don't have the user session, we must redirect to sign in
+      // We skip the bank setup step in this flow as it requires authentication
+      setCurrentStep(ONBOARDING_STEPS.COMPLETE)
     } catch (err) {
-      setError(err.message)
+      console.error('Password setup failed:', err)
+      setError(err.message || 'Failed to set password. The link may be invalid or expired.')
     } finally {
       setIsLoading(false)
     }
@@ -416,7 +315,7 @@ function OnboardingContent() {
 
 
   // Show loading state
-  if (isLoading && !userData) {
+  if (isLoading && !userData && !token) {
     return (
       <div className={styles.main}>
         <Header />
@@ -433,7 +332,7 @@ function OnboardingContent() {
   }
 
   // Show error state
-  if (error && !userData) {
+  if (error && !userData && !token) {
     return (
       <div className={styles.main}>
         <Header />
@@ -661,13 +560,15 @@ function OnboardingContent() {
             <div className={styles.complete}>
               <div className={styles.successIcon}>✓</div>
               <h2>Setup Complete!</h2>
-              <p>Your account is now fully set up. You can now access your investment dashboard.</p>
+              <p>Your password has been set successfully.</p>
+              <p style={{ marginTop: '8px', color: '#666' }}>Please sign in to access your dashboard and complete any remaining setup steps.</p>
               
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/sign-in')}
                 className={styles.submitButton}
+                style={{ marginTop: '24px' }}
               >
-                Go to Dashboard
+                Sign In
               </button>
             </div>
           )}
