@@ -36,7 +36,6 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
     setManualAccount('')
     setManualType('checking')
     setIsSubmittingManual(false)
-    setHasOpenedPlaid(false)
   }
 
   useEffect(() => {
@@ -135,10 +134,70 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
       if (process.env.NODE_ENV === 'development') {
         console.log('[BankConnectionModal] Sending to /api/plaid/link-success:', payload)
       }
-      const res = await apiClient.request('/api/plaid/link-success', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      })
+      
+      let res
+      try {
+        res = await apiClient.request('/api/plaid/link-success', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+      } catch (reqErr) {
+        // Check for "existing payment method" error to implement auto-replace
+        const responseData = reqErr?.responseData || {}
+        let existingId = responseData.existing_payment_method_id
+        
+        // Fallback: Check if error message contains the ID if responseData parsing failed or structure is different
+        // The log shows: Error: {'detail': '...', 'existing_payment_method_id': '...'}
+        // This suggests the error.message might be the stringified JSON.
+        if (!existingId && reqErr?.message && reqErr.message.includes('existing_payment_method_id')) {
+          try {
+            // Try to extract from message if it looks like a python dict/JSON
+            const match = reqErr.message.match(/'existing_payment_method_id':\s*'([^']+)'/) || 
+                          reqErr.message.match(/"existing_payment_method_id":\s*"([^"]+)"/)
+            if (match) existingId = match[1]
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+        
+        // Fallback for string detail
+        const errDetail = responseData.detail
+        if (!existingId && typeof errDetail === 'string') {
+           // Try to extract from string if needed
+           const match = errDetail.match(/'existing_payment_method_id':\s*'([^']+)'/) ||
+                         errDetail.match(/"existing_payment_method_id":\s*"([^"]+)"/)
+           if (match) existingId = match[1]
+        }
+
+        if (existingId) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[BankConnectionModal] Found existing payment method to replace:', existingId)
+          }
+          
+          // Auto-replace logic: Delete the old one, then retry
+          try {
+            await apiClient.deletePaymentMethod(existingId)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[BankConnectionModal] Deleted existing payment method. Retrying link...')
+            }
+            // Retry the original request
+            res = await apiClient.request('/api/plaid/link-success', {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            })
+          } catch (retryErr) {
+            // If retry fails, throw the original or new error
+            console.error('[BankConnectionModal] Retry failed:', retryErr)
+            throw retryErr
+          }
+        } else {
+          // If we have an error object but no existing ID to handle, we just rethrow to let the catch block below handle it.
+          // However, to avoid double logging in the catch block below (which logs 'Link success failed'),
+          // we can just let it bubble up.
+          throw reqErr
+        }
+      }
+
       if (process.env.NODE_ENV === 'development') {
         console.log('[BankConnectionModal] Link success response:', res)
       }
@@ -161,61 +220,26 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
     }
   }, [onAccountSelected, onClose])
 
-  const [hasOpenedPlaid, setHasOpenedPlaid] = useState(false)
-  const [plaidVisible, setPlaidVisible] = useState(true) // Track if we should hide our modal content
-
-  // Auto-launch timer
-  useEffect(() => {
-    if (isOpen && !showManualEntry && !hasOpenedPlaid) {
-      const timer = setTimeout(() => {
-        if (!hasOpenedPlaid) {
-          // setShowManualEntry(true)
-          setPlaidVisible(false)
-        }
-      }, 15000) // 15 seconds fallback
-      return () => clearTimeout(timer)
-    }
-  }, [isOpen, showManualEntry, hasOpenedPlaid])
-
-  const onPlaidExit = useCallback((error, metadata) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[BankConnectionModal] Plaid Link exit:', { error, metadata })
-    }
-    // User exited Plaid, show our modal again
-    setPlaidVisible(false)
-  }, [])
-
   const plaidConfig = useMemo(() => {
     const config = {
       token: linkToken,
       onSuccess: onPlaidSuccess,
-      onExit: onPlaidExit,
       env: process.env.NEXT_PUBLIC_PLAID_ENV || 'sandbox',
     }
     if (linkToken && process.env.NODE_ENV === 'development') {
       console.log('[BankConnectionModal] Creating Plaid config with token:', linkToken.substring(0, 20) + '...', 'env:', config.env)
     }
     return config
-  }, [linkToken, onPlaidSuccess, onPlaidExit])
+  }, [linkToken, onPlaidSuccess])
 
   const { open, ready } = usePlaidLink(plaidConfig)
 
-  // Auto-launch Plaid when ready
+  // Log when ready state changes
   useEffect(() => {
-    // Reset hasOpenedPlaid when modal is closed so it can open again next time
-    if (!isOpen) {
-      setHasOpenedPlaid(false)
-      setPlaidVisible(true)
-    } else if (ready && !hasOpenedPlaid && !showManualEntry) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[BankConnectionModal] Auto-launching Plaid Link...')
-      }
-      open()
-      setHasOpenedPlaid(true)
-      // Keep plaidVisible=true while it's launching/open so we don't show the background
-      // We rely on CSS to hide the content while Plaid is open
+    if (linkToken && process.env.NODE_ENV === 'development') {
+      console.log('[BankConnectionModal] Plaid Link ready state:', ready)
     }
-  }, [ready, hasOpenedPlaid, showManualEntry, isOpen, open])
+  }, [ready, linkToken])
 
   const handleManualSubmit = async (e) => {
     e.preventDefault()
@@ -264,30 +288,6 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {/* If Plaid is launching/open, show a cover over our modal content to reduce visual noise, 
-            but keep the modal mounted so Plaid stays active. */}
-        {hasOpenedPlaid && plaidVisible && (
-          <div className={styles.plaidCover}>
-            <div className={styles.spinner}></div>
-            <p style={{ marginTop: '16px', color: '#6b7280' }}>Secure connection active...</p>
-            <button 
-              onClick={() => open()}
-              style={{
-                marginTop: '12px',
-                background: 'transparent',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '13px',
-                cursor: 'pointer',
-                color: '#6b7280'
-              }}
-            >
-              Re-open Plaid
-            </button>
-          </div>
-        )}
-
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             {step > 1 && (
@@ -317,35 +317,56 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                   <span className={styles.securityText}>{errorMessage}</span>
                 </div>
               )}
-              
-              <div className={styles.loadingState}>
-                <div className={styles.spinner}></div>
-                <p>Connecting to secure banking system...</p>
-                <p className={styles.subtext}>Plaid Link should open automatically.</p>
-                
-                {/* Fallback launch button if auto-open is blocked or fails */}
-                {ready && (
-                  <button
-                    className={styles.submitButton}
-                    onClick={() => {
-                      open()
-                      setHasOpenedPlaid(true)
-                    }}
-                    style={{ marginTop: '16px' }}
-                  >
-                    Connect Bank Account
-                  </button>
+              <button
+                className={styles.submitButton}
+                onClick={() => {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[BankConnectionModal] Button clicked - linkToken:', !!linkToken, 'ready:', ready)
+                  }
+                  if (!linkToken) {
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('[BankConnectionModal] No link token, fetching...')
+                    }
+                    fetchLinkToken()
+                  } else if (ready) {
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('[BankConnectionModal] Opening Plaid Link...')
+                    }
+                    open()
+                  } else {
+                    if (process.env.NODE_ENV === 'development') {
+                      console.warn('[BankConnectionModal] Plaid Link not ready yet. Token:', !!linkToken, 'Ready:', ready)
+                    }
+                  }
+                }}
+                disabled={!linkToken || isFetchingToken || !ready}
+              >
+                {isFetchingToken ? (
+                  <>
+                    <span className={styles.spinner}></span>
+                    Fetching token...
+                  </>
+                ) : !linkToken ? (
+                  <>
+                    <span className={styles.spinner}></span>
+                    Initializing...
+                  </>
+                ) : !ready ? (
+                  <>
+                    <span className={styles.spinner}></span>
+                    Loading Plaid...
+                  </>
+                ) : (
+                  'Connect Bank Account'
                 )}
-              </div>
-
-              <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                <button
-                  className={styles.secondaryButton}
-                  onClick={() => setShowManualEntry(true)}
-                >
-                  Enter Bank Details Manually
-                </button>
-              </div>
+              </button>
+              <div style={{ textAlign: 'center', color: '#6b7280' }}>or</div>
+              <button
+                className={styles.secondaryButton}
+                onClick={() => setShowManualEntry(true)}
+              >
+                Enter Bank Details Manually
+              </button>
             </div>
           ) : (
             <form onSubmit={handleManualSubmit} className={styles.form}>
@@ -413,10 +434,7 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
               <button
                 type="button"
                 className={styles.submitButton}
-                onClick={() => {
-                  setShowManualEntry(false)
-                  setHasOpenedPlaid(false) // Reset so Plaid tries to open again
-                }}
+                onClick={() => setShowManualEntry(false)}
                 disabled={isSubmittingManual}
               >
                 Back

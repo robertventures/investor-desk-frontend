@@ -2,10 +2,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
+import { useUser } from '@/app/contexts/UserContext'
 import styles from './SignInForm.module.css'
 
 export default function SignInForm() {
   const router = useRouter()
+  const { refreshUser } = useUser()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -80,6 +82,18 @@ export default function SignInForm() {
       // Store minimal user info in localStorage for backward compatibility
       localStorage.setItem('currentUserId', user.id)
       localStorage.setItem('signupEmail', user.email)
+
+      // Refresh UserContext to ensure state is synced before navigation
+      if (refreshUser) {
+        try {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[SignInForm] Refreshing user context...')
+          }
+          await refreshUser()
+        } catch (refreshErr) {
+          console.warn('[SignInForm] Failed to refresh user context', refreshErr)
+        }
+      }
 
       // Redirect based on user type
       // IMPORTANT: Admin users should ALWAYS go to admin dashboard, regardless of verification status

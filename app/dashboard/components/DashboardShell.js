@@ -22,6 +22,7 @@ export default function DashboardShell({ children }) {
   const hasRedirectedRef = useRef(false)
   const hasRefreshedRef = useRef(false)
   const lastUserIdRef = useRef(userData?.id)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Reset refresh flag if user changes
   if (userData?.id !== lastUserIdRef.current) {
@@ -82,8 +83,13 @@ export default function DashboardShell({ children }) {
       // This handles the case where user just completed onboarding and navigated back here
       if (!hasRefreshedRef.current) {
         hasRefreshedRef.current = true
-        refreshUser()
+        setIsRefreshing(true)
+        refreshUser().finally(() => setIsRefreshing(false))
         return // Wait for refresh
+      }
+
+      if (isRefreshing) {
+        return
       }
 
       // Wait for investments to load
@@ -105,7 +111,7 @@ export default function DashboardShell({ children }) {
     }
 
     setReady(true)
-  }, [loading, router, userData, investments, refreshUser])
+  }, [loading, router, userData, investments, refreshUser, isRefreshing])
 
   // Lazy load investments and activity when the user data becomes available
   useEffect(() => {

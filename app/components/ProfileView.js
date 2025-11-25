@@ -107,6 +107,8 @@ export default function ProfileView() {
   const [isRemovingBank, setIsRemovingBank] = useState(null)
   // Track if user has any joint investments to decide rendering the joint section
   const [hasJointInvestments, setHasJointInvestments] = useState(false)
+  // Bank accounts state
+  const [bankAccounts, setBankAccounts] = useState([])
   // Single user address (horizontal form in Addresses tab)
   const [addressForm, setAddressForm] = useState({
     street1: '',
@@ -133,9 +135,41 @@ export default function ProfileView() {
     router.replace(query ? `/dashboard/profile?${query}` : '/dashboard/profile', { scroll: false })
   }
 
+  // Fetch bank accounts separately
+  const fetchBankAccounts = async () => {
+    try {
+      const res = await apiClient.listPaymentMethods('bank_ach')
+      if (res.payment_methods) {
+        setBankAccounts(res.payment_methods)
+      }
+    } catch (e) {
+      logger.error('Failed to fetch bank accounts', e)
+    }
+  }
+
   useEffect(() => {
+    let isMounted = true
     setMounted(true)
     loadUser()
+    
+    const fetchBanks = async () => {
+      try {
+        const res = await apiClient.listPaymentMethods('bank_ach')
+        if (isMounted && res.payment_methods) {
+          setBankAccounts(res.payment_methods)
+        }
+      } catch (e) {
+        if (isMounted) {
+          logger.error('Failed to fetch bank accounts', e)
+        }
+      }
+    }
+    
+    fetchBanks()
+    
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   // Handle tab from URL params
@@ -182,6 +216,25 @@ export default function ProfileView() {
       setActiveTab(resolved)
     }
   }, [searchParams, userData, router])
+
+  // Refresh banks when banking tab is active
+  useEffect(() => {
+    if (activeTab === 'banking') {
+      let isMounted = true
+      // Trigger a fresh fetch
+      apiClient.listPaymentMethods('bank_ach')
+        .then(res => {
+          if (isMounted && res.payment_methods) setBankAccounts(res.payment_methods)
+        })
+        .catch(e => {
+          if (isMounted) logger.error('Failed to fetch bank accounts', e)
+        })
+        
+      return () => {
+        isMounted = false
+      }
+    }
+  }, [activeTab])
 
   const loadUser = async () => {
     if (typeof window === 'undefined') return
@@ -749,21 +802,13 @@ export default function ProfileView() {
 
   const handleBankAccountAdded = async (bankAccount) => {
     try {
-      if (typeof window === 'undefined') return
+      // Refresh bank list directly
+      await fetchBankAccounts()
       
-      const userId = localStorage.getItem('currentUserId')
-      const data = await apiClient.updateUser(userId, {
-        _action: 'addBankAccount',
-        bankAccount
-      })
-      if (data.success) {
-        await loadUser()
-      } else {
-        alert(data.error || 'Failed to add bank account')
-      }
+      // Also reload user to keep other data in sync if needed, though banks are now separate
+      await loadUser()
     } catch (e) {
-      logger.error('Failed to add bank account', e)
-      alert('An error occurred. Please try again.')
+      logger.error('Failed to refresh after adding bank account', e)
     }
   }
 
@@ -778,6 +823,7 @@ export default function ProfileView() {
       })
       if (data.success) {
         await loadUser()
+        await fetchBankAccounts()
       } else {
         alert(data.error || 'Failed to set default bank')
       }
@@ -794,15 +840,25 @@ export default function ProfileView() {
     try {
       if (typeof window === 'undefined') return
       
-      const userId = localStorage.getItem('currentUserId')
-      const data = await apiClient.updateUser(userId, {
-        _action: 'removeBankAccount',
-        bankAccountId: bankId
-      })
-      if (data.success) {
-        await loadUser()
-      } else {
-        alert(data.error || 'Failed to remove bank account')
+      // Use deletePaymentMethod instead of updateUser action for cleaner API usage
+      // Try the direct API first
+      try {
+        await apiClient.deletePaymentMethod(bankId)
+        await fetchBankAccounts()
+        await loadUser() // Sync user profile too
+      } catch (apiErr) {
+        // Fallback to legacy updateUser approach if direct delete fails
+        const userId = localStorage.getItem('currentUserId')
+        const data = await apiClient.updateUser(userId, {
+          _action: 'removeBankAccount',
+          bankAccountId: bankId
+        })
+        if (data.success) {
+          await loadUser()
+          await fetchBankAccounts()
+        } else {
+          throw new Error(data.error || 'Failed to remove bank account')
+        }
       }
     } catch (e) {
       logger.error('Failed to remove bank account', e)
@@ -976,6 +1032,7 @@ export default function ProfileView() {
         {activeTab === 'banking' && (
           <BankingTab
             userData={userData}
+            bankAccounts={bankAccounts}
             showBankModal={showBankModal}
             setShowBankModal={setShowBankModal}
             handleBankAccountAdded={handleBankAccountAdded}
@@ -1721,8 +1778,12 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
 }
 
 
-function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank }) {
-  const availableBanks = Array.isArray(userData?.bankAccounts) ? userData.bankAccounts : []
+function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank }) {
+  // Prefer the independently fetched bankAccounts, fall back to userData.bankAccounts
+  const availableBanks = Array.isArray(bankAccounts) && bankAccounts.length > 0 
+    ? bankAccounts 
+    : (Array.isArray(userData?.bankAccounts) ? userData.bankAccounts : [])
+  
   const defaultBankId = userData?.banking?.defaultBankAccountId || null
 
   return (
@@ -1730,7 +1791,7 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Banking Information</h2>
         <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-          Manage your connected bank accounts. You can add multiple accounts and select which one to use for funding and payouts.
+          Manage your connected bank account. Only one account can be connected at a time. Connecting a new account will replace the existing one.
         </p>
 
         {availableBanks.length === 0 ? (
@@ -1751,9 +1812,6 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
                   key={bank.id}
                   bank={bank}
                   isDefault={bank.id === defaultBankId}
-                  onSetDefault={handleSetDefaultBank}
-                  onRemove={handleRemoveBank}
-                  isRemoving={isRemovingBank === bank.id}
                 />
               ))}
             </div>
@@ -1762,7 +1820,7 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
                 className={styles.addBankButton}
                 onClick={() => setShowBankModal(true)}
               >
-                Add Bank Account
+                Change Bank Account
               </button>
             </div>
           </>
@@ -1772,7 +1830,7 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
   )
 }
 
-function BankAccountCard({ bank, isDefault, onSetDefault, onRemove, isRemoving }) {
+function BankAccountCard({ bank, isDefault }) {
   const bankColor = bank.bank_color || bank.bankColor || '#117ACA'
   const bankLogo = bank.bank_logo || bank.bankLogo || '🏦'
   const bankName = bank.bank_name || bank.bankName || 'Bank'
@@ -1800,23 +1858,6 @@ function BankAccountCard({ bank, isDefault, onSetDefault, onRemove, isRemoving }
           Last used: {new Date(lastUsed).toLocaleDateString()}
         </div>
       )}
-      <div className={styles.bankCardActions}>
-        {!isDefault && (
-          <button
-            className={styles.bankCardButton}
-            onClick={() => onSetDefault(bank.id)}
-          >
-            Set as Default
-          </button>
-        )}
-        <button
-          className={`${styles.bankCardButton} ${styles.bankCardButtonDanger}`}
-          onClick={() => onRemove(bank.id, nickname)}
-          disabled={isRemoving || isDefault}
-        >
-          {isRemoving ? 'Removing...' : 'Remove'}
-        </button>
-      </div>
     </div>
   )
 }

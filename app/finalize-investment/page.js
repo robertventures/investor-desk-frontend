@@ -16,7 +16,6 @@
 "use client"
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
-import BankVerificationModal from '../components/BankVerificationModal'
 import { apiClient } from '../../lib/apiClient'
 import {
   DRAFT_PAYMENT_METHOD_KEY,
@@ -77,9 +76,9 @@ function ClientContent() {
   const [selectedFundingBankId, setSelectedFundingBankId] = useState('')
   const [selectedPayoutBankId, setSelectedPayoutBankId] = useState('')
   const [showAllBanksModal, setShowAllBanksModal] = useState(false)
-  const [showVerificationModal, setShowVerificationModal] = useState(false)
-  const [verificationPaymentMethodId, setVerificationPaymentMethodId] = useState('')
   const [bankSelectionMode, setBankSelectionMode] = useState('') // 'funding' or 'payout'
+  const [fundingInfo, setFundingInfo] = useState(null)
+  const [fundingError, setFundingError] = useState('')
   const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [agreementState, setAgreementState] = useState({
     status: 'idle',
@@ -90,7 +89,6 @@ function ClientContent() {
   const agreementStateRef = useRef(agreementState)
   const agreementBlobUrlRef = useRef(null)
   const agreementRequestIdRef = useRef(0)
-  const router = useRouter()
 
   useEffect(() => {
     agreementStateRef.current = agreementState
@@ -316,7 +314,7 @@ function ClientContent() {
         if (process.env.NODE_ENV === 'development') {
           console.log('[FinalizeInvestment] No userId found, redirecting to home')
         }
-        router.push('/')
+        window.location.href = '/'
         return
       }
       
@@ -382,7 +380,7 @@ function ClientContent() {
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
-          router.push('/dashboard')
+          window.location.href = '/dashboard'
           return
         }
         
@@ -393,7 +391,7 @@ function ClientContent() {
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
-          router.push('/dashboard')
+          window.location.href = '/dashboard'
           return
         }
         
@@ -429,7 +427,7 @@ function ClientContent() {
           localStorage.removeItem('signupEmail')
           localStorage.removeItem('currentInvestmentId')
         } catch {}
-        router.push('/')
+        window.location.href = '/'
         return
       }
     }
@@ -524,6 +522,30 @@ function ClientContent() {
     }
   }, [investment?.compliance])
 
+  // Poll funding status if a funding is in progress
+  useEffect(() => {
+    if (!fundingInfo?.id || !investment?.id) return
+    let isMounted = true
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiClient.getFundingStatus(investment.id, fundingInfo.id)
+        if (!isMounted) return
+        if (res?.funding) {
+          setFundingInfo(res.funding)
+          const s = res.funding.status
+          if (s === 'settled' || s === 'failed' || s === 'returned') {
+            clearInterval(interval)
+          }
+        }
+      } catch (e) {
+        // keep polling silently
+      }
+    }, 3000)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [fundingInfo?.id, investment?.id])
 
   // Load banking details from user account
   useEffect(() => {
@@ -644,6 +666,14 @@ function ClientContent() {
     const expiresDate = new Date(agreementData.expires_at)
     return Number.isNaN(expiresDate.getTime()) ? '' : expiresDate.toLocaleString()
   })()
+
+  const generateIdempotencyKey = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
+  }
 
   return (
     <div className={styles.sections}>
@@ -846,48 +876,10 @@ function ClientContent() {
                                   {bank.bankLogo || '🏦'}
                                 </span>
                               <div className={styles.savedBankDetails}>
-                                <div className={styles.savedBankName}>
-                                  {bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}
-                                  {bank.status === 'verification_pending' && (
-                                    <span className={styles.verificationBadge} style={{ 
-                                      marginLeft: '8px', 
-                                      fontSize: '10px', 
-                                      backgroundColor: '#fef3c7', 
-                                      color: '#d97706', 
-                                      padding: '2px 6px', 
-                                      borderRadius: '4px',
-                                      fontWeight: '600'
-                                    }}>
-                                      Needs Verification
-                                    </span>
-                                  )}
-                                </div>
+                                <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
                                 <div className={styles.savedBankAccount}>
                                   {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
                                 </div>
-                                {bank.status === 'verification_pending' && (
-                                  <button
-                                    className={styles.verifyButton}
-                                    style={{
-                                      marginTop: '8px',
-                                      fontSize: '12px',
-                                      padding: '4px 12px',
-                                      backgroundColor: '#fff7ed',
-                                      color: '#c2410c',
-                                      border: '1px solid #fed7aa',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      fontWeight: '500'
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setVerificationPaymentMethodId(bank.id)
-                                      setShowVerificationModal(true)
-                                    }}
-                                  >
-                                    Verify Account
-                                  </button>
-                                )}
                               </div>
                               </div>
                               {selectedFundingBankId === bank.id && (
@@ -1090,6 +1082,36 @@ function ClientContent() {
       </Section>
 
       <div className={styles.actions}>
+        {fundingInfo && (
+          <div className={styles.warning} style={{ marginBottom: '12px', backgroundColor: '#e0f2fe', borderColor: '#0ea5e9' }}>
+            <div className={styles.warningTitle} style={{ color: '#0369a1' }}>
+              💳 ACH Funding Initiated: {fundingInfo.status?.toUpperCase() || 'PENDING'}
+            </div>
+            <div style={{ fontSize: '13px', color: '#075985', marginTop: '8px', lineHeight: '1.6' }}>
+              {fundingInfo.id && (
+                <div>Funding ID: <code style={{ backgroundColor: 'rgba(14, 165, 233, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>{fundingInfo.id}</code></div>
+              )}
+              {fundingInfo.amount_cents && (
+                <div>Amount: ${(fundingInfo.amount_cents / 100).toFixed(2)}</div>
+              )}
+              {fundingInfo.expected_settlement_date && (
+                <div>Expected Settlement: {new Date(fundingInfo.expected_settlement_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              )}
+              {fundingInfo.achq_transaction_id && (
+                <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.8 }}>
+                  Transaction ID: {fundingInfo.achq_transaction_id}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {fundingError && (
+          <div className={styles.submitError} style={{ marginBottom: '12px' }}>
+            <p className={styles.submitErrorText} style={{ fontSize: '13px', lineHeight: '1.6' }}>
+              ⚠️ {fundingError}
+            </p>
+          </div>
+        )}
         <p style={{ 
           fontSize: '14px', 
           color: '#6b7280', 
@@ -1204,21 +1226,9 @@ function ClientContent() {
               if (process.env.NODE_ENV === 'development') {
                 console.log('Updating investment payment method...')
               }
-              
-              // For ACH, we might need to associate the payment method ID with the investment
-              // before submitting, to satisfy backend validation.
-              const updatePayload = {
+              const investmentUpdateData = await apiClient.updateInvestment(userId, investmentId, {
                 paymentMethod
-              }
-              
-              if (paymentMethod === 'ach' && selectedFundingBankId) {
-                // Attempt to pass payment_method_id in case backend supports/requires it here
-                // We use snake_case as that's typical for the backend API, and also camelCase just in case
-                updatePayload.payment_method_id = selectedFundingBankId
-                updatePayload.paymentMethodId = selectedFundingBankId
-              }
-
-              const investmentUpdateData = await apiClient.updateInvestment(userId, investmentId, updatePayload)
+              })
 
               if (process.env.NODE_ENV === 'development') {
                 console.log('Investment update API response:', investmentUpdateData)
@@ -1276,27 +1286,11 @@ function ClientContent() {
                 }
               }
               
-              if (paymentMethod === 'ach' && selectedFundingBankId) {
-                const bankToUse = availableBanks.find(b => b.id === selectedFundingBankId)
-                if (bankToUse && bankToUse.status === 'verification_pending') {
-                  setSubmitError('Please verify your bank account (click "Verify Account" above) before submitting.')
-                  setIsSaving(false)
-                  return
-                }
-              }
-              
               // Submit the investment to move it from DRAFT to PENDING status
               if (process.env.NODE_ENV === 'development') {
                 console.log('Submitting investment...')
               }
-              const submitPayload = {}
-              if (paymentMethod === 'ach' && selectedFundingBankId) {
-                const numericPaymentMethodId = Number(selectedFundingBankId)
-                submitPayload.payment_method_id = Number.isNaN(numericPaymentMethodId)
-                  ? selectedFundingBankId
-                  : numericPaymentMethodId
-              }
-              const submitResponse = await apiClient.submitInvestment(investmentId, submitPayload)
+              const submitResponse = await apiClient.submitInvestment(investmentId)
               if (process.env.NODE_ENV === 'development') {
                 console.log('Investment submit API response:', submitResponse)
               }
@@ -1310,6 +1304,60 @@ function ClientContent() {
               }
               if (process.env.NODE_ENV === 'development') {
                 console.log('Investment submitted successfully! Status changed to PENDING.')
+              }
+
+              // Initiate ACH funding if bank-transfer selected and amount <= $100,000
+              if (paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000) {
+                try {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[FinalizeInvestment] Initiating ACH funding...', {
+                      investmentId,
+                      paymentMethodId: selectedFundingBankId,
+                      amount: investment.amount,
+                      paymentMethod
+                    })
+                  }
+                  
+                  const amountCents = Math.round((investment.amount || 0) * 100)
+                  const idempotencyKey = generateIdempotencyKey()
+                  
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[FinalizeInvestment] Calling fundInvestment API:', {
+                      amountCents,
+                      idempotencyKey
+                    })
+                  }
+                  
+                  const fundRes = await apiClient.fundInvestment(
+                    investmentId,
+                    selectedFundingBankId,
+                    amountCents,
+                    idempotencyKey,
+                    `Investment ${investmentId}`
+                  )
+                  
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[FinalizeInvestment] Funding initiated successfully:', fundRes)
+                  }
+                  setFundingInfo(fundRes?.funding || null)
+                  setFundingError('')
+                } catch (fe) {
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error('[FinalizeInvestment] Funding initiation failed:', fe)
+                  }
+                  const errorMessage = fe?.message || 'Failed to initiate funding'
+                  
+                  // Special handling for investment status errors
+                  if (errorMessage.includes('ACTIVE') || errorMessage.includes('PENDING')) {
+                    setFundingError(
+                      'The investment was submitted successfully, but ACH funding could not be initiated due to investment status. ' +
+                      'This is a backend configuration issue - the investment should remain in PENDING status until funding is processed. ' +
+                      'Please contact your backend team to ensure investments stay PENDING after submission until funding settles.'
+                    )
+                  } else {
+                    setFundingError(`${errorMessage}. The investment has been submitted but funding was not initiated. Please contact support.`)
+                  }
+                }
               }
               
               // Store finalization data in localStorage for future reference
@@ -1347,15 +1395,18 @@ function ClientContent() {
                 }
               }
               
-              // Small delay to ensure UI doesn't flash before redirect
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Investment submitted successfully, redirecting to dashboard...')
+              // If we started funding, remain on page for polling in next step; otherwise redirect
+              if (!(paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000)) {
+                // Small delay to ensure UI doesn't flash before redirect
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Investment submitted successfully, redirecting to dashboard...')
+                }
+                await new Promise(resolve => setTimeout(resolve, 500))
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Redirecting to dashboard...')
+                }
+                window.location.href = '/dashboard'
               }
-              await new Promise(resolve => setTimeout(resolve, 500))
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Redirecting to dashboard...')
-              }
-              router.push('/dashboard')
             } catch (e) {
               if (process.env.NODE_ENV === 'development') {
                 console.error('Failed to save finalization data', e)
@@ -1385,70 +1436,50 @@ function ClientContent() {
         )}
       </div>
 
-      {/* Bank Verification Modal */}
-      {showVerificationModal && (
-        <BankVerificationModal
-          isOpen={showVerificationModal}
-          onClose={() => setShowVerificationModal(false)}
-          paymentMethodId={verificationPaymentMethodId}
-          onVerificationSuccess={async () => {
-            try {
-              const pmRes = await apiClient.listPaymentMethods('bank_ach')
-              const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
-              setAvailableBanks(pms)
-            } catch (e) {
-              console.error('Failed to refresh banks after verification:', e)
-            }
-          }}
-        />
-      )}
-
       {/* Bank Connection Modal */}
-      {showBankModal && (
-        <BankConnectionModal
-          isOpen={showBankModal}
-          onClose={() => !isSavingBank && setShowBankModal(false)}
-          onAccountSelected={async (method) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[FinalizeInvestment] Bank account selected from Plaid:', method)
-            }
-            
-            // Ensure the payment method has the expected structure
-            const paymentMethod = {
-              id: method.id,
-              type: method.type || 'bank_ach',
-              display_name: method.display_name || method.bank_name || 'Bank Account',
-              bank_name: method.bank_name || method.display_name || 'Bank',
-              account_type: method.account_type || 'checking',
-              last4: method.last4 || '****',
-              status: method.status || 'ready',
-              ...method
-            }
-            
-            console.log('[FinalizeInvestment] Normalized payment method:', paymentMethod)
-            
-            setSelectedBankId(paymentMethod.id)
-            setSelectedFundingBankId(paymentMethod.id)
-            setSelectedPayoutBankId(paymentMethod.id)
-            setIsSavingBank(true)
-            
-            try {
-              console.log('[FinalizeInvestment] Refreshing payment methods list...')
-              const pmRes = await apiClient.listPaymentMethods('bank_ach')
-              const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
-              console.log('[FinalizeInvestment] Available payment methods:', pms.length)
-              setAvailableBanks(pms)
-            } catch (e) {
-              console.error('[FinalizeInvestment] Failed to refresh payment methods:', e)
-              // Add the new bank to the list manually if refresh failed
-              setAvailableBanks(prev => [...prev, paymentMethod])
-            } finally {
-              setIsSavingBank(false)
-              setShowBankModal(false)
-            }
-          }}
-        />
-      )}
+      <BankConnectionModal
+        isOpen={showBankModal}
+        onClose={() => !isSavingBank && setShowBankModal(false)}
+        onAccountSelected={async (method) => {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[FinalizeInvestment] Bank account selected from Plaid:', method)
+          }
+          
+          // Ensure the payment method has the expected structure
+          const paymentMethod = {
+            id: method.id,
+            type: method.type || 'bank_ach',
+            display_name: method.display_name || method.bank_name || 'Bank Account',
+            bank_name: method.bank_name || method.display_name || 'Bank',
+            account_type: method.account_type || 'checking',
+            last4: method.last4 || '****',
+            status: method.status || 'ready',
+            ...method
+          }
+          
+          console.log('[FinalizeInvestment] Normalized payment method:', paymentMethod)
+          
+          setSelectedBankId(paymentMethod.id)
+          setSelectedFundingBankId(paymentMethod.id)
+          setSelectedPayoutBankId(paymentMethod.id)
+          setIsSavingBank(true)
+          
+          try {
+            console.log('[FinalizeInvestment] Refreshing payment methods list...')
+            const pmRes = await apiClient.listPaymentMethods('bank_ach')
+            const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
+            console.log('[FinalizeInvestment] Available payment methods:', pms.length)
+            setAvailableBanks(pms)
+          } catch (e) {
+            console.error('[FinalizeInvestment] Failed to refresh payment methods:', e)
+            // Add the new bank to the list manually if refresh failed
+            setAvailableBanks(prev => [...prev, paymentMethod])
+          } finally {
+            setIsSavingBank(false)
+            setShowBankModal(false)
+          }
+        }}
+      />
       
       {/* View All Banks Modal */}
       {showAllBanksModal && (
@@ -1488,48 +1519,10 @@ function ClientContent() {
                           {bank.bankLogo || '🏦'}
                         </span>
                         <div className={styles.modalBankDetails}>
-                          <div className={styles.modalBankName}>
-                            {bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}
-                            {bank.status === 'verification_pending' && (
-                              <span className={styles.verificationBadge} style={{ 
-                                marginLeft: '8px', 
-                                fontSize: '10px', 
-                                backgroundColor: '#fef3c7', 
-                                color: '#d97706', 
-                                padding: '2px 6px', 
-                                borderRadius: '4px',
-                                fontWeight: '600'
-                              }}>
-                                Needs Verification
-                              </span>
-                            )}
-                          </div>
+                          <div className={styles.modalBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
                           <div className={styles.modalBankAccount}>
                             {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
                           </div>
-                          {bank.status === 'verification_pending' && (
-                            <button
-                              className={styles.verifyButton}
-                              style={{
-                                marginTop: '8px',
-                                fontSize: '12px',
-                                padding: '4px 12px',
-                                backgroundColor: '#fff7ed',
-                                color: '#c2410c',
-                                border: '1px solid #fed7aa',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: '500'
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setVerificationPaymentMethodId(bank.id)
-                                setShowVerificationModal(true)
-                              }}
-                            >
-                              Verify Account
-                            </button>
-                          )}
                         </div>
                       </div>
                       {isSelected && (
@@ -1652,12 +1645,27 @@ function ClientContent() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding:</div>
-                <div style={{ color: '#facc15', fontSize: '11px' }}>
-                  Backend now handles ACH funding automatically when an investment is submitted. No manual fundInvestment call is made from the UI.
+              {fundingInfo && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding Status:</div>
+                  <div style={{ 
+                    padding: '8px', 
+                    background: '#374151', 
+                    borderRadius: '4px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all'
+                  }}>
+                    {JSON.stringify(fundingInfo, null, 2)}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {fundingError && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding Error:</div>
+                  <div style={{ color: '#ef4444' }}>{fundingError}</div>
+                </div>
+              )}
 
               <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #374151' }}>
                 <button
@@ -1666,6 +1674,8 @@ function ClientContent() {
                     console.log('Environment:', process.env.NEXT_PUBLIC_PLAID_ENV)
                     console.log('Available Banks:', availableBanks)
                     console.log('Selected Funding Bank ID:', selectedFundingBankId)
+                    console.log('Funding Info:', fundingInfo)
+                    console.log('Funding Error:', fundingError)
                     console.log('Investment:', investment)
                     console.log('=======================')
                   }}
