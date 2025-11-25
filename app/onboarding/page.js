@@ -555,21 +555,38 @@ function OnboardingContent() {
             </div>
           )}
 
-          {/* Step 3: Complete */}
+              {/* Step 3: Complete */}
           {currentStep === ONBOARDING_STEPS.COMPLETE && (
             <div className={styles.complete}>
               <div className={styles.successIcon}>✓</div>
               <h2>Setup Complete!</h2>
-              <p>Your password has been set successfully.</p>
-              <p style={{ marginTop: '8px', color: '#666' }}>Please sign in to access your dashboard and complete any remaining setup steps.</p>
-              
-              <button
-                onClick={() => router.push('/sign-in')}
-                className={styles.submitButton}
-                style={{ marginTop: '24px' }}
-              >
-                Sign In
-              </button>
+              {token ? (
+                <>
+                  <p>Your password has been set successfully.</p>
+                  <p style={{ marginTop: '8px', color: '#666' }}>Please sign in to access your dashboard.</p>
+                  
+                  <button
+                    onClick={() => router.push('/sign-in')}
+                    className={styles.submitButton}
+                    style={{ marginTop: '24px' }}
+                  >
+                    Sign In
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>Your account setup is complete.</p>
+                  <p style={{ marginTop: '8px', color: '#666' }}>You can now access your dashboard.</p>
+                  
+                  <button
+                    onClick={() => router.push('/dashboard')}
+                    className={styles.submitButton}
+                    style={{ marginTop: '24px' }}
+                  >
+                    Go to Dashboard
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

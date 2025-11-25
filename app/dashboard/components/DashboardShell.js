@@ -17,9 +17,17 @@ export default function DashboardShell({ children }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { userData, loading, loadInvestments, loadActivity, investments } = useUser()
+  const { userData, loading, loadInvestments, loadActivity, investments, refreshUser } = useUser()
   const [ready, setReady] = useState(false)
   const hasRedirectedRef = useRef(false)
+  const hasRefreshedRef = useRef(false)
+  const lastUserIdRef = useRef(userData?.id)
+
+  // Reset refresh flag if user changes
+  if (userData?.id !== lastUserIdRef.current) {
+    hasRefreshedRef.current = false
+    lastUserIdRef.current = userData?.id
+  }
 
   // Backward compatibility for legacy query parameters (?section=profile&tab=banking)
   useEffect(() => {
@@ -70,6 +78,14 @@ export default function DashboardShell({ children }) {
 
     // Check if user needs to complete onboarding (bank connection)
     if (userData.needsOnboarding) {
+      // Force a refresh of user data once to ensure we have the latest state
+      // This handles the case where user just completed onboarding and navigated back here
+      if (!hasRefreshedRef.current) {
+        hasRefreshedRef.current = true
+        refreshUser()
+        return // Wait for refresh
+      }
+
       // Wait for investments to load
       if (!investments) {
         return
@@ -87,7 +103,7 @@ export default function DashboardShell({ children }) {
     }
 
     setReady(true)
-  }, [loading, router, userData, investments])
+  }, [loading, router, userData, investments, refreshUser])
 
   // Lazy load investments and activity when the user data becomes available
   useEffect(() => {
