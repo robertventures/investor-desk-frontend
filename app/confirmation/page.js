@@ -60,13 +60,15 @@ export default function ConfirmationPage() {
   }, [router])
 
   const handleInputChange = (index, value) => {
-    // Only allow numbers
-    if (value && !/^\d$/.test(value)) {
+    const upperValue = value.toUpperCase()
+
+    // Only allow letters and numbers (stored as uppercase)
+    if (upperValue && !/^[A-Z0-9]$/.test(upperValue)) {
       return
     }
 
     const newCode = [...code]
-    newCode[index] = value
+    newCode[index] = upperValue
     setCode(newCode)
     setError('')
 
@@ -85,10 +87,10 @@ export default function ConfirmationPage() {
 
   const handlePaste = (e) => {
     e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').trim()
+    const pastedData = e.clipboardData.getData('text').trim().toUpperCase()
     
-    // Only process if it's 6 digits
-    if (/^\d{6}$/.test(pastedData)) {
+    // Only process if it's 6 characters (alphanumeric)
+    if (/^[A-Z0-9]{6}$/.test(pastedData)) {
       const newCode = pastedData.split('')
       setCode(newCode)
       setError('')
@@ -113,7 +115,7 @@ export default function ConfirmationPage() {
     const enteredCode = code.join('')
     
     if (enteredCode.length !== 6) {
-      setError('Please enter all 6 digits')
+      setError('Please enter all 6 characters')
       return
     }
 
@@ -245,12 +247,9 @@ export default function ConfirmationPage() {
           <h1 className={styles.title}>Let's Verify It's You</h1>
           
           <p className={styles.description}>
-            Please enter the 6 digit verification code sent to
+            Please enter the 6 character verification code sent to
           </p>
           <p className={styles.email}>{email}</p>
-          <p className={styles.hint}>
-            Use <strong>000000</strong> for testing purposes
-          </p>
 
           <form onSubmit={handleSubmit}>
             <div className={styles.codeInputContainer}>
@@ -261,7 +260,7 @@ export default function ConfirmationPage() {
                     key={index}
                     ref={el => inputRefs.current[index] = el}
                     type="text"
-                    inputMode="numeric"
+                    inputMode="text"
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleInputChange(index, e.target.value)}
