@@ -67,37 +67,6 @@
   text-align: center;
 }
 
-.pasteButton {
-  display: block;
-  margin: 0 auto 16px auto;
-  padding: 8px 16px;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.pasteButton:hover:not(:disabled) {
-  background: #e5e7eb;
-  border-color: #d1d5db;
-  color: #1f2937;
-}
-
-.pasteButton:active:not(:disabled) {
-  background: #d1d5db;
-  transform: translateY(1px);
-}
-
-.pasteButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .codeInputs {
   display: flex;
   gap: 12px;
@@ -228,11 +197,6 @@
 
   .title {
     font-size: 20px;
-  }
-
-  .pasteButton {
-    padding: 10px 20px;
-    font-size: 14px;
   }
 }
 
