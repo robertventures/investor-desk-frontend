@@ -17,7 +17,7 @@ export default function DashboardShell({ children }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { userData, loading, loadInvestments, loadActivity } = useUser()
+  const { userData, loading, loadInvestments, loadActivity, investments } = useUser()
   const [ready, setReady] = useState(false)
   const hasRedirectedRef = useRef(false)
 
@@ -68,8 +68,26 @@ export default function DashboardShell({ children }) {
       return
     }
 
+    // Check if user needs to complete onboarding (bank connection)
+    if (userData.needsOnboarding) {
+      // Wait for investments to load
+      if (!investments) {
+        return
+      }
+
+      // Check for monthly payment investments
+      const hasMonthlyInvestment = investments.some(inv => 
+        inv.paymentFrequency === 'monthly'
+      )
+
+      if (hasMonthlyInvestment) {
+        router.push('/onboarding')
+        return
+      }
+    }
+
     setReady(true)
-  }, [loading, router, userData])
+  }, [loading, router, userData, investments])
 
   // Lazy load investments and activity when the user data becomes available
   useEffect(() => {
