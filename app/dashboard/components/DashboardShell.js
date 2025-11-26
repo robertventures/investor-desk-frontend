@@ -128,7 +128,8 @@ export default function DashboardShell({ children }) {
     }
     // Use userData.id to prevent infinite loops
     // If we used userData, loading investments would update userData, triggering this again
-  }, [loading, userData?.id, loadInvestments, loadActivity])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, userData?.id])
 
   if (!ready || loading) {
     return (

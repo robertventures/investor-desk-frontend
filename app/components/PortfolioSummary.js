@@ -54,6 +54,8 @@ export default function PortfolioSummary() {
         }
       }
       
+      // Calculate currentAppTime in a way consistent between server and client for initial render if possible
+      // For hydration safety, rely on mounted state for date-dependent rendering
       const currentAppTime = (timeData?.success && timeData.appTime) ? timeData.appTime : new Date().toISOString()
       setAppTime(currentAppTime)
       
@@ -429,7 +431,8 @@ export default function PortfolioSummary() {
                       {labelIndices.map((idx) => {
                         const p = points[idx]
                         const d = chartSeries[idx].date
-                        const label = new Date(d).toLocaleString('en-US', { month: 'short' })
+                        // Only render date string on client to avoid hydration mismatch
+                        const label = mounted ? new Date(d).toLocaleString('en-US', { month: 'short' }) : ''
                         return (
                           <text key={`xlabel-${idx}`} x={p.x} y={height - padding + 14} textAnchor="middle" fill="#6b7280" fontSize="10">
                             {label}

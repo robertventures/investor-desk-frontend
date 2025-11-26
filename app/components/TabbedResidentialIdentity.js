@@ -2039,7 +2039,7 @@ export default function TabbedResidentialIdentity({ onCompleted, onReviewSummary
           )}
 
           <p className={styles.acknowledgement} style={{ marginTop: '12px' }}>
-            By clicking "Continue" I{nameSegment} confirm that I have informed my Joint Holder of the terms of the Subscription Agreement, including the investment risks and amount, and my Joint Holder consents to and authorizes me to enter into it on our behalf with respect to any such interests, waiving any challenge based on lack of joint holder consent under the laws of {governingStateDisplay}.
+            By clicking &quot;Continue&quot; I{nameSegment} confirm that I have informed my Joint Holder of the terms of the Subscription Agreement, including the investment risks and amount, and my Joint Holder consents to and authorizes me to enter into it on our behalf with respect to any such interests, waiving any challenge based on lack of joint holder consent under the laws of {governingStateDisplay}.
           </p>
         </>
       )}

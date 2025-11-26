@@ -140,6 +140,7 @@ function OnboardingContent() {
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   // Handle password setup

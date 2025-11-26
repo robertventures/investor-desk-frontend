@@ -220,7 +220,7 @@ export default function AccountCreationForm() {
           {submitting ? 'Creating account...' : 'Create Account'}
         </button>
 
-        <p className={styles.termsText}>By submitting 'Create Account', I have read and agree to the <a href="/terms-of-use" className={styles.linkButton}>Terms of Use</a> and acknowledge the <a href="/privacy-policy" className={styles.linkButton}>Privacy Policy</a>.</p>
+        <p className={styles.termsText}>By submitting &apos;Create Account&apos;, I have read and agree to the <a href="/terms-of-use" className={styles.linkButton}>Terms of Use</a> and acknowledge the <a href="/privacy-policy" className={styles.linkButton}>Privacy Policy</a>.</p>
       </div>
 
       <div className={styles.footer}>

@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
 import { fetchWithCsrf } from '../../../../lib/csrfClient'
+import logger from '../../../../lib/logger'
 import AdminHeader from '../../../components/AdminHeader'
 import InvestmentAdminHeader from '../../components/InvestmentAdminHeader'
 import { calculateInvestmentValue, formatCurrency, formatDate } from '../../../../lib/investmentCalculations.js'
@@ -39,9 +40,7 @@ function AdminInvestmentDetailsContent() {
     if (typeof window === 'undefined') return
     if (userLoading) return
     if (!userData || !userData.isAdmin) {
-      console.log('[AdminInvestmentDetails] Not an admin, redirecting to dashboard')
-      console.log('[AdminInvestmentDetails] userData:', userData)
-      console.log('[AdminInvestmentDetails] userLoading:', userLoading)
+      logger.warn('[AdminInvestmentDetails] Not an admin, redirecting to dashboard', { userData, userLoading })
       router.push('/dashboard')
       return
     }
@@ -50,8 +49,8 @@ function AdminInvestmentDetailsContent() {
     
     const init = async () => {
       try {
-        console.log('[AdminInvestmentDetails] Starting initialization, investmentId:', investmentId)
-        console.log('[AdminInvestmentDetails] User is admin, proceeding...')
+        logger.info('[AdminInvestmentDetails] Starting initialization, investmentId:', investmentId)
+        
         setCurrentUser(userData)
 
         // Load users and investments separately (they come from different endpoints)
@@ -61,20 +60,19 @@ function AdminInvestmentDetailsContent() {
         ])
         
         if (!usersData || !usersData.success) {
-          console.error('[AdminInvestmentDetails] Failed to load users data')
+          logger.error('[AdminInvestmentDetails] Failed to load users data')
           alert('Failed to load users data')
           return
         }
 
         if (!investmentsData || !investmentsData.success) {
-          console.error('[AdminInvestmentDetails] Failed to load investments data')
+          logger.error('[AdminInvestmentDetails] Failed to load investments data')
           alert('Failed to load investments data')
           return
         }
 
-        console.log('[AdminInvestmentDetails] Loaded users:', usersData.users?.length, 'users')
-        console.log('[AdminInvestmentDetails] Loaded investments:', investmentsData.investments?.length, 'investments')
-        console.log('[AdminInvestmentDetails] Looking for investment ID:', investmentId)
+        logger.debug('[AdminInvestmentDetails] Loaded data:', { usersCount: usersData.users?.length, investmentsCount: investmentsData.investments?.length })
+
 
         // Build investments by user map
         const investmentsByUser = {}
@@ -93,7 +91,7 @@ function AdminInvestmentDetailsContent() {
           userId: inv.userId,
           invIdType: typeof inv.id
         }))
-        console.log('[AdminInvestmentDetails] All investment IDs in system:', allInvestmentIds)
+        logger.debug('[AdminInvestmentDetails] All investment IDs in system:', allInvestmentIds)
 
         // Find the investment directly from the investments list
         let foundInvestment = investmentsList.find(inv => {
@@ -116,18 +114,14 @@ function AdminInvestmentDetailsContent() {
         })
 
         if (!foundInvestment) {
-          console.error('[AdminInvestmentDetails] Investment not found!')
-          console.error('[AdminInvestmentDetails] Searched for:', investmentId)
-          console.error('[AdminInvestmentDetails] Available investments:', allInvestmentIds)
+          logger.error('[AdminInvestmentDetails] Investment not found!', { investmentId, available: allInvestmentIds })
           alert(`Investment not found. Looking for ID: ${investmentId}`)
           router.push('/admin?tab=transactions')
           return
         }
 
-        console.log('[AdminInvestmentDetails] ✓ Found investment:', foundInvestment.id)
-        console.log('[AdminInvestmentDetails] Investment object:', foundInvestment)
-        console.log('[AdminInvestmentDetails] Investment userId:', foundInvestment.userId)
-        console.log('[AdminInvestmentDetails] Available user IDs:', usersData.users.map(u => ({ id: u.id, email: u.email })))
+        logger.info('[AdminInvestmentDetails] ✓ Found investment:', foundInvestment.id)
+
 
         // Find the user who owns this investment
         // The investment might have userId as a string or number, or might not have it at all
@@ -159,7 +153,7 @@ function AdminInvestmentDetailsContent() {
           })
           
           if (foundUser) {
-            console.log('[AdminInvestmentDetails] Found user via direct userId match')
+            logger.debug('[AdminInvestmentDetails] Found user via direct userId match')
           }
         }
         
@@ -174,7 +168,7 @@ function AdminInvestmentDetailsContent() {
                        uId.replace(/\D/g, '') === searchId.replace(/\D/g, '')
               })
               if (foundUser) {
-                console.log('[AdminInvestmentDetails] Found user via investmentsByUser mapping')
+                logger.debug('[AdminInvestmentDetails] Found user via investmentsByUser mapping')
                 break
               }
             }
@@ -182,16 +176,13 @@ function AdminInvestmentDetailsContent() {
         }
         
         if (!foundUser) {
-          console.error('[AdminInvestmentDetails] User not found for investment!')
-          console.error('[AdminInvestmentDetails] Investment userId:', foundInvestment.userId)
-          console.error('[AdminInvestmentDetails] Tried matching with users:', usersData.users.map(u => u.id))
+          logger.error('[AdminInvestmentDetails] User not found for investment!', { investmentUserId: foundInvestment.userId })
           alert('User not found for this investment')
           router.push('/admin?tab=transactions')
           return
         }
 
-        console.log('[AdminInvestmentDetails] ✓ Found user:', foundUser.id, foundUser.email)
-        console.log('[AdminInvestmentDetails] Successfully loaded investment data')
+        logger.info('[AdminInvestmentDetails] ✓ Found user:', { id: foundUser.id, email: foundUser.email })
 
         setInvestment(foundInvestment)
         setUser(foundUser)
@@ -204,14 +195,13 @@ function AdminInvestmentDetailsContent() {
           paymentMethod: foundInvestment.paymentMethod || 'ach'
         })
 
-        // Calculate current app time using offset for withdrawal calculations
         if (usersData.timeOffset !== undefined && usersData.timeOffset !== null) {
           const realTime = new Date()
           const currentAppTime = new Date(realTime.getTime() + usersData.timeOffset).toISOString()
           setAppTime(currentAppTime)
         }
       } catch (e) {
-        console.error('Failed to load investment', e)
+        logger.error('Failed to load investment', e)
       } finally {
         setIsLoading(false)
       }
@@ -346,7 +336,7 @@ function AdminInvestmentDetailsContent() {
       }
       setIsEditing(false)
     } catch (e) {
-      console.error('Failed to save', e)
+      logger.error('Failed to save', e)
       alert('An error occurred. Please try again.')
     } finally {
       setIsSaving(false)
@@ -399,7 +389,7 @@ function AdminInvestmentDetailsContent() {
       // Reload the page to show updated data
       window.location.reload()
     } catch (e) {
-      console.error('Failed to terminate investment', e)
+      logger.error('Failed to terminate investment', e)
       alert('An error occurred. Please try again.')
     } finally {
       setIsTerminating(false)
@@ -592,7 +582,7 @@ function AdminInvestmentDetailsContent() {
                 </select>
                 {isEditing && user?.accountType && form.accountType !== user.accountType && (
                   <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>
-                    ⚠️ User's account type is {user.accountType}
+                    ⚠️ User&apos;s account type is {user.accountType}
                   </div>
                 )}
               </div>
@@ -908,7 +898,7 @@ function AdminInvestmentDetailsContent() {
                     const isLockupExpired = !lockupEnd || now >= lockupEnd
 
                     return isLockupExpired ? (
-                      <div style={{ 
+                      <div style={{  
                         padding: '12px', 
                         background: '#dcfce7', 
                         border: '1px solid #86efac',

@@ -3,91 +3,39 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import logger from '@/lib/logger'
+import { 
+  formatName, 
+  formatEntityName, 
+  formatCity, 
+  formatStreet, 
+  formatPhone, 
+  maskSSN 
+} from '@/lib/formatters'
+import { 
+  normalizePhoneForDB, 
+  isValidUSPhoneDigits, 
+  parseDateString, 
+  isAdultDob, 
+  MIN_DOB 
+} from '@/lib/validation'
 import styles from './ProfileView.module.css'
 import BankConnectionModal from './BankConnectionModal'
 
 export default function ProfileView() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const MIN_DOB = '1900-01-01'
+  
   const maxDob = useMemo(() => {
+    if (typeof window === 'undefined') return ''
     const now = new Date()
     const cutoff = new Date(now.getFullYear() - 18, now.getMonth(), now.getDate())
     return cutoff.toISOString().split('T')[0]
   }, [])
   const maxToday = useMemo(() => {
+    if (typeof window === 'undefined') return ''
     const now = new Date()
     return now.toISOString().split('T')[0]
   }, [])
-
-  // Names: Allow only letters, spaces, hyphens, apostrophes, and periods
-  const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
-  const formatEntityName = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.&,]/g, '')
-
-  // City names: Allow only letters, spaces, hyphens, apostrophes, and periods
-  const formatCity = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
-
-  // Street addresses: Allow letters, numbers, spaces, hyphens, periods, commas, and hash symbols
-  const formatStreet = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.,#]/g, '')
-
-  // Format US phone numbers as (XXX) XXX-XXXX while typing (ignore leading country code 1)
-  const formatPhone = (value = '') => {
-    const digitsOnly = (value || '').replace(/\D/g, '')
-    const withoutCountry = digitsOnly.startsWith('1') && digitsOnly.length === 11 ? digitsOnly.slice(1) : digitsOnly
-    const len = withoutCountry.length
-    if (len === 0) return ''
-    if (len <= 3) return `(${withoutCountry}`
-    if (len <= 6) return `(${withoutCountry.slice(0, 3)}) ${withoutCountry.slice(3)}`
-    return `(${withoutCountry.slice(0, 3)}) ${withoutCountry.slice(3, 6)}-${withoutCountry.slice(6, 10)}`
-  }
-
-  // Mask SSN for display (show last 4 digits only)
-  const maskSSN = (ssn = '') => {
-    if (!ssn) return ''
-    const digits = ssn.replace(/\D/g, '')
-    if (digits.length === 9) {
-      return `***-**-${digits.slice(-4)}`
-    }
-    return '***-**-****'
-  }
-
-  // Normalize phone number to E.164 format for database storage (+1XXXXXXXXXX)
-  const normalizePhoneForDB = (value = '') => {
-    const digits = value.replace(/\D/g, '')
-    if (digits.length === 10) {
-      return `+1${digits}`
-    }
-    if (digits.length === 11 && digits.startsWith('1')) {
-      return `+${digits}`
-    }
-    return value // Return original if format is unexpected
-  }
-
-  // US phone validation aligned with backend: 10 digits; area code must start 2-9
-  const isValidUSPhoneDigits = (raw = '') => {
-    const digitsOnly = (raw || '').replace(/\D/g, '')
-    const normalized = digitsOnly.length === 11 && digitsOnly.startsWith('1') ? digitsOnly.slice(1) : digitsOnly
-    if (normalized.length !== 10) return false
-    return /^[2-9][0-9]{9}$/.test(normalized)
-  }
-
-  const parseDateString = (value = '') => {
-    const [year, month, day] = (value || '').split('-').map(Number)
-    if (!year || !month || !day) return null
-    const date = new Date(year, month - 1, day)
-    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null
-    return date
-  }
-
-  const isAdultDob = (value = '') => {
-    const date = parseDateString(value)
-    if (!date) return false
-    const minimum = parseDateString(MIN_DOB)
-    if (!minimum || date < minimum) return false
-    const today = new Date()
-    const adultCutoff = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
-    return date <= adultCutoff
-  }
 
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState('primary-holder')
@@ -170,6 +118,7 @@ export default function ProfileView() {
     return () => {
       isMounted = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Handle tab from URL params
@@ -215,6 +164,7 @@ export default function ProfileView() {
       }
       setActiveTab(resolved)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, userData, router])
 
   // Refresh banks when banking tab is active
@@ -1604,6 +1554,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
     } else {
       setIsEditing(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData?.trustedContact])
 
   const handleEdit = () => {
@@ -1853,7 +1804,7 @@ function BankAccountCard({ bank, isDefault }) {
           <div className={styles.bankCardDetails}>{accountType} •••• {last4}</div>
         </div>
       </div>
-      {lastUsed && (
+      {lastUsed && mounted && (
         <div className={styles.bankCardMeta}>
           Last used: {new Date(lastUsed).toLocaleDateString()}
         </div>
@@ -1964,7 +1915,7 @@ function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, han
           <div className={styles.field}>
             <label className={styles.label}>Account Created</label>
             <div className={`${styles.value} ${styles.valueDisabled}`}>
-              {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : 'Not available'}
+              {userData.createdAt && mounted ? new Date(userData.createdAt).toLocaleDateString() : 'Not available'}
             </div>
           </div>
           <div className={styles.field}>

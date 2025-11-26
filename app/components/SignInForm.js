@@ -206,7 +206,7 @@ export default function SignInForm() {
           Forgot Password?
         </button>
         <p className={styles.footerText}>
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <button 
             onClick={() => router.push('/')} 
             className={styles.linkButton}

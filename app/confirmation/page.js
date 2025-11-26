@@ -244,7 +244,7 @@ export default function ConfirmationPage() {
       
       <div className={styles.container}>
         <div className={styles.verificationCard}>
-          <h1 className={styles.title}>Let's Verify It's You</h1>
+          <h1 className={styles.title}>Let&apos;s Verify It&apos;s You</h1>
           
           <p className={styles.description}>
             Please enter the 6 character verification code sent to
