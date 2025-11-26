@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import { fetchWithCsrf } from '../../../../lib/csrfClient'
 import { apiClient } from '../../../../lib/apiClient'
+import { adminService } from '../../../../lib/services/admin'
 import AdminHeader from '../../../components/AdminHeader'
 import { calculateInvestmentValue } from '../../../../lib/investmentCalculations.js'
 import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
@@ -27,6 +28,8 @@ function AdminUserDetailsContent() {
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview')
   const [activityEvents, setActivityEvents] = useState([])
   const [isLoadingActivity, setIsLoadingActivity] = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState([])
+  const [refreshingBalanceId, setRefreshingBalanceId] = useState(null)
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -128,14 +131,19 @@ function AdminUserDetailsContent() {
       try {
         setCurrentUser(userData)
 
-        const [usersData, investmentsData] = await Promise.all([
+        const [usersData, investmentsData, paymentMethodsData] = await Promise.all([
           apiClient.getAllUsers(),
-          apiClient.getAdminInvestments()
+          apiClient.getAdminInvestments(),
+          adminService.getUserPaymentMethods(id)
         ])
         
         if (!usersData || !usersData.success) {
           console.error('[AdminUserDetails] Failed to load users data')
           return
+        }
+
+        if (paymentMethodsData && paymentMethodsData.success) {
+          setPaymentMethods(paymentMethodsData.payment_methods || [])
         }
 
         const investmentsByUser = {}
@@ -250,6 +258,88 @@ function AdminUserDetailsContent() {
       console.error('[AdminUserDetails] Failed to load activity events:', e)
     } finally {
       setIsLoadingActivity(false)
+    }
+  }
+
+  const handleRefreshBalance = async (paymentMethodId) => {
+    try {
+      setRefreshingBalanceId(paymentMethodId)
+      const response = await adminService.refreshUserPaymentMethodBalance(user.id, paymentMethodId)
+      
+      if (response.success && response.payment_method) {
+        setPaymentMethods(prev => prev.map(pm => 
+          pm.id === paymentMethodId ? response.payment_method : pm
+        ))
+        alert('Balance refreshed successfully')
+      } else {
+        alert('Failed to refresh balance: ' + (response.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Failed to refresh balance:', error)
+      alert('An error occurred while refreshing balance')
+    } finally {
+      setRefreshingBalanceId(null)
+    }
+  }
+
+  const handleApproveInvestment = async (investmentId) => {
+    if (!confirm('Are you sure you want to approve this investment? This will activate the investment.')) {
+      return
+    }
+    
+    try {
+      // Optimistic update
+      setUser(prev => ({
+        ...prev,
+        investments: prev.investments.map(inv => 
+          inv.id === investmentId ? { ...inv, status: 'active' } : inv
+        )
+      }))
+
+      const res = await adminService.approveInvestment(investmentId)
+      
+      if (!res.success) {
+        // Revert on failure
+        alert('Failed to approve investment: ' + (res.error || 'Unknown error'))
+        const freshUser = await apiClient.getUser(id)
+        if (freshUser.success) setUser(freshUser.user)
+      }
+    } catch (error) {
+      console.error('Failed to approve investment:', error)
+      alert('An error occurred while approving investment')
+      // Refresh to ensure consistency
+      const freshUser = await apiClient.getUser(id)
+      if (freshUser.success) setUser(freshUser.user)
+    }
+  }
+
+  const handleRejectInvestment = async (investmentId) => {
+    const reason = prompt('Please enter a reason for rejection:')
+    if (reason === null) return // Cancelled
+
+    try {
+      // Optimistic update
+      setUser(prev => ({
+        ...prev,
+        investments: prev.investments.map(inv => 
+          inv.id === investmentId ? { ...inv, status: 'rejected' } : inv
+        )
+      }))
+
+      const res = await adminService.rejectInvestment(investmentId, reason)
+      
+      if (!res.success) {
+        // Revert on failure
+        alert('Failed to reject investment: ' + (res.error || 'Unknown error'))
+        const freshUser = await apiClient.getUser(id)
+        if (freshUser.success) setUser(freshUser.user)
+      }
+    } catch (error) {
+      console.error('Failed to reject investment:', error)
+      alert('An error occurred while rejecting investment')
+      // Refresh to ensure consistency
+      const freshUser = await apiClient.getUser(id)
+      if (freshUser.success) setUser(freshUser.user)
     }
   }
 
@@ -816,16 +906,28 @@ function AdminUserDetailsContent() {
               Overview
             </button>
             <button 
-              className={`${styles.tabButton} ${activeTab === 'activity' ? styles.tabButtonActive : ''}`}
-              onClick={() => handleTabChange('activity')}
+              className={`${styles.tabButton} ${activeTab === 'investments' ? styles.tabButtonActive : ''}`}
+              onClick={() => handleTabChange('investments')}
             >
-              Activity
+              Investments
             </button>
             <button 
               className={`${styles.tabButton} ${activeTab === 'profile' ? styles.tabButtonActive : ''}`}
               onClick={() => handleTabChange('profile')}
             >
               Profile
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'activity' ? styles.tabButtonActive : ''}`}
+              onClick={() => handleTabChange('activity')}
+            >
+              Activity
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'actions' ? styles.tabButtonActive : ''}`}
+              onClick={() => handleTabChange('actions')}
+            >
+              Actions
             </button>
           </div>
 
@@ -848,30 +950,110 @@ function AdminUserDetailsContent() {
             </div>
           </div>
 
-          {/* Secondary Metrics Cards */}
-          <div className={styles.metricsGrid}>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Total Investments</div>
-              <div className={styles.metricValue}>{(user.investments || []).length}</div>
+          {/* Account Summary Section */}
+          <div className={styles.sectionCard} style={{ marginBottom: '24px' }}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Account Summary</h2>
             </div>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Active Investments</div>
-              <div className={styles.metricValue}>{activeInvestments.length}</div>
-            </div>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Pending Investments</div>
-              <div className={styles.metricValue}>${pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            </div>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Pending Payouts</div>
-              <div className={styles.metricValue}>${pendingPayouts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Type</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
+                  {user.accountType ? user.accountType.charAt(0).toUpperCase() + user.accountType.slice(1) : 'Individual'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Status</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: user.isVerified ? '#065f46' : '#ca8a04' }}>
+                  {user.isVerified ? '✅ Verified' : '⏳ Pending'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Email</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', wordBreak: 'break-word' }}>
+                  {user.email}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Phone</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
+                  {user.phone || user.phoneNumber || '-'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Member Since</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
+                  {user.createdAt ? formatDateForDisplay(user.createdAt) : '-'}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Total Investments</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
+                  {(user.investments || []).length}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Active Investments</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
+                  {activeInvestments.length}
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Current Value</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
+                  ${currentAccountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Investments Section */}
-          <div className={styles.sectionCard}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Investments</h2>
+
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+            {/* Recent Activity */}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>Recent Activity</h2>
+                <button 
+                  onClick={() => handleTabChange('activity')}
+                  style={{ fontSize: '12px', color: '#0369a1', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  View All →
+                </button>
+              </div>
+              {activityEvents && activityEvents.length > 0 ? (
+                <div className={styles.list}>
+                  {activityEvents.slice(0, 5).map(event => (
+                    <div key={event.id} style={{
+                      padding: '12px',
+                      borderBottom: '1px solid #f3f4f6'
+                    }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500' }}>{event.title}</div>
+                      <div style={{ fontSize: '11px', color: '#6b7280' }}>{formatDateForDisplay(event.eventDate)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.muted}>No recent activity</div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+          {/* Investments Tab */}
+          {activeTab === 'investments' && (
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>All Investments</h2>
             </div>
             {(user.investments && user.investments.length > 0) ? (
               <div className={styles.list}>
@@ -1076,77 +1258,11 @@ function AdminUserDetailsContent() {
               <div className={styles.muted}>No investments</div>
             )}
           </div>
-            </>
           )}
 
           {/* Activity Tab */}
           {activeTab === 'activity' && (
             <>
-          {/* Account Summary Section */}
-          <div className={styles.sectionCard}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Account Summary</h2>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Type</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                  {user.accountType ? user.accountType.charAt(0).toUpperCase() + user.accountType.slice(1) : 'Individual'}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Status</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: user.isVerified ? '#065f46' : '#ca8a04' }}>
-                  {user.isVerified ? '✅ Verified' : '⏳ Pending'}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Email</div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', wordBreak: 'break-word' }}>
-                  {user.email}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Phone</div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                  {user.phone || user.phoneNumber || '-'}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Member Since</div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                  {user.createdAt ? formatDateForDisplay(user.createdAt) : '-'}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Total Investments</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                  {(user.investments || []).length}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Active Investments</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
-                  {activeInvestments.length}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Current Value</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
-                  ${currentAccountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Activity Section */}
           <div className={styles.sectionCard}>
             <div className={styles.sectionHeader}>
@@ -1293,11 +1409,26 @@ function AdminUserDetailsContent() {
               )
               const totalDistributionAmount = distributions.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
               const totalContributionAmount = contributions.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+              
               // Pending count should reflect investment state, not raw event status
+              // We deduplicate by investmentId to avoid double counting (e.g. Created + Submitted both showing as pending)
+              // We also exclude 'investment_created' from being considered "pending" even if the investment is pending
+              const pendingInvestmentsSet = new Set()
               const pendingCount = allActivity.filter(e => {
+                // Skip if we already counted this investment
+                if (e.investmentId && pendingInvestmentsSet.has(e.investmentId)) return false
+                
                 const inv = e.investmentId ? investmentsById[e.investmentId] : null
-                const status = (inv && e.type?.includes('investment')) ? inv.status : e.status
-                return status === 'pending'
+                // Don't override status for creation events - they are historical points in time
+                const isCreationEvent = e.type === 'investment_created'
+                
+                const status = (inv && e.type?.includes('investment') && !isCreationEvent) ? inv.status : e.status
+                
+                if (status === 'pending') {
+                  if (e.investmentId) pendingInvestmentsSet.add(e.investmentId)
+                  return true
+                }
+                return false
               }).length
 
               // Pagination
@@ -1346,8 +1477,13 @@ function AdminUserDetailsContent() {
                       const meta = getEventMeta(event.type)
                       // For investment events, display the INVESTMENT's current status (draft/pending/active)
                       // instead of the API event status which is typically 'completed'.
+                      // Exception: 'investment_created' is a historical log and shouldn't reflect current status
                       const invForEvent = event.investmentId ? investmentsById[event.investmentId] : null
-                      const displayStatus = (invForEvent && event.type?.includes('investment')) ? (invForEvent.status || event.status) : event.status
+                      const isCreationEvent = event.type === 'investment_created'
+                      const displayStatus = (invForEvent && event.type?.includes('investment') && !isCreationEvent) 
+                        ? (invForEvent.status || event.status) 
+                        : event.status
+                        
                       return (
                         <div key={event.id} style={{
                           padding: '16px',
@@ -1554,53 +1690,6 @@ function AdminUserDetailsContent() {
           {/* Profile Tab */}
           {activeTab === 'profile' && (
             <>
-          {/* User Communications Section */}
-          <div className={styles.sectionCard}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>User Communications</h2>
-            </div>
-            
-            <div className={styles.communicationsGrid}>
-              {/* Welcome Email Card */}
-              <div className={styles.commCard}>
-                <h3>📧 Welcome Email</h3>
-                <p>Send password reset link (24 hours)</p>
-                <button onClick={handleSendWelcomeEmail}>
-                  Send Welcome Email
-                </button>
-              </div>
-
-              {/* Setup Email Card (only if onboarding not complete) */}
-              {!user.onboarding_completed_at && (
-                <div className={styles.commCard}>
-                  <h3>🎉 Setup Link</h3>
-                  <p>Generate & copy setup link (48 hours)</p>
-                  <button onClick={handleSendOnboardingEmail}>
-                    Generate Setup Link
-                  </button>
-                </div>
-              )}
-
-              {/* Copy Link Card */}
-              <div className={styles.commCard}>
-                <h3>🔗 Copy Setup Link</h3>
-                <p>Generate and copy setup URL</p>
-                <button onClick={handleCopySetupLink}>
-                  Copy Setup Link
-                </button>
-              </div>
-
-              {/* Test Onboarding Card */}
-              <div className={styles.commCard}>
-                <h3>🧪 Test Onboarding</h3>
-                <p>Login as user and test setup flow</p>
-                <button onClick={handleTestOnboarding}>
-                  Test Onboarding
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* Account Profile Section */}
           <div className={styles.sectionCard}>
             <div className={styles.sectionHeader}>
@@ -1898,6 +1987,295 @@ function AdminUserDetailsContent() {
               </div>
             </div>
           )}
+            </>
+          )}
+
+          {/* Actions Tab */}
+          {activeTab === 'actions' && (
+            <>
+              {/* Pending Approvals Section */}
+              {user.investments && user.investments.some(inv => inv.status === 'pending') && (
+                <div style={{ 
+                  marginBottom: '24px', 
+                  padding: '16px', 
+                  border: '1px solid #f59e0b', 
+                  background: '#fffbeb', 
+                  borderRadius: '8px' 
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    marginBottom: '12px' 
+                  }}>
+                    <h3 style={{ 
+                      margin: 0, 
+                      fontSize: '14px', 
+                      fontWeight: '600', 
+                      color: '#b45309',
+                      display: 'flex',
+                      alignItems: 'center', 
+                      gap: '6px'
+                    }}>
+                      ⚠️ Pending Approvals
+                    </h3>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {user.investments.filter(inv => inv.status === 'pending').map(inv => (
+                      <div key={inv.id} style={{
+                        padding: '20px',
+                        border: '1px solid #e5e7eb',
+                        borderLeft: '4px solid #f59e0b',
+                        borderRadius: '8px',
+                        background: 'white',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                            <div style={{ fontWeight: '700', fontSize: '18px', color: '#111827' }}>
+                              ${Number(inv.amount).toLocaleString()}
+                            </div>
+                            <span style={{ 
+                              fontSize: '12px', 
+                              padding: '2px 8px', 
+                              background: '#f3f4f6', 
+                              color: '#4b5563', 
+                              borderRadius: '12px',
+                              fontFamily: 'monospace',
+                              border: '1px solid #e5e7eb'
+                            }}>
+                              #{inv.id}
+                            </span>
+                            <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                              {formatDateForDisplay(inv.createdAt)}
+                            </span>
+                          </div>
+                          
+                          <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', 
+                            gap: '12px 24px',
+                            fontSize: '13px' 
+                          }}>
+                            <div>
+                              <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Lockup Period</div>
+                              <div style={{ color: '#111827', fontWeight: '500' }}>{inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Frequency</div>
+                              <div style={{ color: '#111827', fontWeight: '500' }}>{inv.paymentFrequency}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Payment Method</div>
+                              <div style={{ color: '#111827', fontWeight: '500' }}>{inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH'}</div>
+                            </div>
+                            {inv.compliance?.accredited && (
+                              <div>
+                                <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Status</div>
+                                <div style={{ color: '#0369a1', fontWeight: '600' }}>✓ Accredited</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '24px', paddingLeft: '24px', borderLeft: '1px solid #f3f4f6' }}>
+                          <button
+                            onClick={() => handleApproveInvestment(inv.id)}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: '#16a34a',
+                              color: 'white',
+                              fontWeight: '600',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              width: '100%',
+                              minWidth: '100px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectInvestment(inv.id)}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '6px',
+                              border: '1px solid #fee2e2',
+                              background: 'white',
+                              color: '#ef4444',
+                              fontWeight: '600',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              width: '100%',
+                              minWidth: '100px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                {/* Quick Actions */}
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionHeader}>
+                    <h2 className={styles.sectionTitle}>Quick Actions</h2>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <button 
+                      onClick={handleSendWelcomeEmail} 
+                      className={styles.actionCard}
+                      title="Send password reset email"
+                    >
+                      <span className={styles.actionIcon}>📧</span>
+                      <span className={styles.actionLabel}>Send Welcome</span>
+                    </button>
+                    
+                    {!user.onboarding_completed_at && (
+                      <button 
+                        onClick={handleSendOnboardingEmail} 
+                        className={styles.actionCard}
+                        title="Generate setup link"
+                      >
+                        <span className={styles.actionIcon}>🎉</span>
+                        <span className={styles.actionLabel}>Setup Link</span>
+                      </button>
+                    )}
+                    
+                    <button 
+                      onClick={handleCopySetupLink} 
+                      className={styles.actionCard}
+                      title="Copy setup link"
+                    >
+                      <span className={styles.actionIcon}>🔗</span>
+                      <span className={styles.actionLabel}>Copy Link</span>
+                    </button>
+                    
+                    {!user.isVerified && (
+                      <button 
+                        onClick={handleVerifyAccount} 
+                        disabled={isVerifying} 
+                        className={styles.actionCard}
+                        title="Manually verify account"
+                      >
+                        <span className={styles.actionIcon}>✅</span>
+                        <span className={styles.actionLabel}>{isVerifying ? 'Verifying...' : 'Verify User'}</span>
+                      </button>
+                    )}
+                    
+                    <button 
+                      onClick={handleTestOnboarding} 
+                      className={styles.actionCard}
+                      title="Login as user"
+                    >
+                      <span className={styles.actionIcon}>🧪</span>
+                      <span className={styles.actionLabel}>Test View</span>
+                    </button>
+                    
+                    <button 
+                      onClick={handleDeleteUser} 
+                      className={`${styles.actionCard} ${styles.dangerAction}`}
+                      title="Permanently delete user"
+                    >
+                      <span className={styles.actionIcon}>🗑️</span>
+                      <span className={styles.actionLabel}>Delete User</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bank Accounts Section */}
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionHeader}>
+                    <h2 className={styles.sectionTitle}>Bank Accounts</h2>
+                  </div>
+                  {paymentMethods && paymentMethods.length > 0 ? (
+                    <div className={styles.list}>
+                      {paymentMethods.map(pm => (
+                        <div key={pm.id} style={{
+                          padding: '16px',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          marginBottom: '12px',
+                          background: 'white'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                            <div>
+                              <div style={{ fontWeight: '600', color: '#1f2937', fontSize: '16px' }}>{pm.display_name || pm.bank_name}</div>
+                              <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                {pm.bank_name} • {pm.account_type} • ****{pm.last4}
+                              </div>
+                            </div>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              textTransform: 'uppercase',
+                              background: pm.status === 'verified' ? '#dcfce7' : '#fee2e2',
+                              color: pm.status === 'verified' ? '#166534' : '#991b1b'
+                            }}>
+                              {pm.status}
+                            </span>
+                          </div>
+
+                          {pm.type === 'plaid' && (
+                            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <div style={{ fontSize: '12px', color: '#6b7280' }}>Current Balance</div>
+                                <div style={{ fontWeight: '600', color: '#111827' }}>
+                                  {pm.current_balance ? `$${Number(pm.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '-'}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <div style={{ fontSize: '12px', color: '#6b7280' }}>Available Balance</div>
+                                <div style={{ fontWeight: '600', color: '#111827' }}>
+                                  {pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '-'}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontSize: '10px', color: '#9ca3af' }}>
+                                  Updated: {pm.balance_last_updated ? new Date(pm.balance_last_updated).toLocaleString() : 'Never'}
+                                </div>
+                                <button
+                                  onClick={() => handleRefreshBalance(pm.id)}
+                                  disabled={refreshingBalanceId === pm.id}
+                                  style={{
+                                    fontSize: '12px',
+                                    color: '#0369a1',
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    cursor: refreshingBalanceId === pm.id ? 'not-allowed' : 'pointer',
+                                    textDecoration: 'underline'
+                                  }}
+                                >
+                                  {refreshingBalanceId === pm.id ? 'Refreshing...' : 'Refresh Balance'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={styles.muted} style={{ padding: '20px', textAlign: 'center' }}>
+                      No bank accounts connected
+                    </div>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>

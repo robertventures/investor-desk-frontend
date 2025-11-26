@@ -1763,6 +1763,7 @@ function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, h
                   key={bank.id}
                   bank={bank}
                   isDefault={bank.id === defaultBankId}
+                  mounted={mounted}
                 />
               ))}
             </div>
@@ -1781,7 +1782,7 @@ function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, h
   )
 }
 
-function BankAccountCard({ bank, isDefault }) {
+function BankAccountCard({ bank, isDefault, mounted }) {
   const bankColor = bank.bank_color || bank.bankColor || '#117ACA'
   const bankLogo = bank.bank_logo || bank.bankLogo || '🏦'
   const bankName = bank.bank_name || bank.bankName || 'Bank'

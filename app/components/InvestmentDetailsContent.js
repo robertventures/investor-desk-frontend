@@ -373,7 +373,7 @@ export default function InvestmentDetailsContent({ investmentId }) {
                 {investmentData.status === 'active' && calculation.lockupEndDate && (
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>LOCK UP END DATE</span>
-                    <span className={styles.detailValue}>{formatDate(calculation.lockupEndDate.toISOString())}</span>
+                    <span className={styles.detailValue}>{formatDate(calculation.lockupEndDate)}</span>
                   </div>
                 )}
               </div>

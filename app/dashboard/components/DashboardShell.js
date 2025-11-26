@@ -92,8 +92,8 @@ export default function DashboardShell({ children }) {
         return
       }
 
-      // Wait for investments to load
-      if (!investments) {
+      // Wait for investments to load (null means still loading, [] is valid empty state)
+      if (investments === null) {
         return
       }
 

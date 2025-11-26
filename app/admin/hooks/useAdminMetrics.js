@@ -26,17 +26,8 @@ export function useAdminMetrics(users, withdrawals = [], pendingPayouts = [], ap
     let unverifiedAccountsCount = 0
     let recentInvestments = []
     let recentSignups = []
-    let investmentsByLockup = { '1-year': 0, '3-year': 0 }
-    let investmentsByFrequency = { 'quarterly': 0, 'annually': 0, 'at-maturity': 0 }
-    let accountsByType = { individual: 0, joint: 0, entity: 0, ira: 0 }
     
     nonAdminUsers.forEach(user => {
-      // Account type distribution
-      const accType = user.accountType || 'individual'
-      if (accountsByType[accType] !== undefined) {
-        accountsByType[accType]++
-      }
-      
       // New accounts (last 30 days)
       if (user.createdAt && new Date(user.createdAt) > thirtyDaysAgo) {
         newAccountsCount++
@@ -72,14 +63,6 @@ export function useAdminMetrics(users, withdrawals = [], pendingPayouts = [], ap
         } else if (inv.status === 'pending') {
           pendingCapital += amount
           pendingInvestmentsCount++
-        }
-        
-        // Investment distribution
-        if (inv.lockupPeriod && investmentsByLockup[inv.lockupPeriod] !== undefined) {
-          investmentsByLockup[inv.lockupPeriod]++
-        }
-        if (inv.paymentFrequency && investmentsByFrequency[inv.paymentFrequency] !== undefined) {
-          investmentsByFrequency[inv.paymentFrequency]++
         }
         
         // Recent investments
@@ -132,12 +115,7 @@ export function useAdminMetrics(users, withdrawals = [], pendingPayouts = [], ap
       
       // Recent activity
       recentInvestments,
-      recentSignups,
-      
-      // Distributions
-      investmentsByLockup,
-      investmentsByFrequency,
-      accountsByType
+      recentSignups
     }
   }, [nonAdminUsers, withdrawals, pendingPayouts, appTime])
 
