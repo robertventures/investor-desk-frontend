@@ -30,6 +30,8 @@ function AdminUserDetailsContent() {
   const [isLoadingActivity, setIsLoadingActivity] = useState(false)
   const [paymentMethods, setPaymentMethods] = useState([])
   const [refreshingBalanceId, setRefreshingBalanceId] = useState(null)
+  const [setupLink, setSetupLink] = useState(null)
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false)
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -657,13 +659,9 @@ function AdminUserDetailsContent() {
     }
   }
 
-  const handleSendOnboardingEmail = async () => {
-    if (!window.confirm('Generate account setup link for this user?')) {
-      return
-    }
-
+  const handleGenerateSetupLink = async () => {
+    setIsGeneratingLink(true)
     try {
-      // Generate onboarding token
       const token = crypto.randomUUID()
       const expires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
 
@@ -684,30 +682,18 @@ function AdminUserDetailsContent() {
         return
       }
 
-      // Generate setup link (email sending disabled for now)
-      const emailRes = await fetchWithCsrf('/api/admin/send-onboarding-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: id, token })
-      })
-
-      const emailData = await emailRes.json()
-      if (!emailData.success) {
-        alert('Failed to generate setup link: ' + emailData.error)
-        return
+      // Build the setup link
+      const generatedLink = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/onboarding?token=${token}`
+      
+      // Copy to clipboard automatically
+      try {
+        await navigator.clipboard.writeText(generatedLink)
+      } catch (clipboardErr) {
+        console.error('Failed to copy to clipboard:', clipboardErr)
       }
-
-      // Copy link to clipboard
-      if (emailData.setupLink) {
-        try {
-          await navigator.clipboard.writeText(emailData.setupLink)
-          alert(`✅ Setup link generated and copied to clipboard!\n\nUser: ${user.email}\nLink: ${emailData.setupLink}\n\nValid for 48 hours.\n\n(Email sending will be enabled when the app launches)`)
-        } catch (clipboardErr) {
-          alert(`✅ Setup link generated!\n\nUser: ${user.email}\nLink: ${emailData.setupLink}\n\nValid for 48 hours.\n\n(Could not copy to clipboard - please copy manually)`)
-        }
-      } else {
-        alert(`✅ Setup link generated for ${user.email}!\n\nThe link is ready (email sending will be enabled when the app launches).`)
-      }
+      
+      // Store the link to display in UI
+      setSetupLink(generatedLink)
       
       // Refresh user data
       const refreshRes = await fetch(`/api/users/${id}`)
@@ -718,6 +704,8 @@ function AdminUserDetailsContent() {
     } catch (e) {
       console.error('Failed to generate setup link:', e)
       alert('An error occurred while generating the setup link')
+    } finally {
+      setIsGeneratingLink(false)
     }
   }
 
@@ -749,38 +737,6 @@ function AdminUserDetailsContent() {
     }
   }
 
-  const handleCopySetupLink = async () => {
-    try {
-      const token = crypto.randomUUID()
-      const expires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
-
-      // Update user with token and set needs_onboarding flag
-      const updateRes = await fetch(`/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          needsOnboarding: true,
-          onboardingToken: token,
-          onboardingTokenExpires: expires.toISOString()
-        })
-      })
-
-      const updateData = await updateRes.json()
-      if (!updateData.success) {
-        alert('Failed to generate setup link: ' + updateData.error)
-        return
-      }
-
-      // Build and copy URL
-      const setupLink = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/onboarding?token=${token}`
-      await navigator.clipboard.writeText(setupLink)
-
-      alert(`✅ Setup link copied to clipboard!\n\nLink: ${setupLink}\n\nValid for 48 hours.`)
-    } catch (e) {
-      console.error('Failed to copy setup link:', e)
-      alert('An error occurred while generating the setup link')
-    }
-  }
 
   const handleTestOnboarding = async () => {
     try {
@@ -912,12 +868,6 @@ function AdminUserDetailsContent() {
               Investments
             </button>
             <button 
-              className={`${styles.tabButton} ${activeTab === 'profile' ? styles.tabButtonActive : ''}`}
-              onClick={() => handleTabChange('profile')}
-            >
-              Profile
-            </button>
-            <button 
               className={`${styles.tabButton} ${activeTab === 'activity' ? styles.tabButtonActive : ''}`}
               onClick={() => handleTabChange('activity')}
             >
@@ -934,330 +884,612 @@ function AdminUserDetailsContent() {
           {/* Tab Content */}
           {activeTab === 'overview' && (
             <>
-              {/* Primary Value Metrics - Featured at Top */}
-              <div className={styles.primaryMetricsGrid}>
-            <div className={styles.primaryMetricCard}>
-              <div className={styles.primaryMetricLabel}>Original Investment Value</div>
-              <div className={styles.primaryMetricValue}>${originalInvestmentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className={styles.primaryMetricSubtext}>Total principal invested</div>
-            </div>
-            <div className={styles.primaryMetricCard}>
-              <div className={styles.primaryMetricLabel}>Current Account Value</div>
-              <div className={styles.primaryMetricValue}>${currentAccountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className={styles.primaryMetricSubtext}>
-                {totalEarnings >= 0 ? '+' : ''} ${totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total earnings
+              {/* Pending Items Section - Only show if there are pending items */}
+              {((user.investments || []).some(inv => inv.status === 'pending') || pendingPayouts > 0) && (
+                <div className={styles.sectionCard} style={{ marginBottom: '24px' }}>
+                  <div className={styles.sectionHeader}>
+                    <h2 className={styles.sectionTitle}>Pending Items</h2>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Pending Investments List */}
+                    {(user.investments || []).filter(inv => inv.status === 'pending').map(inv => {
+                      const isWireTransfer = inv.paymentMethod === 'wire' || inv.banking?.fundingMethod === 'wire'
+                      return (
+                        <div key={inv.id} style={{ 
+                          padding: '16px', 
+                          background: isWireTransfer ? '#fff7ed' : '#f0f9ff', 
+                          borderRadius: '8px', 
+                          border: isWireTransfer ? '1px solid #fdba74' : '1px solid #bae6fd',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '12px'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <span style={{ fontWeight: '600', color: isWireTransfer ? '#9a3412' : '#0369a1' }}>Pending Investment #{inv.id}</span>
+                              {isWireTransfer ? (
+                                <span style={{ background: '#c2410c', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>ACTION REQUIRED</span>
+                              ) : (
+                                <span style={{ background: '#0284c7', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>AWAITING ACH</span>
+                              )}
               </div>
+                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937' }}>
+                              ${(Number(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
+                            <div style={{ fontSize: '12px', color: isWireTransfer ? '#9a3412' : '#0369a1' }}>
+                              Created: {inv.createdAt ? formatDateForDisplay(inv.createdAt) : '-'} • {isWireTransfer ? 'Wire Transfer' : 'ACH'}
           </div>
-
-          {/* Account Summary Section */}
-          <div className={styles.sectionCard} style={{ marginBottom: '24px' }}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Account Summary</h2>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Type</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                  {user.accountType ? user.accountType.charAt(0).toUpperCase() + user.accountType.slice(1) : 'Individual'}
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => router.push(`/admin/investments/${inv.id}`)}
+                              style={{
+                                padding: '8px 16px',
+                                background: 'white',
+                                border: isWireTransfer ? '1px solid #fdba74' : '1px solid #bae6fd',
+                                borderRadius: '6px',
+                                color: isWireTransfer ? '#9a3412' : '#0369a1',
+                                fontWeight: '500',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              View Details
+                            </button>
+                            {isWireTransfer && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleApproveInvestment(inv.id)
+                                }}
+                                style={{
+                                  padding: '8px 16px',
+                                  background: '#ea580c',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  color: 'white',
+                                  fontWeight: '500',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                }}
+                              >
+                                Approve Investment
+                              </button>
+                            )}
+                </div>
+              </div>
+                      )
+                    })}
+
+                    {/* Pending Payouts Summary */}
+                    {pendingPayouts > 0 && (
+                      <div style={{ 
+                        padding: '16px', 
+                        background: '#fff7ed', 
+                        borderRadius: '8px', 
+                        border: '1px solid #fdba74'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Pending Payouts</div>
+                          <span style={{ background: '#c2410c', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>ACTION REQUIRED</span>
+                </div>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+                          ${pendingPayouts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                          Awaiting approval
+                </div>
+              </div>
+                    )}
+                </div>
+              </div>
+              )}
+
+          {/* Account Profile Section */}
+          <div className={styles.sectionCard} style={{ marginBottom: '24px' }}>
+            <div className={styles.sectionHeader}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                <h2 className={styles.sectionTitle}>Account Profile</h2>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  {!isEditing && (
+                    <>
+                      <button className={styles.editButton} onClick={handleEdit}>
+                        Edit Profile
+                      </button>
+                      {!user.isVerified && (
+                        <button 
+                          onClick={handleVerifyAccount} 
+                          disabled={isVerifying}
+                          className={styles.verifyButton}
+                        >
+                          {isVerifying ? 'Verifying...' : 'Verify Account'}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+                </div>
+            <div className={styles.grid}>
+              <div><b>Account Type:</b> {form.accountType || '-'}</div>
+              <div>
+                <b>Verified:</b> {user.isVerified ? 'Yes' : 'No'}
+              </div>
+              <div>
+                <b>Account Setup:</b> {user.onboarding_completed_at ? 'Complete' : user.needs_onboarding ? 'Pending' : 'N/A'}
+              </div>
+              <div>
+                <label><b>Email</b></label>
+                <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} />
+                {errors.email && <div className={styles.muted}>{errors.email}</div>}
+              </div>
+              {form.accountType !== 'entity' && (
+                <>
+                  <div>
+                    <label><b>First Name</b></label>
+                    <input name="firstName" value={form.firstName} onChange={handleChange} disabled={!isEditing} />
+                    {errors.firstName && <div className={styles.muted}>{errors.firstName}</div>}
+                  </div>
+                  <div>
+                    <label><b>Last Name</b></label>
+                    <input name="lastName" value={form.lastName} onChange={handleChange} disabled={!isEditing} />
+                    {errors.lastName && <div className={styles.muted}>{errors.lastName}</div>}
+                  </div>
+                </>
+              )}
+              <div>
+                <label><b>Phone</b></label>
+                <input name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={!isEditing} />
+                {errors.phone && <div className={styles.muted}>{errors.phone}</div>}
+              </div>
+              {form.accountType !== 'entity' && (
+                <>
+                  <div>
+                    <label><b>Date of Birth</b></label>
+                    <input type="date" name="dob" value={form.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
+                    {errors.dob && <div className={styles.muted}>{errors.dob}</div>}
+                  </div>
+                  <div>
+                    <label><b>SSN</b></label>
+                    <input name="ssn" value={form.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
+                    {errors.ssn && <div className={styles.muted}>{errors.ssn}</div>}
+                  </div>
+                </>
+              )}
+              <div>
+                <label><b>Street Address</b></label>
+                <input name="street1" value={form.street1} onChange={handleChange} disabled={!isEditing} />
+                {errors.street1 && <div className={styles.muted}>{errors.street1}</div>}
+              </div>
+              <div>
+                <label><b>Apt or Unit</b></label>
+                <input name="street2" value={form.street2} onChange={handleChange} disabled={!isEditing} />
+              </div>
+              <div>
+                <label><b>City</b></label>
+                <input name="city" value={form.city} onChange={handleChange} disabled={!isEditing} />
+                {errors.city && <div className={styles.muted}>{errors.city}</div>}
+              </div>
+              <div>
+                <label><b>Zip</b></label>
+                <input name="zip" value={form.zip} onChange={handleChange} disabled={!isEditing} />
+                {errors.zip && <div className={styles.muted}>{errors.zip}</div>}
+              </div>
+              <div>
+                <label><b>State</b></label>
+                <select name="state" value={form.state} onChange={handleChange} disabled={!isEditing}>
+                  <option value="">Select state</option>
+                  {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
+                </select>
+                {errors.state && <div className={styles.muted}>{errors.state}</div>}
+              </div>
+              <div>
+                <label><b>Country</b></label>
+                <input name="country" value={form.country} readOnly disabled />
                 </div>
               </div>
               
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Account Status</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: user.isVerified ? '#065f46' : '#ca8a04' }}>
-                  {user.isVerified ? '✅ Verified' : '⏳ Pending'}
+            {/* Entity Information Subsection */}
+            {form.accountType === 'entity' && (
+              <>
+                <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
+                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Entity Information</h3>
                 </div>
+                <div className={styles.grid}>
+                <div>
+                  <label><b>Entity Name</b></label>
+                  <input name="entityName" value={form.entityName} onChange={handleChange} disabled={!isEditing} />
+                  {errors.entityName && <div className={styles.muted}>{errors.entityName}</div>}
               </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Email</div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', wordBreak: 'break-word' }}>
-                  {user.email}
+                <div>
+                  <label><b>Entity Tax ID (EIN)</b></label>
+                  <input name="entityTaxId" value={form.entityTaxId} onChange={handleChange} placeholder="12-3456789" disabled={!isEditing} />
+                  {errors.entityTaxId && <div className={styles.muted}>{errors.entityTaxId}</div>}
                 </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Phone</div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                  {user.phone || user.phoneNumber || '-'}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Member Since</div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                  {user.createdAt ? formatDateForDisplay(user.createdAt) : '-'}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Total Investments</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                  {(user.investments || []).length}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Active Investments</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
-                  {activeInvestments.length}
-                </div>
-              </div>
-              
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Current Value</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#065f46' }}>
-                  ${currentAccountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
+                <div>
+                  <label><b>Entity Formation Date</b></label>
+                  <input type="date" name="entityRegistrationDate" value={form.entityRegistrationDate} onChange={handleChange} min={MIN_DOB} max={maxToday} disabled={!isEditing} />
+                  {errors.entityRegistrationDate && <div className={styles.muted}>{errors.entityRegistrationDate}</div>}
             </div>
           </div>
 
-
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-            {/* Recent Activity */}
-            <div className={styles.sectionCard}>
-              <div className={styles.sectionHeader}>
-                <h2 className={styles.sectionTitle}>Recent Activity</h2>
-                <button 
-                  onClick={() => handleTabChange('activity')}
-                  style={{ fontSize: '12px', color: '#0369a1', background: 'none', border: 'none', cursor: 'pointer' }}
-                >
-                  View All →
-                </button>
+              {/* Authorized Representative Subsection */}
+              <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
+                <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Authorized Representative</h3>
               </div>
-              {activityEvents && activityEvents.length > 0 ? (
-                <div className={styles.list}>
-                  {activityEvents.slice(0, 5).map(event => (
-                    <div key={event.id} style={{
-                      padding: '12px',
-                      borderBottom: '1px solid #f3f4f6'
-                    }}>
-                      <div style={{ fontSize: '13px', fontWeight: '500' }}>{event.title}</div>
-                      <div style={{ fontSize: '11px', color: '#6b7280' }}>{formatDateForDisplay(event.eventDate)}</div>
+              <div className={styles.grid}>
+                <div>
+                  <label><b>First Name</b></label>
+                  <input name="authorizedRep.firstName" value={form.authorizedRep.firstName} onChange={handleChange} disabled={!isEditing} />
+                  {errors['authorizedRep.firstName'] && <div className={styles.muted}>{errors['authorizedRep.firstName']}</div>}
                     </div>
-                  ))}
+                <div>
+                  <label><b>Last Name</b></label>
+                  <input name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} disabled={!isEditing} />
+                  {errors['authorizedRep.lastName'] && <div className={styles.muted}>{errors['authorizedRep.lastName']}</div>}
                 </div>
-              ) : (
-                <div className={styles.muted}>No recent activity</div>
-              )}
+                <div>
+                  <label><b>Title</b></label>
+                  <input name="authorizedRep.title" value={form.authorizedRep.title} onChange={handleChange} placeholder="e.g., Manager, CEO" disabled={!isEditing} />
+                  {errors['authorizedRep.title'] && <div className={styles.muted}>{errors['authorizedRep.title']}</div>}
+                </div>
+                <div>
+                  <label><b>Date of Birth</b></label>
+                  <input type="date" name="authorizedRep.dob" value={form.authorizedRep.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
+                  {errors['authorizedRep.dob'] && <div className={styles.muted}>{errors['authorizedRep.dob']}</div>}
+                </div>
+                <div>
+                  <label><b>SSN</b></label>
+                  <input name="authorizedRep.ssn" value={form.authorizedRep.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
+                  {errors['authorizedRep.ssn'] && <div className={styles.muted}>{errors['authorizedRep.ssn']}</div>}
+                </div>
+                <div>
+                  <label><b>Street Address</b></label>
+                  <input name="authorizedRep.street1" value={form.authorizedRep.street1} onChange={handleChange} disabled={!isEditing} />
+                  {errors['authorizedRep.street1'] && <div className={styles.muted}>{errors['authorizedRep.street1']}</div>}
+                </div>
+                <div>
+                  <label><b>Apt or Unit</b></label>
+                  <input name="authorizedRep.street2" value={form.authorizedRep.street2} onChange={handleChange} disabled={!isEditing} />
+                </div>
+                <div>
+                  <label><b>City</b></label>
+                  <input name="authorizedRep.city" value={form.authorizedRep.city} onChange={handleChange} disabled={!isEditing} />
+                  {errors['authorizedRep.city'] && <div className={styles.muted}>{errors['authorizedRep.city']}</div>}
+                </div>
+                <div>
+                  <label><b>Zip</b></label>
+                  <input name="authorizedRep.zip" value={form.authorizedRep.zip} onChange={handleChange} disabled={!isEditing} />
+                  {errors['authorizedRep.zip'] && <div className={styles.muted}>{errors['authorizedRep.zip']}</div>}
+                </div>
+                <div>
+                  <label><b>State</b></label>
+                  <select name="authorizedRep.state" value={form.authorizedRep.state} onChange={handleChange} disabled={!isEditing}>
+                    <option value="">Select state</option>
+                    {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
+                  </select>
+                  {errors['authorizedRep.state'] && <div className={styles.muted}>{errors['authorizedRep.state']}</div>}
+                </div>
+                <div>
+                  <label><b>Country</b></label>
+                  <input name="authorizedRep.country" value={form.authorizedRep.country} readOnly disabled />
+                </div>
+              </div>
+              </>
+            )}
+
+            {/* Joint Holder Subsection */}
+            {form.accountType === 'joint' && (
+              <>
+                <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
+                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Joint Holder Information</h3>
+                </div>
+                <div className={styles.grid}>
+                  <div>
+                    <label><b>Joint Holding Type</b></label>
+                    <select name="jointHoldingType" value={form.jointHoldingType} onChange={handleChange} disabled={!isEditing}>
+                      <option value="">Select joint holding type</option>
+                      <option value="spouse">Spouse</option>
+                      <option value="sibling">Sibling</option>
+                      <option value="domestic_partner">Domestic Partner</option>
+                      <option value="business_partner">Business Partner</option>
+                      <option value="other">Other</option>
+                    </select>
+                    {errors.jointHoldingType && <div className={styles.muted}>{errors.jointHoldingType}</div>}
+                  </div>
+                  <div />
+                  <div>
+                    <label><b>First Name</b></label>
+                    <input name="jointHolder.firstName" value={form.jointHolder.firstName} onChange={handleChange} disabled={!isEditing} />
+                    {errors['jointHolder.firstName'] && <div className={styles.muted}>{errors['jointHolder.firstName']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Last Name</b></label>
+                    <input name="jointHolder.lastName" value={form.jointHolder.lastName} onChange={handleChange} disabled={!isEditing} />
+                    {errors['jointHolder.lastName'] && <div className={styles.muted}>{errors['jointHolder.lastName']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Email</b></label>
+                    <input name="jointHolder.email" value={form.jointHolder.email} onChange={handleChange} disabled={!isEditing} />
+                    {errors['jointHolder.email'] && <div className={styles.muted}>{errors['jointHolder.email']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Phone</b></label>
+                    <input name="jointHolder.phone" value={form.jointHolder.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={!isEditing} />
+                    {errors['jointHolder.phone'] && <div className={styles.muted}>{errors['jointHolder.phone']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Date of Birth</b></label>
+                    <input type="date" name="jointHolder.dob" value={form.jointHolder.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
+                    {errors['jointHolder.dob'] && <div className={styles.muted}>{errors['jointHolder.dob']}</div>}
+                  </div>
+                  <div>
+                    <label><b>SSN</b></label>
+                    <input name="jointHolder.ssn" value={form.jointHolder.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
+                    {errors['jointHolder.ssn'] && <div className={styles.muted}>{errors['jointHolder.ssn']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Street Address</b></label>
+                    <input name="jointHolder.street1" value={form.jointHolder.street1} onChange={handleChange} disabled={!isEditing} />
+                    {errors['jointHolder.street1'] && <div className={styles.muted}>{errors['jointHolder.street1']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Apt or Unit</b></label>
+                    <input name="jointHolder.street2" value={form.jointHolder.street2} onChange={handleChange} disabled={!isEditing} />
+                  </div>
+                  <div>
+                    <label><b>City</b></label>
+                    <input name="jointHolder.city" value={form.jointHolder.city} onChange={handleChange} disabled={!isEditing} />
+                    {errors['jointHolder.city'] && <div className={styles.muted}>{errors['jointHolder.city']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Zip</b></label>
+                    <input name="jointHolder.zip" value={form.jointHolder.zip} onChange={handleChange} disabled={!isEditing} />
+                    {errors['jointHolder.zip'] && <div className={styles.muted}>{errors['jointHolder.zip']}</div>}
+                  </div>
+                  <div>
+                    <label><b>State</b></label>
+                    <select name="jointHolder.state" value={form.jointHolder.state} onChange={handleChange} disabled={!isEditing}>
+                      <option value="">Select state</option>
+                      {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
+                    </select>
+                    {errors['jointHolder.state'] && <div className={styles.muted}>{errors['jointHolder.state']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Country</b></label>
+                    <input name="jointHolder.country" value={form.jointHolder.country} readOnly disabled />
             </div>
           </div>
         </>
       )}
+
+            {/* Save/Cancel buttons */}
+            {isEditing && (
+              <div className={styles.sectionActions}>
+                <button className={styles.saveButton} onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? 'Saving Changes...' : 'Save Changes'}
+                </button>
+                <button className={styles.cancelButton} onClick={handleCancel} disabled={isSaving}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+            </>
+          )}
 
           {/* Investments Tab */}
           {activeTab === 'investments' && (
             <div className={styles.sectionCard}>
               <div className={styles.sectionHeader}>
                 <h2 className={styles.sectionTitle}>All Investments</h2>
-            </div>
-            {(user.investments && user.investments.length > 0) ? (
-              <div className={styles.list}>
-                {user.investments.map(inv => (
-                  <div key={inv.id} style={{
-                    padding: '16px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    marginBottom: '12px',
-                    background: 'white'
-                  }}>
-                    {/* Investment Header - Compact */}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '12px'
+              </div>
+              {(user.investments && user.investments.length > 0) ? (
+                <div className={styles.list}>
+                  {user.investments.map(inv => (
+                    <div key={inv.id} style={{
+                      padding: '16px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      marginBottom: '12px',
+                      background: 'white'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          fontSize: '16px',
-                          fontWeight: '600',
-                          color: '#111827'
-                        }}>
-                          Investment #{inv.id}
-                        </span>
-                        <span style={{
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.025em',
-                          background: inv.status === 'active' ? '#dcfce7' :
-                                    inv.status === 'pending' ? '#fef3c7' :
-                                    inv.status === 'withdrawal_notice' ? '#e0f2fe' :
-                                    inv.status === 'withdrawn' ? '#f1f5f9' :
-                                    '#fee2e2',
-                          color: inv.status === 'active' ? '#166534' :
-                                inv.status === 'pending' ? '#92400e' :
-                                inv.status === 'withdrawal_notice' ? '#2563eb' :
-                                inv.status === 'withdrawn' ? '#1f2937' :
-                                '#991b1b'
-                        }}>
-                          {inv.status}
-                        </span>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#111827' }}>
-                          ${(Number(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Compact Details Row */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                      gap: '12px',
-                      marginBottom: '12px'
-                    }}>
-                      <div style={{ fontSize: '13px' }}>
-                        <span style={{ color: '#6b7280', fontWeight: '500' }}>Type:</span>
-                        <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                          {inv.accountType || '-'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '13px' }}>
-                        <span style={{ color: '#6b7280', fontWeight: '500' }}>Lockup:</span>
-                        <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                          {inv.lockupPeriod || '-'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '13px' }}>
-                        <span style={{ color: '#6b7280', fontWeight: '500' }}>Frequency:</span>
-                        <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                          {inv.paymentFrequency || '-'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '13px' }}>
-                        <span style={{ color: '#6b7280', fontWeight: '500' }}>Bonds:</span>
-                        <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                          {inv.bonds?.toLocaleString() || '-'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '13px' }}>
-                        <span style={{ color: '#6b7280', fontWeight: '500' }}>Created:</span>
-                        <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                          {inv.createdAt ? formatDateForDisplay(inv.createdAt) : '-'}
-                        </span>
-                      </div>
-                      {inv.confirmedAt && (
-                        <div style={{ fontSize: '13px' }}>
-                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Confirmed:</span>
-                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                            {formatDateForDisplay(inv.confirmedAt)}
+                      {/* Investment Header - Compact */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#111827'
+                          }}>
+                            Investment #{inv.id}
+                          </span>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '10px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.025em',
+                            background: inv.status === 'active' ? '#dcfce7' :
+                                      inv.status === 'pending' ? '#fef3c7' :
+                                      inv.status === 'withdrawal_notice' ? '#e0f2fe' :
+                                      inv.status === 'withdrawn' ? '#f1f5f9' :
+                                      '#fee2e2',
+                            color: inv.status === 'active' ? '#166534' :
+                                  inv.status === 'pending' ? '#92400e' :
+                                  inv.status === 'withdrawal_notice' ? '#2563eb' :
+                                  inv.status === 'withdrawn' ? '#1f2937' :
+                                  '#991b1b'
+                          }}>
+                            {inv.status}
                           </span>
                         </div>
-                      )}
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '18px', fontWeight: '700', color: '#111827' }}>
+                            ${(Number(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Compact Details Row */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                        gap: '12px',
+                        marginBottom: '12px'
+                      }}>
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Type:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                            {inv.accountType || '-'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Lockup:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                            {inv.lockupPeriod || '-'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Frequency:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                            {inv.paymentFrequency || '-'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Bonds:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                            {inv.bonds?.toLocaleString() || '-'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Created:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                            {inv.createdAt ? formatDateForDisplay(inv.createdAt) : '-'}
+                          </span>
+                        </div>
+                        {inv.confirmedAt && (
+                          <div style={{ fontSize: '13px' }}>
+                            <span style={{ color: '#6b7280', fontWeight: '500' }}>Confirmed:</span>
+                            <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                              {formatDateForDisplay(inv.confirmedAt)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Specialized Info - Inline */}
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '8px',
+                        marginBottom: '12px'
+                      }}>
+                        {inv.compliance && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            background: '#f0f9ff',
+                            border: '1px solid #e0f2fe',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            color: '#0369a1',
+                            fontWeight: '500'
+                          }}>
+                            ✓ {inv.compliance.accredited || 'Accredited'}
+                          </span>
+                        )}
+
+                        {inv.banking && inv.banking.fundingMethod && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            background: '#f0fdf4',
+                            border: '1px solid #dcfce7',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            color: '#166534',
+                            fontWeight: '500'
+                          }}>
+                            🏦 {inv.banking.fundingMethod}
+                          </span>
+                        )}
+
+                        {inv.entity && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            background: '#fefce8',
+                            border: '1px solid #fef3c7',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            color: '#92400e',
+                            fontWeight: '500'
+                          }}>
+                            🏢 {inv.entity.name || 'Entity'}
+                          </span>
+                        )}
+
+                        {inv.jointHoldingType && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            background: '#fdf4ff',
+                            border: '1px solid #f3e8ff',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            color: '#6b21a8',
+                            fontWeight: '500'
+                          }}>
+                            👥 {inv.jointHoldingType}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions - Compact */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        paddingTop: '12px',
+                        borderTop: '1px solid #f3f4f6'
+                      }}>
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={() => router.push(`/admin/investments/${inv.id}`)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}
+                        >
+                          Details →
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Specialized Info - Inline */}
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '8px',
-                      marginBottom: '12px'
-                    }}>
-                      {inv.compliance && (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 6px',
-                          background: '#f0f9ff',
-                          border: '1px solid #e0f2fe',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          color: '#0369a1',
-                          fontWeight: '500'
-                        }}>
-                          ✓ {inv.compliance.accredited || 'Accredited'}
-                        </span>
-                      )}
-
-                      {inv.banking && inv.banking.fundingMethod && (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 6px',
-                          background: '#f0fdf4',
-                          border: '1px solid #dcfce7',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          color: '#166534',
-                          fontWeight: '500'
-                        }}>
-                          🏦 {inv.banking.fundingMethod}
-                        </span>
-                      )}
-
-                      {inv.entity && (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 6px',
-                          background: '#fefce8',
-                          border: '1px solid #fef3c7',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          color: '#92400e',
-                          fontWeight: '500'
-                        }}>
-                          🏢 {inv.entity.name || 'Entity'}
-                        </span>
-                      )}
-
-                      {inv.jointHoldingType && (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 6px',
-                          background: '#fdf4ff',
-                          border: '1px solid #f3e8ff',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          color: '#6b21a8',
-                          fontWeight: '500'
-                        }}>
-                          👥 {inv.jointHoldingType}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Actions - Compact */}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      paddingTop: '12px',
-                      borderTop: '1px solid #f3f4f6'
-                    }}>
-                      <button
-                        className={styles.secondaryButton}
-                        onClick={() => router.push(`/admin/investments/${inv.id}`)}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '500'
-                        }}
-                      >
-                        Details →
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.muted}>No investments</div>
-            )}
-          </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.muted}>No investments</div>
+              )}
+            </div>
           )}
 
           {/* Activity Tab */}
@@ -1687,309 +1919,6 @@ function AdminUserDetailsContent() {
             </>
           )}
 
-          {/* Profile Tab */}
-          {activeTab === 'profile' && (
-            <>
-          {/* Account Profile Section */}
-          <div className={styles.sectionCard}>
-            <div className={styles.sectionHeader}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                <h2 className={styles.sectionTitle}>Account Profile</h2>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  {!isEditing && (
-                    <>
-                      <button className={styles.editButton} onClick={handleEdit}>
-                        Edit Profile
-                      </button>
-                      <button 
-                        className={styles.dangerButton} 
-                        onClick={handleDeleteUser}
-                      >
-                        Delete User
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className={styles.grid}>
-              <div><b>Account Type:</b> {form.accountType || '-'}</div>
-              <div>
-                <b>Verified:</b> {user.isVerified ? 'Yes' : 'No'}
-                {!user.isVerified && (
-                  <button 
-                    onClick={handleVerifyAccount} 
-                    disabled={isVerifying}
-                    className={styles.verifyButton}
-                    style={{ marginLeft: '12px' }}
-                  >
-                    {isVerifying ? 'Verifying...' : 'Verify Account'}
-                  </button>
-                )}
-              </div>
-              <div>
-                <b>Account Setup:</b> {user.onboarding_completed_at ? 'Complete' : user.needs_onboarding ? 'Pending' : 'N/A'}
-              </div>
-              <div>
-                <label><b>Email</b></label>
-                <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} />
-                {errors.email && <div className={styles.muted}>{errors.email}</div>}
-              </div>
-              {form.accountType !== 'entity' && (
-                <>
-                  <div>
-                    <label><b>First Name</b></label>
-                    <input name="firstName" value={form.firstName} onChange={handleChange} disabled={!isEditing} />
-                    {errors.firstName && <div className={styles.muted}>{errors.firstName}</div>}
-                  </div>
-                  <div>
-                    <label><b>Last Name</b></label>
-                    <input name="lastName" value={form.lastName} onChange={handleChange} disabled={!isEditing} />
-                    {errors.lastName && <div className={styles.muted}>{errors.lastName}</div>}
-                  </div>
-                </>
-              )}
-              <div>
-                <label><b>Phone</b></label>
-                <input name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={!isEditing} />
-                {errors.phone && <div className={styles.muted}>{errors.phone}</div>}
-              </div>
-              {form.accountType !== 'entity' && (
-                <>
-                  <div>
-                    <label><b>Date of Birth</b></label>
-                    <input type="date" name="dob" value={form.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
-                    {errors.dob && <div className={styles.muted}>{errors.dob}</div>}
-                  </div>
-                  <div>
-                    <label><b>SSN</b></label>
-                    <input name="ssn" value={form.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
-                    {errors.ssn && <div className={styles.muted}>{errors.ssn}</div>}
-                  </div>
-                </>
-              )}
-              <div>
-                <label><b>Street Address</b></label>
-                <input name="street1" value={form.street1} onChange={handleChange} disabled={!isEditing} />
-                {errors.street1 && <div className={styles.muted}>{errors.street1}</div>}
-              </div>
-              <div>
-                <label><b>Apt or Unit</b></label>
-                <input name="street2" value={form.street2} onChange={handleChange} disabled={!isEditing} />
-              </div>
-              <div>
-                <label><b>City</b></label>
-                <input name="city" value={form.city} onChange={handleChange} disabled={!isEditing} />
-                {errors.city && <div className={styles.muted}>{errors.city}</div>}
-              </div>
-              <div>
-                <label><b>Zip</b></label>
-                <input name="zip" value={form.zip} onChange={handleChange} disabled={!isEditing} />
-                {errors.zip && <div className={styles.muted}>{errors.zip}</div>}
-              </div>
-              <div>
-                <label><b>State</b></label>
-                <select name="state" value={form.state} onChange={handleChange} disabled={!isEditing}>
-                  <option value="">Select state</option>
-                  {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
-                </select>
-                {errors.state && <div className={styles.muted}>{errors.state}</div>}
-              </div>
-              <div>
-                <label><b>Country</b></label>
-                <input name="country" value={form.country} readOnly disabled />
-              </div>
-            </div>
-
-            {/* Entity Information Subsection */}
-            {form.accountType === 'entity' && (
-              <>
-                <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
-                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Entity Information</h3>
-                </div>
-                <div className={styles.grid}>
-                <div>
-                  <label><b>Entity Name</b></label>
-                  <input name="entityName" value={form.entityName} onChange={handleChange} disabled={!isEditing} />
-                  {errors.entityName && <div className={styles.muted}>{errors.entityName}</div>}
-                </div>
-                <div>
-                  <label><b>Entity Tax ID (EIN)</b></label>
-                  <input name="entityTaxId" value={form.entityTaxId} onChange={handleChange} placeholder="12-3456789" disabled={!isEditing} />
-                  {errors.entityTaxId && <div className={styles.muted}>{errors.entityTaxId}</div>}
-                </div>
-                <div>
-                  <label><b>Entity Formation Date</b></label>
-                  <input type="date" name="entityRegistrationDate" value={form.entityRegistrationDate} onChange={handleChange} min={MIN_DOB} max={maxToday} disabled={!isEditing} />
-                  {errors.entityRegistrationDate && <div className={styles.muted}>{errors.entityRegistrationDate}</div>}
-                </div>
-              </div>
-
-              {/* Authorized Representative Subsection */}
-              <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
-                <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Authorized Representative</h3>
-              </div>
-              <div className={styles.grid}>
-                <div>
-                  <label><b>First Name</b></label>
-                  <input name="authorizedRep.firstName" value={form.authorizedRep.firstName} onChange={handleChange} disabled={!isEditing} />
-                  {errors['authorizedRep.firstName'] && <div className={styles.muted}>{errors['authorizedRep.firstName']}</div>}
-                </div>
-                <div>
-                  <label><b>Last Name</b></label>
-                  <input name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} disabled={!isEditing} />
-                  {errors['authorizedRep.lastName'] && <div className={styles.muted}>{errors['authorizedRep.lastName']}</div>}
-                </div>
-                <div>
-                  <label><b>Title</b></label>
-                  <input name="authorizedRep.title" value={form.authorizedRep.title} onChange={handleChange} placeholder="e.g., Manager, CEO" disabled={!isEditing} />
-                  {errors['authorizedRep.title'] && <div className={styles.muted}>{errors['authorizedRep.title']}</div>}
-                </div>
-                <div>
-                  <label><b>Date of Birth</b></label>
-                  <input type="date" name="authorizedRep.dob" value={form.authorizedRep.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
-                  {errors['authorizedRep.dob'] && <div className={styles.muted}>{errors['authorizedRep.dob']}</div>}
-                </div>
-                <div>
-                  <label><b>SSN</b></label>
-                  <input name="authorizedRep.ssn" value={form.authorizedRep.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
-                  {errors['authorizedRep.ssn'] && <div className={styles.muted}>{errors['authorizedRep.ssn']}</div>}
-                </div>
-                <div>
-                  <label><b>Street Address</b></label>
-                  <input name="authorizedRep.street1" value={form.authorizedRep.street1} onChange={handleChange} disabled={!isEditing} />
-                  {errors['authorizedRep.street1'] && <div className={styles.muted}>{errors['authorizedRep.street1']}</div>}
-                </div>
-                <div>
-                  <label><b>Apt or Unit</b></label>
-                  <input name="authorizedRep.street2" value={form.authorizedRep.street2} onChange={handleChange} disabled={!isEditing} />
-                </div>
-                <div>
-                  <label><b>City</b></label>
-                  <input name="authorizedRep.city" value={form.authorizedRep.city} onChange={handleChange} disabled={!isEditing} />
-                  {errors['authorizedRep.city'] && <div className={styles.muted}>{errors['authorizedRep.city']}</div>}
-                </div>
-                <div>
-                  <label><b>Zip</b></label>
-                  <input name="authorizedRep.zip" value={form.authorizedRep.zip} onChange={handleChange} disabled={!isEditing} />
-                  {errors['authorizedRep.zip'] && <div className={styles.muted}>{errors['authorizedRep.zip']}</div>}
-                </div>
-                <div>
-                  <label><b>State</b></label>
-                  <select name="authorizedRep.state" value={form.authorizedRep.state} onChange={handleChange} disabled={!isEditing}>
-                    <option value="">Select state</option>
-                    {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
-                  </select>
-                  {errors['authorizedRep.state'] && <div className={styles.muted}>{errors['authorizedRep.state']}</div>}
-                </div>
-                <div>
-                  <label><b>Country</b></label>
-                  <input name="authorizedRep.country" value={form.authorizedRep.country} readOnly disabled />
-                </div>
-              </div>
-              </>
-            )}
-
-            {/* Save/Cancel buttons for Account Profile */}
-            {isEditing && (
-              <div className={styles.sectionActions}>
-                <button className={styles.saveButton} onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Saving Changes...' : 'Save Changes'}
-                </button>
-                <button className={styles.cancelButton} onClick={handleCancel} disabled={isSaving}>
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Joint Holder Section */}
-          {form.accountType === 'joint' && (
-            <div className={styles.sectionCard}>
-              <div className={styles.sectionHeader}>
-                <h2 className={styles.sectionTitle}>Joint Holder Information</h2>
-              </div>
-              <div className={styles.grid}>
-                <div>
-                  <label><b>Joint Holding Type</b></label>
-                  <select name="jointHoldingType" value={form.jointHoldingType} onChange={handleChange} disabled={!isEditing}>
-                    <option value="">Select joint holding type</option>
-                    <option value="spouse">Spouse</option>
-                    <option value="sibling">Sibling</option>
-                    <option value="domestic_partner">Domestic Partner</option>
-                    <option value="business_partner">Business Partner</option>
-                    <option value="other">Other</option>
-                  </select>
-                  {errors.jointHoldingType && <div className={styles.muted}>{errors.jointHoldingType}</div>}
-                </div>
-                <div />
-                <div>
-                  <label><b>First Name</b></label>
-                  <input name="jointHolder.firstName" value={form.jointHolder.firstName} onChange={handleChange} disabled={!isEditing} />
-                  {errors['jointHolder.firstName'] && <div className={styles.muted}>{errors['jointHolder.firstName']}</div>}
-                </div>
-                <div>
-                  <label><b>Last Name</b></label>
-                  <input name="jointHolder.lastName" value={form.jointHolder.lastName} onChange={handleChange} disabled={!isEditing} />
-                  {errors['jointHolder.lastName'] && <div className={styles.muted}>{errors['jointHolder.lastName']}</div>}
-                </div>
-                <div>
-                  <label><b>Email</b></label>
-                  <input name="jointHolder.email" value={form.jointHolder.email} onChange={handleChange} disabled={!isEditing} />
-                  {errors['jointHolder.email'] && <div className={styles.muted}>{errors['jointHolder.email']}</div>}
-                </div>
-                <div>
-                  <label><b>Phone</b></label>
-                  <input name="jointHolder.phone" value={form.jointHolder.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={!isEditing} />
-                  {errors['jointHolder.phone'] && <div className={styles.muted}>{errors['jointHolder.phone']}</div>}
-                </div>
-                <div>
-                  <label><b>Date of Birth</b></label>
-                  <input type="date" name="jointHolder.dob" value={form.jointHolder.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
-                  {errors['jointHolder.dob'] && <div className={styles.muted}>{errors['jointHolder.dob']}</div>}
-                </div>
-                <div>
-                  <label><b>SSN</b></label>
-                  <input name="jointHolder.ssn" value={form.jointHolder.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
-                  {errors['jointHolder.ssn'] && <div className={styles.muted}>{errors['jointHolder.ssn']}</div>}
-                </div>
-                <div>
-                  <label><b>Street Address</b></label>
-                  <input name="jointHolder.street1" value={form.jointHolder.street1} onChange={handleChange} disabled={!isEditing} />
-                  {errors['jointHolder.street1'] && <div className={styles.muted}>{errors['jointHolder.street1']}</div>}
-                </div>
-                <div>
-                  <label><b>Apt or Unit</b></label>
-                  <input name="jointHolder.street2" value={form.jointHolder.street2} onChange={handleChange} disabled={!isEditing} />
-                </div>
-                <div>
-                  <label><b>City</b></label>
-                  <input name="jointHolder.city" value={form.jointHolder.city} onChange={handleChange} disabled={!isEditing} />
-                  {errors['jointHolder.city'] && <div className={styles.muted}>{errors['jointHolder.city']}</div>}
-                </div>
-                <div>
-                  <label><b>Zip</b></label>
-                  <input name="jointHolder.zip" value={form.jointHolder.zip} onChange={handleChange} disabled={!isEditing} />
-                  {errors['jointHolder.zip'] && <div className={styles.muted}>{errors['jointHolder.zip']}</div>}
-                </div>
-                <div>
-                  <label><b>State</b></label>
-                  <select name="jointHolder.state" value={form.jointHolder.state} onChange={handleChange} disabled={!isEditing}>
-                    <option value="">Select state</option>
-                    {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
-                  </select>
-                  {errors['jointHolder.state'] && <div className={styles.muted}>{errors['jointHolder.state']}</div>}
-                </div>
-                <div>
-                  <label><b>Country</b></label>
-                  <input name="jointHolder.country" value={form.jointHolder.country} readOnly disabled />
-                </div>
-              </div>
-            </div>
-          )}
-            </>
-          )}
-
           {/* Actions Tab */}
           {activeTab === 'actions' && (
             <>
@@ -2143,24 +2072,14 @@ function AdminUserDetailsContent() {
                       <span className={styles.actionLabel}>Send Welcome</span>
                     </button>
                     
-                    {!user.onboarding_completed_at && (
-                      <button 
-                        onClick={handleSendOnboardingEmail} 
-                        className={styles.actionCard}
-                        title="Generate setup link"
-                      >
-                        <span className={styles.actionIcon}>🎉</span>
-                        <span className={styles.actionLabel}>Setup Link</span>
-                      </button>
-                    )}
-                    
                     <button 
-                      onClick={handleCopySetupLink} 
+                      onClick={handleGenerateSetupLink} 
                       className={styles.actionCard}
-                      title="Copy setup link"
+                      title="Generate and copy setup link for onboarding"
+                      disabled={isGeneratingLink}
                     >
                       <span className={styles.actionIcon}>🔗</span>
-                      <span className={styles.actionLabel}>Copy Link</span>
+                      <span className={styles.actionLabel}>{isGeneratingLink ? 'Generating...' : 'Setup Link'}</span>
                     </button>
                     
                     {!user.isVerified && (
@@ -2178,10 +2097,10 @@ function AdminUserDetailsContent() {
                     <button 
                       onClick={handleTestOnboarding} 
                       className={styles.actionCard}
-                      title="Login as user"
+                      title="Experience the onboarding flow as this user"
                     >
                       <span className={styles.actionIcon}>🧪</span>
-                      <span className={styles.actionLabel}>Test View</span>
+                      <span className={styles.actionLabel}>Test Onboarding</span>
                     </button>
                     
                     <button 
@@ -2193,6 +2112,86 @@ function AdminUserDetailsContent() {
                       <span className={styles.actionLabel}>Delete User</span>
                     </button>
                   </div>
+                  
+                  {/* Setup Link Display */}
+                  {setupLink && (
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '12px 16px',
+                      background: '#ecfdf5',
+                      border: '1px solid #10b981',
+                      borderRadius: '8px'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#065f46' }}>
+                          ✅ Setup link copied to clipboard!
+                        </span>
+                        <button
+                          onClick={() => setSetupLink(null)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#6b7280',
+                            fontSize: '16px',
+                            padding: '0 4px'
+                          }}
+                          title="Dismiss"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <input
+                          type="text"
+                          value={setupLink}
+                          readOnly
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            fontSize: '12px',
+                            fontFamily: 'monospace',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            background: 'white',
+                            color: '#374151'
+                          }}
+                          onClick={(e) => e.target.select()}
+                        />
+                        <button
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(setupLink)
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            background: '#059669',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title="Copy again"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px' }}>
+                        Valid for 48 hours
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bank Accounts Section */}

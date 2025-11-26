@@ -58,8 +58,6 @@ function OnboardingContent() {
       const data = await apiClient.getUser(userId)
       
       if (data.success && data.user) {
-        setUserData(data.user)
-        
         // Fetch investments separately
         let investments = []
         try {
@@ -70,6 +68,12 @@ function OnboardingContent() {
         } catch (err) {
           console.warn('Failed to load investments:', err)
         }
+        
+        // Merge investments into userData so getInvestmentsNeedingBanks() can access them
+        setUserData({
+          ...data.user,
+          investments: investments
+        })
         
         // Check if bank accounts are needed (only for monthly payment investments)
         const investmentsNeedingBanks = investments.filter(inv => 
@@ -179,8 +183,6 @@ function OnboardingContent() {
           const userData = await apiClient.getCurrentUser()
           
           if (userData.success && userData.user) {
-            setUserData(userData.user)
-            
             // Fetch investments to check if bank connection is needed
             let investments = []
             try {
@@ -191,6 +193,12 @@ function OnboardingContent() {
             } catch (err) {
               console.warn('Failed to load investments:', err)
             }
+            
+            // Merge investments into userData so getInvestmentsNeedingBanks() can access them
+            setUserData({
+              ...userData.user,
+              investments: investments
+            })
             
             // Check if bank accounts are needed (only for monthly payment investments)
             const investmentsNeedingBanks = investments.filter(inv => 
