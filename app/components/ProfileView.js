@@ -3,91 +3,39 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import logger from '@/lib/logger'
+import { 
+  formatName, 
+  formatEntityName, 
+  formatCity, 
+  formatStreet, 
+  formatPhone, 
+  maskSSN 
+} from '@/lib/formatters'
+import { 
+  normalizePhoneForDB, 
+  isValidUSPhoneDigits, 
+  parseDateString, 
+  isAdultDob, 
+  MIN_DOB 
+} from '@/lib/validation'
 import styles from './ProfileView.module.css'
 import BankConnectionModal from './BankConnectionModal'
 
 export default function ProfileView() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const MIN_DOB = '1900-01-01'
+  
   const maxDob = useMemo(() => {
+    if (typeof window === 'undefined') return ''
     const now = new Date()
     const cutoff = new Date(now.getFullYear() - 18, now.getMonth(), now.getDate())
     return cutoff.toISOString().split('T')[0]
   }, [])
   const maxToday = useMemo(() => {
+    if (typeof window === 'undefined') return ''
     const now = new Date()
     return now.toISOString().split('T')[0]
   }, [])
-
-  // Names: Allow only letters, spaces, hyphens, apostrophes, and periods
-  const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
-  const formatEntityName = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.&,]/g, '')
-
-  // City names: Allow only letters, spaces, hyphens, apostrophes, and periods
-  const formatCity = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
-
-  // Street addresses: Allow letters, numbers, spaces, hyphens, periods, commas, and hash symbols
-  const formatStreet = (value = '') => value.replace(/[^a-zA-Z0-9\s'\-\.,#]/g, '')
-
-  // Format US phone numbers as (XXX) XXX-XXXX while typing (ignore leading country code 1)
-  const formatPhone = (value = '') => {
-    const digitsOnly = (value || '').replace(/\D/g, '')
-    const withoutCountry = digitsOnly.startsWith('1') && digitsOnly.length === 11 ? digitsOnly.slice(1) : digitsOnly
-    const len = withoutCountry.length
-    if (len === 0) return ''
-    if (len <= 3) return `(${withoutCountry}`
-    if (len <= 6) return `(${withoutCountry.slice(0, 3)}) ${withoutCountry.slice(3)}`
-    return `(${withoutCountry.slice(0, 3)}) ${withoutCountry.slice(3, 6)}-${withoutCountry.slice(6, 10)}`
-  }
-
-  // Mask SSN for display (show last 4 digits only)
-  const maskSSN = (ssn = '') => {
-    if (!ssn) return ''
-    const digits = ssn.replace(/\D/g, '')
-    if (digits.length === 9) {
-      return `***-**-${digits.slice(-4)}`
-    }
-    return '***-**-****'
-  }
-
-  // Normalize phone number to E.164 format for database storage (+1XXXXXXXXXX)
-  const normalizePhoneForDB = (value = '') => {
-    const digits = value.replace(/\D/g, '')
-    if (digits.length === 10) {
-      return `+1${digits}`
-    }
-    if (digits.length === 11 && digits.startsWith('1')) {
-      return `+${digits}`
-    }
-    return value // Return original if format is unexpected
-  }
-
-  // US phone validation aligned with backend: 10 digits; area code must start 2-9
-  const isValidUSPhoneDigits = (raw = '') => {
-    const digitsOnly = (raw || '').replace(/\D/g, '')
-    const normalized = digitsOnly.length === 11 && digitsOnly.startsWith('1') ? digitsOnly.slice(1) : digitsOnly
-    if (normalized.length !== 10) return false
-    return /^[2-9][0-9]{9}$/.test(normalized)
-  }
-
-  const parseDateString = (value = '') => {
-    const [year, month, day] = (value || '').split('-').map(Number)
-    if (!year || !month || !day) return null
-    const date = new Date(year, month - 1, day)
-    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null
-    return date
-  }
-
-  const isAdultDob = (value = '') => {
-    const date = parseDateString(value)
-    if (!date) return false
-    const minimum = parseDateString(MIN_DOB)
-    if (!minimum || date < minimum) return false
-    const today = new Date()
-    const adultCutoff = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
-    return date <= adultCutoff
-  }
 
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState('primary-holder')
@@ -107,6 +55,8 @@ export default function ProfileView() {
   const [isRemovingBank, setIsRemovingBank] = useState(null)
   // Track if user has any joint investments to decide rendering the joint section
   const [hasJointInvestments, setHasJointInvestments] = useState(false)
+  // Bank accounts state
+  const [bankAccounts, setBankAccounts] = useState([])
   // Single user address (horizontal form in Addresses tab)
   const [addressForm, setAddressForm] = useState({
     street1: '',
@@ -133,9 +83,42 @@ export default function ProfileView() {
     router.replace(query ? `/dashboard/profile?${query}` : '/dashboard/profile', { scroll: false })
   }
 
+  // Fetch bank accounts separately
+  const fetchBankAccounts = async () => {
+    try {
+      const res = await apiClient.listPaymentMethods('bank_ach')
+      if (res.payment_methods) {
+        setBankAccounts(res.payment_methods)
+      }
+    } catch (e) {
+      logger.error('Failed to fetch bank accounts', e)
+    }
+  }
+
   useEffect(() => {
+    let isMounted = true
     setMounted(true)
     loadUser()
+    
+    const fetchBanks = async () => {
+      try {
+        const res = await apiClient.listPaymentMethods('bank_ach')
+        if (isMounted && res.payment_methods) {
+          setBankAccounts(res.payment_methods)
+        }
+      } catch (e) {
+        if (isMounted) {
+          logger.error('Failed to fetch bank accounts', e)
+        }
+      }
+    }
+    
+    fetchBanks()
+    
+    return () => {
+      isMounted = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Handle tab from URL params
@@ -181,7 +164,27 @@ export default function ProfileView() {
       }
       setActiveTab(resolved)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, userData, router])
+
+  // Refresh banks when banking tab is active
+  useEffect(() => {
+    if (activeTab === 'banking') {
+      let isMounted = true
+      // Trigger a fresh fetch
+      apiClient.listPaymentMethods('bank_ach')
+        .then(res => {
+          if (isMounted && res.payment_methods) setBankAccounts(res.payment_methods)
+        })
+        .catch(e => {
+          if (isMounted) logger.error('Failed to fetch bank accounts', e)
+        })
+        
+      return () => {
+        isMounted = false
+      }
+    }
+  }, [activeTab])
 
   const loadUser = async () => {
     if (typeof window === 'undefined') return
@@ -749,21 +752,13 @@ export default function ProfileView() {
 
   const handleBankAccountAdded = async (bankAccount) => {
     try {
-      if (typeof window === 'undefined') return
+      // Refresh bank list directly
+      await fetchBankAccounts()
       
-      const userId = localStorage.getItem('currentUserId')
-      const data = await apiClient.updateUser(userId, {
-        _action: 'addBankAccount',
-        bankAccount
-      })
-      if (data.success) {
-        await loadUser()
-      } else {
-        alert(data.error || 'Failed to add bank account')
-      }
+      // Also reload user to keep other data in sync if needed, though banks are now separate
+      await loadUser()
     } catch (e) {
-      logger.error('Failed to add bank account', e)
-      alert('An error occurred. Please try again.')
+      logger.error('Failed to refresh after adding bank account', e)
     }
   }
 
@@ -778,6 +773,7 @@ export default function ProfileView() {
       })
       if (data.success) {
         await loadUser()
+        await fetchBankAccounts()
       } else {
         alert(data.error || 'Failed to set default bank')
       }
@@ -794,15 +790,25 @@ export default function ProfileView() {
     try {
       if (typeof window === 'undefined') return
       
-      const userId = localStorage.getItem('currentUserId')
-      const data = await apiClient.updateUser(userId, {
-        _action: 'removeBankAccount',
-        bankAccountId: bankId
-      })
-      if (data.success) {
-        await loadUser()
-      } else {
-        alert(data.error || 'Failed to remove bank account')
+      // Use deletePaymentMethod instead of updateUser action for cleaner API usage
+      // Try the direct API first
+      try {
+        await apiClient.deletePaymentMethod(bankId)
+        await fetchBankAccounts()
+        await loadUser() // Sync user profile too
+      } catch (apiErr) {
+        // Fallback to legacy updateUser approach if direct delete fails
+        const userId = localStorage.getItem('currentUserId')
+        const data = await apiClient.updateUser(userId, {
+          _action: 'removeBankAccount',
+          bankAccountId: bankId
+        })
+        if (data.success) {
+          await loadUser()
+          await fetchBankAccounts()
+        } else {
+          throw new Error(data.error || 'Failed to remove bank account')
+        }
       }
     } catch (e) {
       logger.error('Failed to remove bank account', e)
@@ -976,12 +982,14 @@ export default function ProfileView() {
         {activeTab === 'banking' && (
           <BankingTab
             userData={userData}
+            bankAccounts={bankAccounts}
             showBankModal={showBankModal}
             setShowBankModal={setShowBankModal}
             handleBankAccountAdded={handleBankAccountAdded}
             handleSetDefaultBank={handleSetDefaultBank}
             handleRemoveBank={handleRemoveBank}
             isRemovingBank={isRemovingBank}
+            mounted={mounted}
           />
         )}
 
@@ -1547,6 +1555,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
     } else {
       setIsEditing(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData?.trustedContact])
 
   const handleEdit = () => {
@@ -1721,8 +1730,12 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
 }
 
 
-function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank }) {
-  const availableBanks = Array.isArray(userData?.bankAccounts) ? userData.bankAccounts : []
+function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank, mounted }) {
+  // Prefer the independently fetched bankAccounts, fall back to userData.bankAccounts
+  const availableBanks = Array.isArray(bankAccounts) && bankAccounts.length > 0 
+    ? bankAccounts 
+    : (Array.isArray(userData?.bankAccounts) ? userData.bankAccounts : [])
+  
   const defaultBankId = userData?.banking?.defaultBankAccountId || null
 
   return (
@@ -1730,7 +1743,7 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Banking Information</h2>
         <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-          Manage your connected bank accounts. You can add multiple accounts and select which one to use for funding and payouts.
+          Manage your connected bank account. Only one account can be connected at a time. Connecting a new account will replace the existing one.
         </p>
 
         {availableBanks.length === 0 ? (
@@ -1751,9 +1764,7 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
                   key={bank.id}
                   bank={bank}
                   isDefault={bank.id === defaultBankId}
-                  onSetDefault={handleSetDefaultBank}
-                  onRemove={handleRemoveBank}
-                  isRemoving={isRemovingBank === bank.id}
+                  mounted={mounted}
                 />
               ))}
             </div>
@@ -1762,7 +1773,7 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
                 className={styles.addBankButton}
                 onClick={() => setShowBankModal(true)}
               >
-                Add Bank Account
+                Change Bank Account
               </button>
             </div>
           </>
@@ -1772,7 +1783,7 @@ function BankingTab({ userData, showBankModal, setShowBankModal, handleBankAccou
   )
 }
 
-function BankAccountCard({ bank, isDefault, onSetDefault, onRemove, isRemoving }) {
+function BankAccountCard({ bank, isDefault, mounted }) {
   const bankColor = bank.bank_color || bank.bankColor || '#117ACA'
   const bankLogo = bank.bank_logo || bank.bankLogo || '🏦'
   const bankName = bank.bank_name || bank.bankName || 'Bank'
@@ -1795,28 +1806,11 @@ function BankAccountCard({ bank, isDefault, onSetDefault, onRemove, isRemoving }
           <div className={styles.bankCardDetails}>{accountType} •••• {last4}</div>
         </div>
       </div>
-      {lastUsed && (
+      {lastUsed && mounted && (
         <div className={styles.bankCardMeta}>
           Last used: {new Date(lastUsed).toLocaleDateString()}
         </div>
       )}
-      <div className={styles.bankCardActions}>
-        {!isDefault && (
-          <button
-            className={styles.bankCardButton}
-            onClick={() => onSetDefault(bank.id)}
-          >
-            Set as Default
-          </button>
-        )}
-        <button
-          className={`${styles.bankCardButton} ${styles.bankCardButtonDanger}`}
-          onClick={() => onRemove(bank.id, nickname)}
-          disabled={isRemoving || isDefault}
-        >
-          {isRemoving ? 'Removing...' : 'Remove'}
-        </button>
-      </div>
     </div>
   )
 }
@@ -1923,7 +1917,7 @@ function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, han
           <div className={styles.field}>
             <label className={styles.label}>Account Created</label>
             <div className={`${styles.value} ${styles.valueDisabled}`}>
-              {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : 'Not available'}
+              {userData.createdAt && mounted ? new Date(userData.createdAt).toLocaleDateString() : 'Not available'}
             </div>
           </div>
           <div className={styles.field}>

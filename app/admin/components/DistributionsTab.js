@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './DistributionsTab.module.css'
 import { formatCurrency } from '../../../lib/formatters.js'
@@ -121,14 +121,15 @@ export default function DistributionsTab({ users, timeMachineData }) {
         return (
           event.userName?.toLowerCase().includes(term) ||
           event.userEmail?.toLowerCase().includes(term) ||
-          event.userId?.toLowerCase().includes(term) ||
-          event.investmentId?.toLowerCase().includes(term) ||
-          event.id?.toLowerCase().includes(term)
+          event.userId?.toString().toLowerCase().includes(term) ||
+          event.investmentId?.toString().toLowerCase().includes(term) ||
+          event.id?.toString().toLowerCase().includes(term)
         )
       })
     }
 
     return filtered
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allDistributions, searchTerm, filterType])
 
   // Calculate summary statistics
@@ -210,7 +211,7 @@ export default function DistributionsTab({ users, timeMachineData }) {
   const totalPages = Math.ceil(groupedByMonth.length / itemsPerPage)
 
   // Reset to page 1 when filters change
-  useMemo(() => {
+  useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, filterType])
 

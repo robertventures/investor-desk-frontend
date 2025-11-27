@@ -31,6 +31,7 @@ export default function DocumentManagerSection({ currentUser, onUploadComplete }
   useEffect(() => {
     loadUsers()
     loadDocuments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadUsers = async () => {
@@ -276,7 +277,7 @@ export default function DocumentManagerSection({ currentUser, onUploadComplete }
               />
               {bulkFile && <p className={styles.fileName}>{bulkFile.name}</p>}
               <p className={styles.helpText}>
-                Upload a ZIP file containing PDFs. Each PDF should be named with the user's first and last name (e.g., JosephRobert_1234.pdf).
+                Upload a ZIP file containing PDFs. Each PDF should be named with the user&apos;s first and last name (e.g., JosephRobert_1234.pdf).
               </p>
             </div>
 

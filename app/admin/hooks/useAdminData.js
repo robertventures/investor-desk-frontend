@@ -121,6 +121,7 @@ export function useAdminData() {
       }
     }
     init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
   const loadUsers = async (forceRefresh = false) => {

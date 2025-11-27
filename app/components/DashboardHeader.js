@@ -93,6 +93,7 @@ export default function DashboardHeader({ forceActiveView = null }) {
     if (showMobileNav) {
       setShowMobileNav(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
   // Close mobile nav when clicking outside

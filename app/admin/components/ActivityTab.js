@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './ActivityTab.module.css'
 import { formatCurrency } from '../../../lib/formatters.js'
@@ -98,11 +98,12 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
         event.type?.toLowerCase().includes(term) ||
         event.userName?.toLowerCase().includes(term) ||
         event.userEmail?.toLowerCase().includes(term) ||
-        event.userId?.toLowerCase().includes(term) ||
-        event.investmentId?.toLowerCase().includes(term) ||
-        event.id?.toLowerCase().includes(term)
+        event.userId?.toString().toLowerCase().includes(term) ||
+        event.investmentId?.toString().toLowerCase().includes(term) ||
+        event.id?.toString().toLowerCase().includes(term)
       )
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allActivity, searchTerm])
 
   // Paginate filtered activity
@@ -115,7 +116,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
   const totalPages = Math.ceil(filteredActivity.length / itemsPerPage)
 
   // Reset to page 1 when search term changes
-  useMemo(() => {
+  useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm])
 

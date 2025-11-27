@@ -68,6 +68,11 @@ export default function DashboardShell({ children }) {
       return
     }
 
+    // NOTE: Onboarding redirect has been removed.
+    // Onboarding is ONLY triggered via admin-sent email links with a token.
+    // Users who haven't completed onboarding can still access the dashboard.
+    // The onboarding flow is specifically for importing investors from the previous app.
+
     setReady(true)
   }, [loading, router, userData])
 
@@ -86,7 +91,8 @@ export default function DashboardShell({ children }) {
     }
     // Use userData.id to prevent infinite loops
     // If we used userData, loading investments would update userData, triggering this again
-  }, [loading, userData?.id, loadInvestments, loadActivity])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, userData?.id])
 
   if (!ready || loading) {
     return (

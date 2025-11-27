@@ -18,20 +18,6 @@
   width: 100%;
 }
 
-.twoColumnLayout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  width: 100%;
-}
-
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-width: 0;
-}
-
 .overviewGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -58,52 +44,6 @@
   font-weight: 700;
   color: var(--color-accent);
   word-break: break-word;
-}
-
-.distributionGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  width: 100%;
-}
-
-.distributionCard {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 20px;
-  min-width: 0;
-}
-
-.distributionTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.distributionList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.distributionRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-}
-
-.distributionRow span {
-  color: #6b7280;
-}
-
-.distributionRow strong {
-  color: var(--color-accent);
-  font-weight: 600;
 }
 
 .activityCard {
@@ -702,11 +642,6 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .twoColumnLayout {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-
   .overviewGrid {
     grid-template-columns: 1fr 1fr;
   }
@@ -721,10 +656,6 @@
 
   .overviewValue {
     font-size: 20px;
-  }
-
-  .distributionGrid {
-    grid-template-columns: 1fr;
   }
 
   .activityCard {
@@ -800,30 +731,6 @@
 
   .dashboardTab {
     gap: 16px;
-  }
-
-  .twoColumnLayout {
-    gap: 16px;
-  }
-
-  .distributionGrid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .distributionCard {
-    padding: 12px;
-  }
-
-  .distributionTitle {
-    font-size: 12px;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-  }
-
-  .distributionRow {
-    font-size: 13px;
-    gap: 8px;
   }
 
   .activityCard {

@@ -16,8 +16,8 @@
 "use client"
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
-import BankVerificationModal from '../components/BankVerificationModal'
 import { apiClient } from '../../lib/apiClient'
+import logger from '../../lib/logger'
 import {
   DRAFT_PAYMENT_METHOD_KEY,
   clearStoredPaymentMethod,
@@ -77,9 +77,9 @@ function ClientContent() {
   const [selectedFundingBankId, setSelectedFundingBankId] = useState('')
   const [selectedPayoutBankId, setSelectedPayoutBankId] = useState('')
   const [showAllBanksModal, setShowAllBanksModal] = useState(false)
-  const [showVerificationModal, setShowVerificationModal] = useState(false)
-  const [verificationPaymentMethodId, setVerificationPaymentMethodId] = useState('')
   const [bankSelectionMode, setBankSelectionMode] = useState('') // 'funding' or 'payout'
+  const [fundingInfo, setFundingInfo] = useState(null)
+  const [fundingError, setFundingError] = useState('')
   const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [agreementState, setAgreementState] = useState({
     status: 'idle',
@@ -90,7 +90,6 @@ function ClientContent() {
   const agreementStateRef = useRef(agreementState)
   const agreementBlobUrlRef = useRef(null)
   const agreementRequestIdRef = useRef(0)
-  const router = useRouter()
 
   useEffect(() => {
     agreementStateRef.current = agreementState
@@ -118,9 +117,7 @@ function ClientContent() {
       if (signedUrl) {
         const win = window.open(signedUrl, '_blank')
         if (!win) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Agreement pop-up was blocked.')
-          }
+          logger.warn('Agreement pop-up was blocked.')
           return false
         }
         try {
@@ -156,9 +153,7 @@ function ClientContent() {
           agreementBlobUrlRef.current = blobUrl
           const win = window.open(blobUrl, '_blank')
           if (!win) {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('Agreement pop-up was blocked.')
-            }
+            logger.warn('Agreement pop-up was blocked.')
             releaseAgreementBlobUrl()
             return false
           }
@@ -167,9 +162,7 @@ function ClientContent() {
           } catch {}
           return true
         } catch (err) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Failed to decode agreement PDF', err)
-          }
+          logger.error('Failed to decode agreement PDF', err)
           releaseAgreementBlobUrl()
           return false
         }
@@ -228,29 +221,25 @@ function ClientContent() {
       })
 
       try {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[FinalizeInvestment] Fetching agreement for investment', {
-            investmentId: investment.id,
-            lockupPeriod: investment.lockupPeriod,
-            paymentFrequency: investment.paymentFrequency,
-            amount: investment.amount,
-            status: investment.status
-          })
-        }
+        logger.debug('[FinalizeInvestment] Fetching agreement for investment', {
+          investmentId: investment.id,
+          lockupPeriod: investment.lockupPeriod,
+          paymentFrequency: investment.paymentFrequency,
+          amount: investment.amount,
+          status: investment.status
+        })
         const response = await apiClient.generateBondAgreement(investment.id, user?.id)
         if (agreementRequestIdRef.current !== requestId) {
           return { success: false, cancelled: true }
         }
 
         if (response?.success && response.data) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[FinalizeInvestment] Agreement response received', {
-              hasSignedUrl: Boolean(response.data?.signed_url),
-              hasPdfBase64: Boolean(response.data?.pdf_base64),
-              fileName: response.data?.file_name,
-              expiresAt: response.data?.expires_at
-            })
-          }
+          logger.debug('[FinalizeInvestment] Agreement response received', {
+            hasSignedUrl: Boolean(response.data?.signed_url),
+            hasPdfBase64: Boolean(response.data?.pdf_base64),
+            fileName: response.data?.file_name,
+            expiresAt: response.data?.expires_at
+          })
           const nextState = {
             status: 'ready',
             data: response.data,
@@ -298,7 +287,7 @@ function ClientContent() {
         return { success: false, error: message, data: null }
       }
     },
-    [investment?.id, openAgreementAsset, releaseAgreementBlobUrl, user?.id]
+    [investment?.id, investment?.lockupPeriod, investment?.paymentFrequency, investment?.amount, investment?.status, openAgreementAsset, releaseAgreementBlobUrl, user?.id]
   )
 
   useEffect(() => {
@@ -308,92 +297,64 @@ function ClientContent() {
     const load = async () => {
       const userId = localStorage.getItem('currentUserId')
       const investmentId = localStorage.getItem('currentInvestmentId')
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[FinalizeInvestment] Loading page - userId:', userId, 'investmentId:', investmentId)
-      }
+      logger.debug('[FinalizeInvestment] Loading page - userId:', userId, 'investmentId:', investmentId)
       
       if (!userId) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[FinalizeInvestment] No userId found, redirecting to home')
-        }
-        router.push('/')
+        logger.debug('[FinalizeInvestment] No userId found, redirecting to home')
+        window.location.href = '/'
         return
       }
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[FinalizeInvestment] Fetching user data...')
-      }
+      logger.debug('[FinalizeInvestment] Fetching user data...')
       const data = await apiClient.getUser(userId)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[FinalizeInvestment] User data:', data)
-      }
+      logger.debug('[FinalizeInvestment] User data:', data)
       
       if (data.success && data.user) {
         setUser(data.user)
         
         // Fetch investments separately (API doesn't return them in profile)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[FinalizeInvestment] Fetching investments...')
-        }
+        logger.debug('[FinalizeInvestment] Fetching investments...')
         const investmentsData = await apiClient.getInvestments(userId)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[FinalizeInvestment] Investments data:', investmentsData)
-        }
+        logger.debug('[FinalizeInvestment] Investments data:', investmentsData)
         
         const investments = investmentsData?.investments || []
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[FinalizeInvestment] User investments:', investments)
-          console.log('[FinalizeInvestment] Investment IDs and statuses:', investments.map(i => ({ id: i.id, status: i.status })))
-          console.log('[FinalizeInvestment] Looking for investmentId:', investmentId)
-        }
+        logger.debug('[FinalizeInvestment] User investments:', investments)
         
         let inv = investments.find(i => i.id.toString() === investmentId?.toString()) || null
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[FinalizeInvestment] Found investment:', inv)
-        }
+        logger.debug('[FinalizeInvestment] Found investment:', inv)
         
         // If no specific investment ID, try to find the most recent draft
         if (!inv && investments.length > 0) {
           const draftInvestments = investments.filter(i => i.status === 'draft')
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[FinalizeInvestment] Draft investments found:', draftInvestments.length)
-          }
+          logger.debug('[FinalizeInvestment] Draft investments found:', draftInvestments.length)
           if (draftInvestments.length > 0) {
             const mostRecentDraft = draftInvestments[0] // Assuming API returns most recent first
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[FinalizeInvestment] Using most recent draft:', mostRecentDraft.id)
-            }
+            logger.debug('[FinalizeInvestment] Using most recent draft:', mostRecentDraft.id)
             // Update localStorage with this ID for future use
             localStorage.setItem('currentInvestmentId', mostRecentDraft.id)
             // Use this investment directly instead of reloading
             inv = mostRecentDraft
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[FinalizeInvestment] Using draft investment:', inv)
-            }
+            logger.debug('[FinalizeInvestment] Using draft investment:', inv)
           }
         }
         
         // SECURITY: Only allow finalization of draft investments
         // If no draft investment exists, redirect to dashboard
         if (!inv) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('[FinalizeInvestment] No investment found with ID:', investmentId)
-          }
+          logger.error('[FinalizeInvestment] No investment found with ID:', investmentId)
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
-          router.push('/dashboard')
+          window.location.href = '/dashboard'
           return
         }
         
         if (inv.status !== 'draft') {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('[FinalizeInvestment] Investment is not in draft status:', inv.status)
-          }
+          logger.error('[FinalizeInvestment] Investment is not in draft status:', inv.status)
           try {
             localStorage.removeItem('currentInvestmentId')
           } catch {}
-          router.push('/dashboard')
+          window.location.href = '/dashboard'
           return
         }
         
@@ -429,7 +390,7 @@ function ClientContent() {
           localStorage.removeItem('signupEmail')
           localStorage.removeItem('currentInvestmentId')
         } catch {}
-        router.push('/')
+        window.location.href = '/'
         return
       }
     }
@@ -524,6 +485,30 @@ function ClientContent() {
     }
   }, [investment?.compliance])
 
+  // Poll funding status if a funding is in progress
+  useEffect(() => {
+    if (!fundingInfo?.id || !investment?.id) return
+    let isMounted = true
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiClient.getFundingStatus(investment.id, fundingInfo.id)
+        if (!isMounted) return
+        if (res?.funding) {
+          setFundingInfo(res.funding)
+          const s = res.funding.status
+          if (s === 'settled' || s === 'failed' || s === 'returned') {
+            clearInterval(interval)
+          }
+        }
+      } catch (e) {
+        // keep polling silently
+      }
+    }, 3000)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [fundingInfo?.id, investment?.id])
 
   // Load banking details from user account
   useEffect(() => {
@@ -606,6 +591,7 @@ function ClientContent() {
     if (validationErrors.length) {
       setValidationErrors([])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accredited, accreditedType, tenPercentConfirmed, fundingMethod, payoutMethod, selectedBankId, agreeToTerms])
 
   // Keep investment summary up-to-date after modifications (e.g. lockup period)
@@ -621,8 +607,8 @@ function ClientContent() {
           setInvestment(detail.investment)
         }
       } catch (err) {
-        if (!cancelled && process.env.NODE_ENV === 'development') {
-          console.warn('[FinalizeInvestment] Failed to refresh investment details', err)
+        if (!cancelled) {
+          logger.warn('[FinalizeInvestment] Failed to refresh investment details', err)
         }
       }
     }
@@ -644,6 +630,14 @@ function ClientContent() {
     const expiresDate = new Date(agreementData.expires_at)
     return Number.isNaN(expiresDate.getTime()) ? '' : expiresDate.toLocaleString()
   })()
+
+  const generateIdempotencyKey = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
+  }
 
   return (
     <div className={styles.sections}>
@@ -669,7 +663,7 @@ function ClientContent() {
                   setTenPercentConfirmed(false)
                 }}
               />
-              <span>Investor meets the definition of "accredited investor"</span>
+              <span>Investor meets the definition of &quot;accredited investor&quot;</span>
             </label>
             
             {accredited === 'accredited' && (
@@ -722,7 +716,7 @@ function ClientContent() {
                   setAccreditedType('')
                 }}
               />
-              <span>Investor does not meet the definition of "accredited investor" or is not sure</span>
+              <span>Investor does not meet the definition of &quot;accredited investor&quot; or is not sure</span>
             </label>
             {accredited === 'not_accredited' && (
               <div className={styles.subOptions} onClick={(e) => e.stopPropagation()}>
@@ -802,7 +796,7 @@ function ClientContent() {
           <div className={styles.fundingHeader}>
             <div className={styles.groupTitle}>Funding</div>
             <p className={styles.fundingDescription}>
-              Choose how you'll transfer funds to make your investment
+              Choose how you&apos;ll transfer funds to make your investment
             </p>
           </div>
           <div className={styles.radioGroup}>
@@ -832,6 +826,11 @@ function ClientContent() {
                       Display saved payment methods from Plaid
                       These are fetched from /api/payment-methods?type=bank_ach
                     */}
+                    {investment?.paymentFrequency === 'monthly' && (
+                      <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px', fontStyle: 'italic' }}>
+                        This account will also be used for your monthly payouts.
+                      </p>
+                    )}
                     {availableBanks.length > 0 ? (
                       <>
                         <div className={styles.savedBanksGrid}>
@@ -839,55 +838,21 @@ function ClientContent() {
                             <div
                               key={bank.id}
                               className={`${styles.savedBankCard} ${selectedFundingBankId === bank.id ? styles.selectedBankCard : ''}`}
-                              onClick={() => setSelectedFundingBankId(bank.id)}
+                              onClick={() => {
+                                setSelectedFundingBankId(bank.id)
+                                // Auto-select for payout if using bank transfer
+                                setSelectedPayoutBankId(bank.id)
+                              }}
                             >
                               <div className={styles.savedBankLeft}>
                                 <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
                                   {bank.bankLogo || '🏦'}
                                 </span>
                               <div className={styles.savedBankDetails}>
-                                <div className={styles.savedBankName}>
-                                  {bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}
-                                  {bank.status === 'verification_pending' && (
-                                    <span className={styles.verificationBadge} style={{ 
-                                      marginLeft: '8px', 
-                                      fontSize: '10px', 
-                                      backgroundColor: '#fef3c7', 
-                                      color: '#d97706', 
-                                      padding: '2px 6px', 
-                                      borderRadius: '4px',
-                                      fontWeight: '600'
-                                    }}>
-                                      Needs Verification
-                                    </span>
-                                  )}
-                                </div>
+                                <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
                                 <div className={styles.savedBankAccount}>
                                   {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
                                 </div>
-                                {bank.status === 'verification_pending' && (
-                                  <button
-                                    className={styles.verifyButton}
-                                    style={{
-                                      marginTop: '8px',
-                                      fontSize: '12px',
-                                      padding: '4px 12px',
-                                      backgroundColor: '#fff7ed',
-                                      color: '#c2410c',
-                                      border: '1px solid #fed7aa',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      fontWeight: '500'
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setVerificationPaymentMethodId(bank.id)
-                                      setShowVerificationModal(true)
-                                    }}
-                                  >
-                                    Verify Account
-                                  </button>
-                                )}
                               </div>
                               </div>
                               {selectedFundingBankId === bank.id && (
@@ -951,7 +916,7 @@ function ClientContent() {
                 />
                 <span>Wire Transfer</span>
               </label>
-              {fundingMethod === 'wire-transfer' && (
+                  {fundingMethod === 'wire-transfer' && (
                 <div>
                   <div className={styles.wireRow}><b>Bank:</b> Bank of America</div>
                   <div className={styles.wireRow}><b>Bank Location:</b> 7950 Brier Creek Pkwy, Raleigh NC 27617</div>
@@ -1010,86 +975,114 @@ function ClientContent() {
                   >
                     Download PDF Instructions
                   </button>
+                  
+                  {/* Payout Bank Selection for Wire Transfer with Monthly Payments */}
+                  {investment?.paymentFrequency === 'monthly' && (
+                    <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' }}>
+                      <div className={styles.groupTitle} style={{ marginBottom: '8px' }}>Payout Account</div>
+                      <p className={styles.fundingDescription} style={{ marginBottom: '16px' }}>
+                        Select the bank account where you&apos;d like to receive your monthly earnings
+                      </p>
+                      <div className={styles.bankConnectionSection}>
+                        {availableBanks.length > 0 ? (
+                          <>
+                            <div className={styles.savedBanksGrid}>
+                              {availableBanks.slice(0, 2).map((bank) => (
+                                <div
+                                  key={bank.id}
+                                  className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
+                                  onClick={() => setSelectedPayoutBankId(bank.id)}
+                                >
+                                  <div className={styles.savedBankLeft}>
+                                    <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
+                                      {bank.bankLogo || '🏦'}
+                                    </span>
+                                    <div className={styles.savedBankDetails}>
+                                      <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
+                                      <div className={styles.savedBankAccount}>
+                                        {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {selectedPayoutBankId === bank.id && (
+                                    <span className={styles.selectedCheck}>✓</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <div className={styles.bankActionButtons}>
+                              {availableBanks.length > 2 && (
+                                <button
+                                  type="button"
+                                  className={styles.viewAllBanksButton}
+                                  onClick={() => {
+                                    setBankSelectionMode('payout')
+                                    setShowAllBanksModal(true)
+                                  }}
+                                >
+                                  View All Banks ({availableBanks.length})
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className={styles.addNewBankButton}
+                                onClick={() => setShowBankModal(true)}
+                              >
+                                + Add New Bank
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.connectBankButton}
+                            onClick={() => setShowBankModal(true)}
+                          >
+                            <span className={styles.connectIcon}>🏦</span>
+                            <span>Connect Payout Account</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
+      </Section>
 
-        {/* Payout method (only for monthly payments) */}
-        {investment?.paymentFrequency === 'monthly' && (
-          <div className={styles.subSection}>
-            <div className={styles.payoutHeader}>
-              <div className={styles.groupTitle}>Payout</div>
-              <p className={styles.payoutDescription}>
-                Select the bank account where you'd like to receive your monthly earnings
-              </p>
+      <div className={styles.actions}>
+        {fundingInfo && (
+          <div className={styles.warning} style={{ marginBottom: '12px', backgroundColor: '#e0f2fe', borderColor: '#0ea5e9' }}>
+            <div className={styles.warningTitle} style={{ color: '#0369a1' }}>
+              💳 ACH Funding Initiated: {fundingInfo.status?.toUpperCase() || 'PENDING'}
             </div>
-            <div className={styles.bankConnectionSection}>
-              {availableBanks.length > 0 ? (
-                <>
-                  <div className={styles.savedBanksGrid}>
-                    {availableBanks.slice(0, 2).map((bank) => (
-                      <div
-                        key={bank.id}
-                        className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
-                        onClick={() => setSelectedPayoutBankId(bank.id)}
-                      >
-                        <div className={styles.savedBankLeft}>
-                          <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
-                            {bank.bankLogo || '🏦'}
-                          </span>
-                          <div className={styles.savedBankDetails}>
-                            <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
-                            <div className={styles.savedBankAccount}>
-                              {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
-                            </div>
-                          </div>
-                        </div>
-                        {selectedPayoutBankId === bank.id && (
-                          <span className={styles.selectedCheck}>✓</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className={styles.bankActionButtons}>
-                    {availableBanks.length > 2 && (
-                      <button
-                        type="button"
-                        className={styles.viewAllBanksButton}
-                        onClick={() => {
-                          setBankSelectionMode('payout')
-                          setShowAllBanksModal(true)
-                        }}
-                      >
-                        View All Banks ({availableBanks.length})
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.addNewBankButton}
-                      onClick={() => setShowBankModal(true)}
-                    >
-                      + Add New Bank
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.connectBankButton}
-                  onClick={() => setShowBankModal(true)}
-                >
-                  <span className={styles.connectIcon}>🏦</span>
-                  <span>Connect Bank Account</span>
-                </button>
+            <div style={{ fontSize: '13px', color: '#075985', marginTop: '8px', lineHeight: '1.6' }}>
+              {fundingInfo.id && (
+                <div>Funding ID: <code style={{ backgroundColor: 'rgba(14, 165, 233, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>{fundingInfo.id}</code></div>
+              )}
+              {fundingInfo.amount_cents && (
+                <div>Amount: ${(fundingInfo.amount_cents / 100).toFixed(2)}</div>
+              )}
+              {fundingInfo.expected_settlement_date && (
+                <div>Expected Settlement: {new Date(fundingInfo.expected_settlement_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              )}
+              {fundingInfo.achq_transaction_id && (
+                <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.8 }}>
+                  Transaction ID: {fundingInfo.achq_transaction_id}
+                </div>
               )}
             </div>
           </div>
         )}
-      </Section>
-
-      <div className={styles.actions}>
+        {fundingError && (
+          <div className={styles.submitError} style={{ marginBottom: '12px' }}>
+            <p className={styles.submitErrorText} style={{ fontSize: '13px', lineHeight: '1.6' }}>
+              ⚠️ {fundingError}
+            </p>
+          </div>
+        )}
         <p style={{ 
           fontSize: '14px', 
           color: '#6b7280', 
@@ -1121,12 +1114,15 @@ function ClientContent() {
             if (fundingMethod === 'bank-transfer' && !selectedFundingBankId) {
               errors.push('Please select a bank account for funding.')
             }
-            if (investment?.paymentFrequency === 'monthly' && payoutMethod !== 'bank-account') {
-              errors.push('Select a payout method for monthly earnings.')
+            if (investment?.paymentFrequency === 'monthly') {
+              if (payoutMethod !== 'bank-account') {
+                errors.push('Select a payout method for monthly earnings.')
+              }
+              if (payoutMethod === 'bank-account' && !selectedPayoutBankId) {
+                errors.push('Please select a bank account for payouts.')
+              }
             }
-            if (investment?.paymentFrequency === 'monthly' && payoutMethod === 'bank-account' && !selectedPayoutBankId) {
-              errors.push('Please select a bank account for payouts.')
-            }
+            
             if (!agreeToTerms) {
               errors.push('Please review and agree to the investment agreement terms.')
             }
@@ -1134,17 +1130,13 @@ function ClientContent() {
               setValidationErrors(errors)
               return
             }
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Starting investment submission...')
-            }
+            logger.info('Starting investment submission...')
             setIsSaving(true)
             try {
               const userId = user.id
               const investmentId = investment.id
               const earningsMethod = investment.paymentFrequency === 'monthly' ? payoutMethod : 'compounding'
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Investment details:', { userId, investmentId, paymentMethod: fundingMethod, earningsMethod })
-              }
+              logger.debug('Investment details:', { userId, investmentId, paymentMethod: fundingMethod, earningsMethod })
 
               // Fetch current app time (Time Machine) from server - only if user is admin
               let appTime = new Date().toISOString()
@@ -1153,14 +1145,10 @@ function ClientContent() {
                   const timeData = await apiClient.getAppTime()
                   appTime = timeData?.success ? timeData.appTime : appTime
                 } catch (err) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.warn('Failed to get app time, using system time:', err)
-                  }
+                  logger.warn('Failed to get app time, using system time:', err)
                 }
               }
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Using app time for timestamps:', appTime)
-              }
+              logger.debug('Using app time for timestamps:', appTime)
 
               // Determine bank account to use for funding and payout
               let fundingBankToUse = null
@@ -1173,10 +1161,22 @@ function ClientContent() {
                 }
               }
               
-              if (investment.paymentFrequency === 'monthly' && payoutMethod === 'bank-account' && selectedPayoutBankId) {
-                const existing = availableBanks.find(b => b.id === selectedPayoutBankId)
-                if (existing) {
-                  payoutBankToUse = { ...existing, lastUsedAt: appTime }
+              // Logic:
+              // 1. If funding is bank-transfer, payout MUST be same bank (enforced in UI/state).
+              // 2. If funding is wire, payout can be any selected bank.
+              // 3. Payout bank is only saved if paymentFrequency is monthly.
+              
+              if (investment.paymentFrequency === 'monthly') {
+                // If funding via bank, we must use that bank for payout
+                if (fundingMethod === 'bank-transfer' && fundingBankToUse) {
+                  payoutBankToUse = fundingBankToUse
+                } 
+                // Otherwise (Wire), use the explicitly selected payout bank
+                else if (payoutMethod === 'bank-account' && selectedPayoutBankId) {
+                  const existing = availableBanks.find(b => b.id === selectedPayoutBankId)
+                  if (existing) {
+                    payoutBankToUse = { ...existing, lastUsedAt: appTime }
+                  }
                 }
               }
               
@@ -1186,53 +1186,31 @@ function ClientContent() {
               const paymentMethod = fundingMethod === 'bank-transfer' ? 'ach' : 'wire'
               
               // Log finalization data for debugging
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Finalizing investment with data:', {
-                  investmentId,
-                  paymentMethod,
-                  fundingMethod,
-                  earningsMethod,
-                  accredited,
-                  accreditedType,
-                  tenPercentConfirmed,
-                  fundingBank: fundingBankToUse?.nickname,
-                  payoutBank: payoutBankToUse?.nickname
-                })
-              }
+              logger.debug('Finalizing investment with data:', {
+                investmentId,
+                paymentMethod,
+                fundingMethod,
+                earningsMethod,
+                accredited,
+                accreditedType,
+                tenPercentConfirmed,
+                fundingBank: fundingBankToUse?.nickname,
+                payoutBank: payoutBankToUse?.nickname
+              })
               
               // Update the investment's payment method using the investments endpoint
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Updating investment payment method...')
-              }
-              
-              // For ACH, we might need to associate the payment method ID with the investment
-              // before submitting, to satisfy backend validation.
-              const updatePayload = {
+              logger.debug('Updating investment payment method...')
+              const investmentUpdateData = await apiClient.updateInvestment(userId, investmentId, {
                 paymentMethod
-              }
-              
-              if (paymentMethod === 'ach' && selectedFundingBankId) {
-                // Attempt to pass payment_method_id in case backend supports/requires it here
-                // We use snake_case as that's typical for the backend API, and also camelCase just in case
-                updatePayload.payment_method_id = selectedFundingBankId
-                updatePayload.paymentMethodId = selectedFundingBankId
-              }
+              })
 
-              const investmentUpdateData = await apiClient.updateInvestment(userId, investmentId, updatePayload)
-
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Investment update API response:', investmentUpdateData)
-              }
+              logger.debug('Investment update API response:', investmentUpdateData)
               if (!investmentUpdateData.success) {
-                if (process.env.NODE_ENV === 'development') {
-                  console.error('Investment update failed:', investmentUpdateData.error)
-                }
+                logger.error('Investment update failed:', investmentUpdateData.error)
                 setSubmitError(`Failed to submit investment: ${investmentUpdateData.error || 'Unknown error'}. Please try again.`)
                 return
               }
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Investment updated successfully!')
-              }
+              logger.debug('Investment updated successfully!')
 
               // Create accreditation attestation BEFORE submitting (immutable once created)
               try {
@@ -1243,17 +1221,11 @@ function ClientContent() {
                     accreditedType: accredited === 'accredited' ? accreditedType : null,
                     tenPercentLimitConfirmed: accredited === 'not_accredited' ? !!tenPercentConfirmed : null
                   }
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('Creating accreditation attestation with payload:', attestationPayload)
-                  }
+                  logger.debug('Creating accreditation attestation with payload:', attestationPayload)
                   await apiClient.createAttestation(investmentId, attestationPayload)
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('Accreditation attestation created successfully')
-                  }
+                  logger.debug('Accreditation attestation created successfully')
                 } else {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('Accreditation attestation already exists for this investment; skipping creation')
-                  }
+                  logger.debug('Accreditation attestation already exists for this investment; skipping creation')
                 }
               } catch (attErr) {
                 const msg = (attErr && attErr.message) ? attErr.message : 'Unknown error'
@@ -1264,54 +1236,39 @@ function ClientContent() {
                 const lower = (combined || '').toLowerCase()
                 const isAlreadyExists = attErr?.statusCode === 409 || lower.includes('already') || lower.includes('exists')
                 if (!isAlreadyExists) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error('Creating accreditation attestation failed:', attErr)
-                  }
+                  logger.error('Creating accreditation attestation failed:', attErr)
                   setSubmitError(`Failed to save accreditation attestation: ${combined}`)
                   return
                 } else {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('Attestation appears to already exist; proceeding with submission.')
-                  }
-                }
-              }
-              
-              if (paymentMethod === 'ach' && selectedFundingBankId) {
-                const bankToUse = availableBanks.find(b => b.id === selectedFundingBankId)
-                if (bankToUse && bankToUse.status === 'verification_pending') {
-                  setSubmitError('Please verify your bank account (click "Verify Account" above) before submitting.')
-                  setIsSaving(false)
-                  return
+                  logger.debug('Attestation appears to already exist; proceeding with submission.')
                 }
               }
               
               // Submit the investment to move it from DRAFT to PENDING status
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Submitting investment...')
-              }
+              logger.info('Submitting investment...')
+              
+              // Build submit payload - ACH investments require payment_method_id
               const submitPayload = {}
               if (paymentMethod === 'ach' && selectedFundingBankId) {
-                const numericPaymentMethodId = Number(selectedFundingBankId)
-                submitPayload.payment_method_id = Number.isNaN(numericPaymentMethodId)
-                  ? selectedFundingBankId
-                  : numericPaymentMethodId
-              }
-              const submitResponse = await apiClient.submitInvestment(investmentId, submitPayload)
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Investment submit API response:', submitResponse)
+                submitPayload.payment_method_id = selectedFundingBankId
               }
               
+              const submitResponse = await apiClient.submitInvestment(investmentId, submitPayload)
+              logger.debug('Investment submit API response:', submitResponse)
+              
               if (!submitResponse.success) {
-                if (process.env.NODE_ENV === 'development') {
-                  console.error('Investment submission failed:', submitResponse.error)
-                }
+                logger.error('Investment submission failed:', submitResponse.error)
                 setSubmitError(`Failed to submit investment: ${submitResponse.error || 'Unknown error'}. Please try again.`)
                 return
               }
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Investment submitted successfully! Status changed to PENDING.')
+              logger.info('Investment submitted successfully! Status changed to PENDING.')
+
+              // If funding was initiated via submit, update the state
+              if (submitResponse.investment?.funding) {
+                logger.info('[FinalizeInvestment] Funding info received from submit response:', submitResponse.investment.funding)
+                setFundingInfo(submitResponse.investment.funding)
               }
-              
+
               // Store finalization data in localStorage for future reference
               // Note: Compliance data is now stored via backend attestation; we also keep a local snapshot
               const finalizationData = {
@@ -1338,28 +1295,18 @@ function ClientContent() {
               
               try {
                 localStorage.setItem(`investment_${investmentId}_finalization`, JSON.stringify(finalizationData))
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('Finalization data stored in localStorage')
-                }
+                logger.debug('Finalization data stored in localStorage')
               } catch (err) {
-                if (process.env.NODE_ENV === 'development') {
-                  console.warn('Failed to store finalization data in localStorage:', err)
-                }
+                logger.warn('Failed to store finalization data in localStorage:', err)
               }
               
-              // Small delay to ensure UI doesn't flash before redirect
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Investment submitted successfully, redirecting to dashboard...')
-              }
-              await new Promise(resolve => setTimeout(resolve, 500))
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Redirecting to dashboard...')
-              }
-              router.push('/dashboard')
+              // Always redirect to dashboard after successful submission
+              logger.info('Investment submitted successfully, redirecting to dashboard...')
+              await new Promise(resolve => setTimeout(resolve, 1500))
+              logger.debug('Redirecting to dashboard...')
+              window.location.href = '/dashboard'
             } catch (e) {
-              if (process.env.NODE_ENV === 'development') {
-                console.error('Failed to save finalization data', e)
-              }
+              logger.error('Failed to save finalization data', e)
               setSubmitError('An error occurred while submitting your investment. Please try again. If the problem persists, contact support.')
             } finally {
               setIsSaving(false)
@@ -1385,70 +1332,48 @@ function ClientContent() {
         )}
       </div>
 
-      {/* Bank Verification Modal */}
-      {showVerificationModal && (
-        <BankVerificationModal
-          isOpen={showVerificationModal}
-          onClose={() => setShowVerificationModal(false)}
-          paymentMethodId={verificationPaymentMethodId}
-          onVerificationSuccess={async () => {
-            try {
-              const pmRes = await apiClient.listPaymentMethods('bank_ach')
-              const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
-              setAvailableBanks(pms)
-            } catch (e) {
-              console.error('Failed to refresh banks after verification:', e)
-            }
-          }}
-        />
-      )}
-
       {/* Bank Connection Modal */}
-      {showBankModal && (
-        <BankConnectionModal
-          isOpen={showBankModal}
-          onClose={() => !isSavingBank && setShowBankModal(false)}
-          onAccountSelected={async (method) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[FinalizeInvestment] Bank account selected from Plaid:', method)
-            }
-            
-            // Ensure the payment method has the expected structure
-            const paymentMethod = {
-              id: method.id,
-              type: method.type || 'bank_ach',
-              display_name: method.display_name || method.bank_name || 'Bank Account',
-              bank_name: method.bank_name || method.display_name || 'Bank',
-              account_type: method.account_type || 'checking',
-              last4: method.last4 || '****',
-              status: method.status || 'ready',
-              ...method
-            }
-            
-            console.log('[FinalizeInvestment] Normalized payment method:', paymentMethod)
-            
-            setSelectedBankId(paymentMethod.id)
-            setSelectedFundingBankId(paymentMethod.id)
-            setSelectedPayoutBankId(paymentMethod.id)
-            setIsSavingBank(true)
-            
-            try {
-              console.log('[FinalizeInvestment] Refreshing payment methods list...')
-              const pmRes = await apiClient.listPaymentMethods('bank_ach')
-              const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
-              console.log('[FinalizeInvestment] Available payment methods:', pms.length)
-              setAvailableBanks(pms)
-            } catch (e) {
-              console.error('[FinalizeInvestment] Failed to refresh payment methods:', e)
-              // Add the new bank to the list manually if refresh failed
-              setAvailableBanks(prev => [...prev, paymentMethod])
-            } finally {
-              setIsSavingBank(false)
-              setShowBankModal(false)
-            }
-          }}
-        />
-      )}
+      <BankConnectionModal
+        isOpen={showBankModal}
+        onClose={() => !isSavingBank && setShowBankModal(false)}
+        onAccountSelected={async (method) => {
+          logger.debug('[FinalizeInvestment] Bank account selected from Plaid:', method)
+          
+          // Ensure the payment method has the expected structure
+          const paymentMethod = {
+            id: method.id,
+            type: method.type || 'bank_ach',
+            display_name: method.display_name || method.bank_name || 'Bank Account',
+            bank_name: method.bank_name || method.display_name || 'Bank',
+            account_type: method.account_type || 'checking',
+            last4: method.last4 || '****',
+            status: method.status || 'ready',
+            ...method
+          }
+          
+          logger.debug('[FinalizeInvestment] Normalized payment method:', paymentMethod)
+          
+          setSelectedBankId(paymentMethod.id)
+          setSelectedFundingBankId(paymentMethod.id)
+          setSelectedPayoutBankId(paymentMethod.id)
+          setIsSavingBank(true)
+          
+          try {
+            logger.debug('[FinalizeInvestment] Refreshing payment methods list...')
+            const pmRes = await apiClient.listPaymentMethods('bank_ach')
+            const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
+            logger.debug('[FinalizeInvestment] Available payment methods:', pms.length)
+            setAvailableBanks(pms)
+          } catch (e) {
+            logger.error('[FinalizeInvestment] Failed to refresh payment methods:', e)
+            // Add the new bank to the list manually if refresh failed
+            setAvailableBanks(prev => [...prev, paymentMethod])
+          } finally {
+            setIsSavingBank(false)
+            setShowBankModal(false)
+          }
+        }}
+      />
       
       {/* View All Banks Modal */}
       {showAllBanksModal && (
@@ -1477,6 +1402,8 @@ function ClientContent() {
                       onClick={() => {
                         if (bankSelectionMode === 'funding') {
                           setSelectedFundingBankId(bank.id)
+                          // Auto-select for payout if using bank transfer
+                          setSelectedPayoutBankId(bank.id)
                         } else {
                           setSelectedPayoutBankId(bank.id)
                         }
@@ -1488,48 +1415,10 @@ function ClientContent() {
                           {bank.bankLogo || '🏦'}
                         </span>
                         <div className={styles.modalBankDetails}>
-                          <div className={styles.modalBankName}>
-                            {bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}
-                            {bank.status === 'verification_pending' && (
-                              <span className={styles.verificationBadge} style={{ 
-                                marginLeft: '8px', 
-                                fontSize: '10px', 
-                                backgroundColor: '#fef3c7', 
-                                color: '#d97706', 
-                                padding: '2px 6px', 
-                                borderRadius: '4px',
-                                fontWeight: '600'
-                              }}>
-                                Needs Verification
-                              </span>
-                            )}
-                          </div>
+                          <div className={styles.modalBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
                           <div className={styles.modalBankAccount}>
                             {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
                           </div>
-                          {bank.status === 'verification_pending' && (
-                            <button
-                              className={styles.verifyButton}
-                              style={{
-                                marginTop: '8px',
-                                fontSize: '12px',
-                                padding: '4px 12px',
-                                backgroundColor: '#fff7ed',
-                                color: '#c2410c',
-                                border: '1px solid #fed7aa',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: '500'
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setVerificationPaymentMethodId(bank.id)
-                                setShowVerificationModal(true)
-                              }}
-                            >
-                              Verify Account
-                            </button>
-                          )}
                         </div>
                       </div>
                       {isSelected && (
@@ -1652,22 +1541,39 @@ function ClientContent() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding:</div>
-                <div style={{ color: '#facc15', fontSize: '11px' }}>
-                  Backend now handles ACH funding automatically when an investment is submitted. No manual fundInvestment call is made from the UI.
+              {fundingInfo && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding Status:</div>
+                  <div style={{ 
+                    padding: '8px', 
+                    background: '#374151', 
+                    borderRadius: '4px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all'
+                  }}>
+                    {JSON.stringify(fundingInfo, null, 2)}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {fundingError && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ color: '#9ca3af', marginBottom: '4px' }}>Funding Error:</div>
+                  <div style={{ color: '#ef4444' }}>{fundingError}</div>
+                </div>
+              )}
 
               <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #374151' }}>
                 <button
                   onClick={() => {
-                    console.log('=== PLAID DEBUG INFO ===')
-                    console.log('Environment:', process.env.NEXT_PUBLIC_PLAID_ENV)
-                    console.log('Available Banks:', availableBanks)
-                    console.log('Selected Funding Bank ID:', selectedFundingBankId)
-                    console.log('Investment:', investment)
-                    console.log('=======================')
+                    logger.debug('=== PLAID DEBUG INFO ===', {
+                      Environment: process.env.NEXT_PUBLIC_PLAID_ENV,
+                      AvailableBanks: availableBanks,
+                      SelectedFundingBankId: selectedFundingBankId,
+                      FundingInfo: fundingInfo,
+                      FundingError: fundingError,
+                      Investment: investment
+                    })
                   }}
                   style={{
                     width: '100%',

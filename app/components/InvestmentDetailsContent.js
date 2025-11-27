@@ -422,11 +422,11 @@ export default function InvestmentDetailsContent({ investmentId }) {
                       <tbody>
                         <tr>
                           <td>Withdrawal Requested</td>
-                          <td>{investmentData.withdrawalNoticeStartAt ? new Date(investmentData.withdrawalNoticeStartAt).toLocaleString() : '-'}</td>
+                          <td>{investmentData.withdrawalNoticeStartAt ? new Date(investmentData.withdrawalNoticeStartAt).toLocaleDateString() : '-'}</td>
                         </tr>
                         <tr>
                           <td>Payout Due By</td>
-                          <td>{investmentData.payoutDueBy ? new Date(investmentData.payoutDueBy).toLocaleString() : '-'}</td>
+                          <td>{investmentData.payoutDueBy ? new Date(investmentData.payoutDueBy).toLocaleDateString() : '-'}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -441,7 +441,7 @@ export default function InvestmentDetailsContent({ investmentId }) {
                       <tbody>
                         <tr>
                           <td>Withdrawal Date</td>
-                          <td>{new Date(investmentData.withdrawnAt).toLocaleString()}</td>
+                          <td>{new Date(investmentData.withdrawnAt).toLocaleDateString()}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -506,11 +506,11 @@ export default function InvestmentDetailsContent({ investmentId }) {
                     <tbody>
                       <tr>
                         <td>Withdrawal Requested</td>
-                        <td>{investmentData.withdrawalNoticeStartAt ? new Date(investmentData.withdrawalNoticeStartAt).toLocaleString() : '-'}</td>
+                        <td>{investmentData.withdrawalNoticeStartAt ? new Date(investmentData.withdrawalNoticeStartAt).toLocaleDateString() : '-'}</td>
                       </tr>
                       <tr>
                         <td>Payout Due By</td>
-                        <td>{investmentData.payoutDueBy ? new Date(investmentData.payoutDueBy).toLocaleString() : '-'}</td>
+                        <td>{investmentData.payoutDueBy ? new Date(investmentData.payoutDueBy).toLocaleDateString() : '-'}</td>
                       </tr>
                     </tbody>
                   </table>

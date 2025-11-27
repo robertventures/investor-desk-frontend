@@ -131,6 +131,8 @@ export function UserProvider({ children }) {
       logger.warn('Failed to load investments data', e)
       // Don't wipe data on error to prevent flashing empty state if we have fallback data
       // setInvestments([]) 
+      // Ensure we don't leave it as null if it was null
+      setInvestments(prev => prev || [])
       return []
     } finally {
       isLoadingInvestmentsRef.current = false

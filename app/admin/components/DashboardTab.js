@@ -455,88 +455,40 @@ const DashboardTab = memo(function DashboardTab({
         </div>
       </SectionCard>
 
-      {/* Two Column Layout */}
-      <div className={styles.twoColumnLayout}>
-        {/* Left Column - Distribution */}
-        <div className={styles.column}>
-          <SectionCard title="Distribution">
-            <div className={styles.distributionGrid}>
-              <div className={styles.distributionCard}>
-                <div className={styles.distributionTitle}>Account Types</div>
-                <div className={styles.distributionList}>
-                  <div className={styles.distributionRow}>
-                    <span>Individual</span>
-                    <strong>{metrics.accountsByType.individual}</strong>
+      {/* Recent Activity */}
+      <SectionCard title="Recent Activity">
+        <div className={styles.activityCard}>
+          <h3 className={styles.activityCardTitle}>Latest Investments</h3>
+          <div className={styles.activityList}>
+            {metrics.recentInvestments.length > 0 ? (
+              metrics.recentInvestments.slice(0, 5).map(inv => (
+                <div
+                  key={`${inv.userId}-${inv.id}`}
+                  className={styles.activityItem}
+                  onClick={() => router.push(`/admin/users/${inv.userId}`)}
+                >
+                  <div className={styles.activityItemHeader}>
+                    <span className={styles.activityItemTitle}>
+                      Investment #{inv.id}
+                    </span>
+                    <span className={`${styles.activityStatus} ${styles[`status-${inv.status}`]}`}>
+                      {inv.status}
+                    </span>
                   </div>
-                  <div className={styles.distributionRow}>
-                    <span>Joint</span>
-                    <strong>{metrics.accountsByType.joint}</strong>
-                  </div>
-                  <div className={styles.distributionRow}>
-                    <span>Entity</span>
-                    <strong>{metrics.accountsByType.entity}</strong>
-                  </div>
-                  <div className={styles.distributionRow}>
-                    <span>SDIRA</span>
-                    <strong>{metrics.accountsByType.ira}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.distributionCard}>
-                <div className={styles.distributionTitle}>Lockup Periods</div>
-                <div className={styles.distributionList}>
-                  <div className={styles.distributionRow}>
-                    <span>1 Year</span>
-                    <strong>{metrics.investmentsByLockup['1-year']}</strong>
-                  </div>
-                  <div className={styles.distributionRow}>
-                    <span>3 Years</span>
-                    <strong>{metrics.investmentsByLockup['3-year']}</strong>
+                  <div className={styles.activityItemDetails}>
+                    <span>{inv.userName}</span>
+                    <span className={styles.activityItemAmount}>
+                      {formatCurrency(inv.amount)}
+                    </span>
                   </div>
                 </div>
-              </div>
-            </div>
-          </SectionCard>
+              ))
+            ) : (
+              <p className={styles.emptyState}>No recent investments</p>
+            )}
+          </div>
         </div>
-
-        {/* Right Column - Recent Activity */}
-        <div className={styles.column}>
-          <SectionCard title="Recent Activity">
-            <div className={styles.activityCard}>
-              <h3 className={styles.activityCardTitle}>Latest Investments</h3>
-              <div className={styles.activityList}>
-                {metrics.recentInvestments.length > 0 ? (
-                  metrics.recentInvestments.slice(0, 5).map(inv => (
-                    <div
-                      key={`${inv.userId}-${inv.id}`}
-                      className={styles.activityItem}
-                      onClick={() => router.push(`/admin/users/${inv.userId}`)}
-                    >
-                      <div className={styles.activityItemHeader}>
-                        <span className={styles.activityItemTitle}>
-                          Investment #{inv.id}
-                        </span>
-                        <span className={`${styles.activityStatus} ${styles[`status-${inv.status}`]}`}>
-                          {inv.status}
-                        </span>
-                      </div>
-                      <div className={styles.activityItemDetails}>
-                        <span>{inv.userName}</span>
-                        <span className={styles.activityItemAmount}>
-                          {formatCurrency(inv.amount)}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className={styles.emptyState}>No recent investments</p>
-                )}
-              </div>
-            </div>
-          </SectionCard>
-        </div>
-      </div>
+      </SectionCard>
     </div>
   )
 })
