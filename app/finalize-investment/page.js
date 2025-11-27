@@ -796,7 +796,7 @@ function ClientContent() {
           <div className={styles.fundingHeader}>
             <div className={styles.groupTitle}>Funding</div>
             <p className={styles.fundingDescription}>
-              Choose how you&apos;ll transfer funds to make your investment
+              Choose how you'll transfer funds to make your investment
             </p>
           </div>
           <div className={styles.radioGroup}>
@@ -826,6 +826,11 @@ function ClientContent() {
                       Display saved payment methods from Plaid
                       These are fetched from /api/payment-methods?type=bank_ach
                     */}
+                    {investment?.paymentFrequency === 'monthly' && (
+                      <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px', fontStyle: 'italic' }}>
+                        This account will also be used for your monthly payouts.
+                      </p>
+                    )}
                     {availableBanks.length > 0 ? (
                       <>
                         <div className={styles.savedBanksGrid}>
@@ -833,7 +838,11 @@ function ClientContent() {
                             <div
                               key={bank.id}
                               className={`${styles.savedBankCard} ${selectedFundingBankId === bank.id ? styles.selectedBankCard : ''}`}
-                              onClick={() => setSelectedFundingBankId(bank.id)}
+                              onClick={() => {
+                                setSelectedFundingBankId(bank.id)
+                                // Auto-select for payout if using bank transfer
+                                setSelectedPayoutBankId(bank.id)
+                              }}
                             >
                               <div className={styles.savedBankLeft}>
                                 <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
@@ -907,7 +916,7 @@ function ClientContent() {
                 />
                 <span>Wire Transfer</span>
               </label>
-              {fundingMethod === 'wire-transfer' && (
+                  {fundingMethod === 'wire-transfer' && (
                 <div>
                   <div className={styles.wireRow}><b>Bank:</b> Bank of America</div>
                   <div className={styles.wireRow}><b>Bank Location:</b> 7950 Brier Creek Pkwy, Raleigh NC 27617</div>
@@ -966,83 +975,81 @@ function ClientContent() {
                   >
                     Download PDF Instructions
                   </button>
+                  
+                  {/* Payout Bank Selection for Wire Transfer with Monthly Payments */}
+                  {investment?.paymentFrequency === 'monthly' && (
+                    <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' }}>
+                      <div className={styles.groupTitle} style={{ marginBottom: '8px' }}>Payout Account</div>
+                      <p className={styles.fundingDescription} style={{ marginBottom: '16px' }}>
+                        Select the bank account where you&apos;d like to receive your monthly earnings
+                      </p>
+                      <div className={styles.bankConnectionSection}>
+                        {availableBanks.length > 0 ? (
+                          <>
+                            <div className={styles.savedBanksGrid}>
+                              {availableBanks.slice(0, 2).map((bank) => (
+                                <div
+                                  key={bank.id}
+                                  className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
+                                  onClick={() => setSelectedPayoutBankId(bank.id)}
+                                >
+                                  <div className={styles.savedBankLeft}>
+                                    <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
+                                      {bank.bankLogo || '🏦'}
+                                    </span>
+                                    <div className={styles.savedBankDetails}>
+                                      <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
+                                      <div className={styles.savedBankAccount}>
+                                        {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {selectedPayoutBankId === bank.id && (
+                                    <span className={styles.selectedCheck}>✓</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <div className={styles.bankActionButtons}>
+                              {availableBanks.length > 2 && (
+                                <button
+                                  type="button"
+                                  className={styles.viewAllBanksButton}
+                                  onClick={() => {
+                                    setBankSelectionMode('payout')
+                                    setShowAllBanksModal(true)
+                                  }}
+                                >
+                                  View All Banks ({availableBanks.length})
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className={styles.addNewBankButton}
+                                onClick={() => setShowBankModal(true)}
+                              >
+                                + Add New Bank
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.connectBankButton}
+                            onClick={() => setShowBankModal(true)}
+                          >
+                            <span className={styles.connectIcon}>🏦</span>
+                            <span>Connect Payout Account</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        {/* Payout method (only for monthly payments) */}
-        {investment?.paymentFrequency === 'monthly' && (
-          <div className={styles.subSection}>
-            <div className={styles.payoutHeader}>
-              <div className={styles.groupTitle}>Payout</div>
-              <p className={styles.payoutDescription}>
-                Select the bank account where you&apos;d like to receive your monthly earnings
-              </p>
-            </div>
-            <div className={styles.bankConnectionSection}>
-              {availableBanks.length > 0 ? (
-                <>
-                  <div className={styles.savedBanksGrid}>
-                    {availableBanks.slice(0, 2).map((bank) => (
-                      <div
-                        key={bank.id}
-                        className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
-                        onClick={() => setSelectedPayoutBankId(bank.id)}
-                      >
-                        <div className={styles.savedBankLeft}>
-                          <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
-                            {bank.bankLogo || '🏦'}
-                          </span>
-                          <div className={styles.savedBankDetails}>
-                            <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
-                            <div className={styles.savedBankAccount}>
-                              {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
-                            </div>
-                          </div>
-                        </div>
-                        {selectedPayoutBankId === bank.id && (
-                          <span className={styles.selectedCheck}>✓</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className={styles.bankActionButtons}>
-                    {availableBanks.length > 2 && (
-                      <button
-                        type="button"
-                        className={styles.viewAllBanksButton}
-                        onClick={() => {
-                          setBankSelectionMode('payout')
-                          setShowAllBanksModal(true)
-                        }}
-                      >
-                        View All Banks ({availableBanks.length})
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.addNewBankButton}
-                      onClick={() => setShowBankModal(true)}
-                    >
-                      + Add New Bank
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.connectBankButton}
-                  onClick={() => setShowBankModal(true)}
-                >
-                  <span className={styles.connectIcon}>🏦</span>
-                  <span>Connect Bank Account</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
       </Section>
 
       <div className={styles.actions}>
@@ -1107,12 +1114,15 @@ function ClientContent() {
             if (fundingMethod === 'bank-transfer' && !selectedFundingBankId) {
               errors.push('Please select a bank account for funding.')
             }
-            if (investment?.paymentFrequency === 'monthly' && payoutMethod !== 'bank-account') {
-              errors.push('Select a payout method for monthly earnings.')
+            if (investment?.paymentFrequency === 'monthly') {
+              if (payoutMethod !== 'bank-account') {
+                errors.push('Select a payout method for monthly earnings.')
+              }
+              if (payoutMethod === 'bank-account' && !selectedPayoutBankId) {
+                errors.push('Please select a bank account for payouts.')
+              }
             }
-            if (investment?.paymentFrequency === 'monthly' && payoutMethod === 'bank-account' && !selectedPayoutBankId) {
-              errors.push('Please select a bank account for payouts.')
-            }
+            
             if (!agreeToTerms) {
               errors.push('Please review and agree to the investment agreement terms.')
             }
@@ -1151,10 +1161,22 @@ function ClientContent() {
                 }
               }
               
-              if (investment.paymentFrequency === 'monthly' && payoutMethod === 'bank-account' && selectedPayoutBankId) {
-                const existing = availableBanks.find(b => b.id === selectedPayoutBankId)
-                if (existing) {
-                  payoutBankToUse = { ...existing, lastUsedAt: appTime }
+              // Logic:
+              // 1. If funding is bank-transfer, payout MUST be same bank (enforced in UI/state).
+              // 2. If funding is wire, payout can be any selected bank.
+              // 3. Payout bank is only saved if paymentFrequency is monthly.
+              
+              if (investment.paymentFrequency === 'monthly') {
+                // If funding via bank, we must use that bank for payout
+                if (fundingMethod === 'bank-transfer' && fundingBankToUse) {
+                  payoutBankToUse = fundingBankToUse
+                } 
+                // Otherwise (Wire), use the explicitly selected payout bank
+                else if (payoutMethod === 'bank-account' && selectedPayoutBankId) {
+                  const existing = availableBanks.find(b => b.id === selectedPayoutBankId)
+                  if (existing) {
+                    payoutBankToUse = { ...existing, lastUsedAt: appTime }
+                  }
                 }
               }
               
@@ -1224,7 +1246,14 @@ function ClientContent() {
               
               // Submit the investment to move it from DRAFT to PENDING status
               logger.info('Submitting investment...')
-              const submitResponse = await apiClient.submitInvestment(investmentId)
+              
+              // Build submit payload - ACH investments require payment_method_id
+              const submitPayload = {}
+              if (paymentMethod === 'ach' && selectedFundingBankId) {
+                submitPayload.payment_method_id = selectedFundingBankId
+              }
+              
+              const submitResponse = await apiClient.submitInvestment(investmentId, submitPayload)
               logger.debug('Investment submit API response:', submitResponse)
               
               if (!submitResponse.success) {
@@ -1234,52 +1263,12 @@ function ClientContent() {
               }
               logger.info('Investment submitted successfully! Status changed to PENDING.')
 
-              // Initiate ACH funding if bank-transfer selected and amount <= $100,000
-              if (paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000) {
-                try {
-                  logger.info('[FinalizeInvestment] Initiating ACH funding...', {
-                    investmentId,
-                    paymentMethodId: selectedFundingBankId,
-                    amount: investment.amount,
-                    paymentMethod
-                  })
-                  
-                  const amountCents = Math.round((investment.amount || 0) * 100)
-                  const idempotencyKey = generateIdempotencyKey()
-                  
-                  logger.debug('[FinalizeInvestment] Calling fundInvestment API:', {
-                    amountCents,
-                    idempotencyKey
-                  })
-                  
-                  const fundRes = await apiClient.fundInvestment(
-                    investmentId,
-                    selectedFundingBankId,
-                    amountCents,
-                    idempotencyKey,
-                    `Investment ${investmentId}`
-                  )
-                  
-                  logger.info('[FinalizeInvestment] Funding initiated successfully:', fundRes)
-                  setFundingInfo(fundRes?.funding || null)
-                  setFundingError('')
-                } catch (fe) {
-                  logger.error('[FinalizeInvestment] Funding initiation failed:', fe)
-                  const errorMessage = fe?.message || 'Failed to initiate funding'
-                  
-                  // Special handling for investment status errors
-                  if (errorMessage.includes('ACTIVE') || errorMessage.includes('PENDING')) {
-                    setFundingError(
-                      'The investment was submitted successfully, but ACH funding could not be initiated due to investment status. ' +
-                      'This is a backend configuration issue - the investment should remain in PENDING status until funding is processed. ' +
-                      'Please contact your backend team to ensure investments stay PENDING after submission until funding settles.'
-                    )
-                  } else {
-                    setFundingError(`${errorMessage}. The investment has been submitted but funding was not initiated. Please contact support.`)
-                  }
-                }
+              // If funding was initiated via submit, update the state
+              if (submitResponse.investment?.funding) {
+                logger.info('[FinalizeInvestment] Funding info received from submit response:', submitResponse.investment.funding)
+                setFundingInfo(submitResponse.investment.funding)
               }
-              
+
               // Store finalization data in localStorage for future reference
               // Note: Compliance data is now stored via backend attestation; we also keep a local snapshot
               const finalizationData = {
@@ -1311,14 +1300,11 @@ function ClientContent() {
                 logger.warn('Failed to store finalization data in localStorage:', err)
               }
               
-              // If we started funding, remain on page for polling in next step; otherwise redirect
-              if (!(paymentMethod === 'ach' && selectedFundingBankId && (investment?.amount || 0) <= 100000)) {
-                // Small delay to ensure UI doesn't flash before redirect
-                logger.info('Investment submitted successfully, redirecting to dashboard...')
-                await new Promise(resolve => setTimeout(resolve, 500))
-                logger.debug('Redirecting to dashboard...')
-                window.location.href = '/dashboard'
-              }
+              // Always redirect to dashboard after successful submission
+              logger.info('Investment submitted successfully, redirecting to dashboard...')
+              await new Promise(resolve => setTimeout(resolve, 1500))
+              logger.debug('Redirecting to dashboard...')
+              window.location.href = '/dashboard'
             } catch (e) {
               logger.error('Failed to save finalization data', e)
               setSubmitError('An error occurred while submitting your investment. Please try again. If the problem persists, contact support.')
@@ -1416,6 +1402,8 @@ function ClientContent() {
                       onClick={() => {
                         if (bankSelectionMode === 'funding') {
                           setSelectedFundingBankId(bank.id)
+                          // Auto-select for payout if using bank transfer
+                          setSelectedPayoutBankId(bank.id)
                         } else {
                           setSelectedPayoutBankId(bank.id)
                         }

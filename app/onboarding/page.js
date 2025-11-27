@@ -18,13 +18,16 @@ function OnboardingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams?.get('token')
+  // Read hint from URL (default to true if not present or 'true')
+  const needsBankHint = searchParams?.get('needs_bank')
+  const initialBankRequired = needsBankHint === 'false' ? false : true
   
   const [currentStep, setCurrentStep] = useState(ONBOARDING_STEPS.PASSWORD)
   const [userData, setUserData] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(true)
-  const [bankAccountRequired, setBankAccountRequired] = useState(false)
+  const [bankAccountRequired, setBankAccountRequired] = useState(initialBankRequired)
   const [showBankModal, setShowBankModal] = useState(false)
   const [currentInvestmentForBank, setCurrentInvestmentForBank] = useState(null)
   const [currentBankType, setCurrentBankType] = useState(null) // 'funding' or 'payout'
@@ -52,98 +55,94 @@ function OnboardingContent() {
 
   const shouldShowRequirements = isPasswordFocused
 
-  // Load user data when testing (no token)
-  const loadUserData = async (userId) => {
+  // Helper to fetch investments and determine next step
+  const fetchInvestmentsAndProceed = async (user) => {
+    // Fetch investments separately
+    let investments = []
     try {
-      const data = await apiClient.getUser(userId)
-      
-      if (data.success && data.user) {
-        // Fetch investments separately
-        let investments = []
-        try {
-          const investmentsResponse = await apiClient.getInvestments()
-          if (investmentsResponse && investmentsResponse.investments) {
-            investments = investmentsResponse.investments
-          }
-        } catch (err) {
-          console.warn('Failed to load investments:', err)
-        }
-        
-        // Merge investments into userData so getInvestmentsNeedingBanks() can access them
-        setUserData({
-          ...data.user,
-          investments: investments
-        })
-        
-        // Check if bank accounts are needed (only for monthly payment investments)
-        const investmentsNeedingBanks = investments.filter(inv => 
-          inv.status !== 'withdrawn' && 
-          inv.paymentFrequency === 'monthly' && // Only monthly investments need banks
-          inv.paymentMethod !== 'wire-transfer'
-        )
-        
-        const needsBank = investmentsNeedingBanks.length > 0
-        setBankAccountRequired(needsBank)
-        
-        // Initialize bank assignments for investments that already have banks
-        const initialAssignments = {}
-        investments.forEach(inv => {
-          if (inv.bankAccountId) {
-            // Mark as having a bank (we'll show it as connected)
-            initialAssignments[inv.id] = { id: inv.bankAccountId }
-          }
-        })
-        setInvestmentBankAssignments(initialAssignments)
-        
-        console.log('User data loaded for testing mode:', data.user)
-        console.log('Investments needing banks:', investmentsNeedingBanks.length)
-        console.log('Bank account required:', needsBank)
-        
-        // Determine initial step based on whether banks are needed
-        if (needsBank) {
-          setCurrentStep(ONBOARDING_STEPS.BANK)
-        } else {
-          // No banks needed, complete onboarding immediately
-          await completeOnboarding(data.user)
-        }
-      } else {
-        setError('Failed to load user data')
-        setTimeout(() => router.push('/sign-in'), 2000)
+      const investmentsResponse = await apiClient.getInvestments()
+      if (investmentsResponse.success && investmentsResponse.investments) {
+        // Deduplicate investments by ID to avoid display issues
+        const uniqueMap = new Map()
+        investmentsResponse.investments.forEach(inv => uniqueMap.set(inv.id, inv))
+        investments = Array.from(uniqueMap.values())
+      } else if (investmentsResponse.success === false) {
+        console.error('Failed to fetch investments:', investmentsResponse.error)
+        // If we're authenticated but failed to fetch investments, something is wrong.
+        // But we'll proceed with empty investments which will effectively skip the bank step
+        // unless we want to show an error.
       }
     } catch (err) {
-      console.error('Error loading user data:', err)
-      setError('Failed to load user data')
+      console.warn('Failed to load investments:', err)
     }
+    
+    // Merge investments into userData so getInvestmentsNeedingBanks() can access them
+    setUserData({
+      ...user,
+      investments: investments
+    })
+    
+    // Check if bank accounts are needed (all active investments except wire transfers)
+    const investmentsNeedingBanks = investments.filter(inv => 
+      inv.status !== 'withdrawn' && 
+      inv.paymentMethod !== 'wire-transfer' // All payment methods except wire need bank accounts
+    )
+    
+    const needsBank = investmentsNeedingBanks.length > 0
+    setBankAccountRequired(true) // Always require bank setup step
+    
+    // Initialize bank assignments for investments that already have banks
+    const initialAssignments = {}
+    investments.forEach(inv => {
+      if (inv.bankAccountId) {
+        // Mark as having a bank (we'll show it as connected)
+        initialAssignments[inv.id] = { id: inv.bankAccountId }
+      }
+    })
+    setInvestmentBankAssignments(initialAssignments)
+    
+    console.log('Investments needing banks:', investmentsNeedingBanks.length)
+    
+    // Always go to bank step
+    setCurrentStep(ONBOARDING_STEPS.BANK)
   }
-
 
   // Initialize on mount
   useEffect(() => {
-    if (token) {
-      // Via email link - assume valid token and show password form
+    // Onboarding requires a token from the admin-sent email link
+    // If no token is present, redirect away - onboarding is only for imported users
+    if (!token) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('🔗 Onboarding via token link')
-      }
-      // We don't verify token upfront anymore as the endpoint doesn't exist
-      // Validation happens when submitting the password
-      setRequiresPasswordChange(true)
-    } else {
-      // Direct access (testing) - skip password, just SSN + Bank
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🧪 Onboarding via direct access (testing mode)')
+        console.log('⚠️ No onboarding token present, redirecting...')
       }
       if (typeof window !== 'undefined') {
         const userId = localStorage.getItem('currentUserId')
         if (userId) {
-          // Only load user data for testing flow
-          loadUserData(userId)
-          setRequiresPasswordChange(false)
+          // User is logged in - send to dashboard
+          router.push('/dashboard')
         } else {
-          setError('Please sign in first')
-          setTimeout(() => router.push('/sign-in'), 2000)
+          // User is not logged in - send to sign-in
+          router.push('/sign-in')
         }
       }
+      return
     }
+
+    // Clear any existing session if we have a token (prevents admin session mix-up)
+    // Clear previous session to avoid "already authenticated" state as wrong user (e.g. admin)
+    apiClient.clearTokens() 
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('currentUserId')
+      sessionStorage.clear()
+    }
+
+    // Via email link - assume valid token and show password form
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔗 Onboarding via token link')
+    }
+    // We don't verify token upfront anymore as the endpoint doesn't exist
+    // Validation happens when submitting the password
+    setRequiresPasswordChange(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -183,55 +182,7 @@ function OnboardingContent() {
           const userData = await apiClient.getCurrentUser()
           
           if (userData.success && userData.user) {
-            // Fetch investments to check if bank connection is needed
-            let investments = []
-            try {
-              const investmentsResponse = await apiClient.getInvestments()
-              if (investmentsResponse && investmentsResponse.investments) {
-                investments = investmentsResponse.investments
-              }
-            } catch (err) {
-              console.warn('Failed to load investments:', err)
-            }
-            
-            // Merge investments into userData so getInvestmentsNeedingBanks() can access them
-            setUserData({
-              ...userData.user,
-              investments: investments
-            })
-            
-            // Check if bank accounts are needed (only for monthly payment investments)
-            const investmentsNeedingBanks = investments.filter(inv => 
-              inv.status !== 'withdrawn' && 
-              inv.paymentFrequency === 'monthly' && 
-              inv.paymentMethod !== 'wire-transfer'
-            )
-            
-            const needsBank = investmentsNeedingBanks.length > 0
-            setBankAccountRequired(needsBank)
-            
-            // Initialize bank assignments for investments that already have banks
-            const initialAssignments = {}
-            investments.forEach(inv => {
-              if (inv.bankAccountId) {
-                initialAssignments[inv.id] = { payout: { id: inv.bankAccountId } }
-              }
-            })
-            setInvestmentBankAssignments(initialAssignments)
-            
-            console.log('Investments needing banks:', investmentsNeedingBanks.length)
-            console.log('Bank account required:', needsBank)
-            
-            // Determine next step based on whether banks are needed
-            if (needsBank) {
-              // User has monthly payment investments, show bank setup
-              setCurrentStep(ONBOARDING_STEPS.BANK)
-            } else {
-              // No banks needed - either compounding or no investments
-              // Complete onboarding and redirect to dashboard
-              await completeOnboarding(userData.user)
-              router.push('/dashboard')
-            }
+            await fetchInvestmentsAndProceed(userData.user)
           } else {
             console.error('Failed to fetch user data after password setup')
             setError('Password set but failed to load user data. Please sign in.')
@@ -243,8 +194,32 @@ function OnboardingContent() {
           setCurrentStep(ONBOARDING_STEPS.COMPLETE)
         }
       } else {
-        // No token in response, fallback to manual sign-in flow
-        console.log('⚠️ No auth token in response, user must sign in manually')
+        // No token in response, try to login manually using email from params
+        console.log('⚠️ No auth token in response, attempting manual login')
+        const email = searchParams?.get('email')
+        
+        if (email) {
+          try {
+            const loginResponse = await apiClient.login(email, password)
+            if (loginResponse.success && loginResponse.user) {
+              console.log('✅ Manual login successful')
+              
+              // CRITICAL: Explicitly set tokens on the global apiClient
+              // apiClient.login only updates the authService instance, but we need
+              // investmentService to also be authenticated for the next call.
+              if (loginResponse.access_token) {
+                apiClient.setTokens(loginResponse.access_token, loginResponse.refresh_token)
+              }
+              
+              await fetchInvestmentsAndProceed(loginResponse.user)
+              return
+            }
+          } catch (loginErr) {
+            console.error('Manual login failed:', loginErr)
+          }
+        }
+        
+        // If manual login fails, show complete step
         setCurrentStep(ONBOARDING_STEPS.COMPLETE)
       }
     } catch (err) {
@@ -266,27 +241,38 @@ function OnboardingContent() {
     }
 
     try {
-      const res = await apiClient.request(`/api/users/${userToUpdate.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
+      // Use updateUserProfile instead of direct request to /api/users/{id}
+      // This uses PUT /api/profile which is the correct endpoint for self-update
+      const res = await apiClient.updateUserProfile({
           needsOnboarding: false,
           onboardingCompletedAt: new Date().toISOString(),
           onboardingToken: null,
           onboardingTokenExpires: null
-        })
       })
       
       if (!res.success && !res.user) {
-        throw new Error('Failed to update user status')
+        // If it fails (e.g. fields not allowed), we might just log it but proceed
+        // as the user has effectively completed the steps locally.
+        console.warn('Backend update for onboarding status failed, but proceeding.')
       }
       
       console.log('✅ Onboarding completed!')
       sessionStorage.removeItem('onboarding_via_token')
-      setCurrentStep(ONBOARDING_STEPS.COMPLETE)
+      
+      // Redirect to dashboard immediately if authenticated
+      if (apiClient.isAuthenticated()) {
+        router.push('/dashboard')
+      } else {
+        setCurrentStep(ONBOARDING_STEPS.COMPLETE)
+      }
     } catch (err) {
       console.error('Error completing onboarding:', err)
-      // Still proceed to complete step
-      setCurrentStep(ONBOARDING_STEPS.COMPLETE)
+      // Still proceed to complete step (or dashboard if possible)
+      if (apiClient.isAuthenticated()) {
+        router.push('/dashboard')
+      } else {
+        setCurrentStep(ONBOARDING_STEPS.COMPLETE)
+      }
     }
   }
 
@@ -304,23 +290,11 @@ function OnboardingContent() {
       let bankAccountId = existingBank?.id || bankAccount.id
       
       if (!existingBank) {
-        console.log('Adding new bank account to user...')
-        const bankData = await apiClient.request(`/api/users/${userData.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            _action: 'addBankAccount',
-            bankAccount
-          })
-        })
-        
-        console.log('Add bank response:', bankData)
-        
-        if (bankData.success && bankData.bankAccount) {
-          bankAccountId = bankData.bankAccount.id
-        } else {
-          // If save failed, still use the temporary ID for this session
-          console.warn('Bank account not saved to DB, using temporary ID')
-        }
+        // Bank account is already created via Plaid link-success endpoint
+        // We just need to use the ID if we have it, otherwise we might need to refresh user data
+        // But since we don't have the full bank object from Plaid success callback here (only what we passed),
+        // and the API call to /api/users/{id} fails because it doesn't exist, we skip the explicit "save" call.
+        console.log('Bank account created via Plaid flow, proceeding with assignment...')
       } else {
         console.log('Bank account already exists, reusing:', existingBank.id)
       }
@@ -356,6 +330,38 @@ function OnboardingContent() {
           await completeOnboarding()
           return
         }
+      } else {
+        // Global case: Assign to ALL applicable investments
+        console.log(`Assigning bank ${bankAccountId} as payout account for all applicable investments`)
+        
+        // Prepare updated assignments
+        let updatedAssignments = { ...investmentBankAssignments }
+        const investmentsNeeding = getInvestmentsNeedingBanks()
+        
+        for (const inv of investmentsNeeding) {
+          // 1. Update local state
+          updatedAssignments[inv.id] = {
+            ...(updatedAssignments[inv.id] || {}),
+            payout: bankAccount
+          }
+          
+          // 2. Persist to backend (so it remembers the payout account)
+          try {
+             await apiClient.updateInvestment(null, inv.id, { bankAccountId: bankAccountId })
+          } catch (e) {
+             console.error(`Failed to update investment ${inv.id} with bank account`, e)
+          }
+        }
+        
+        // Update state
+        setInvestmentBankAssignments(updatedAssignments)
+        console.log('Updated assignments:', updatedAssignments)
+        
+        // Since we assigned to all needing banks, we can assume allAssigned is true if investmentsNeeding > 0
+        if (investmentsNeeding.length > 0) {
+           // Allow UI to update and show success state (don't auto-complete immediately so user sees success)
+           console.log('All banks assigned via global flow')
+        }
       }
       
       setShowBankModal(false)
@@ -370,12 +376,11 @@ function OnboardingContent() {
     }
   }
   
-  // Get investments that need bank accounts (only monthly payment, exclude wire transfer)
+  // Get investments that need bank accounts (all active investments except wire transfer)
   const getInvestmentsNeedingBanks = () => {
     return userData?.investments?.filter(inv => 
       inv.status !== 'withdrawn' && 
-      inv.paymentFrequency === 'monthly' && // Only monthly payment investments
-      inv.paymentMethod !== 'wire-transfer' // Exclude wire transfer investments
+      inv.paymentMethod !== 'wire-transfer' // All payment methods except wire need bank accounts
     ) || []
   }
   
@@ -552,92 +557,100 @@ function OnboardingContent() {
             </form>
           )}
 
-          {/* Step 2: Bank Account Setup - Per Investment */}
+          {/* Step 2: Bank Account Setup - Unified */}
           {currentStep === ONBOARDING_STEPS.BANK && (
             <div className={styles.form}>
-              <h2>Link Payout Accounts</h2>
-              <p>Connect bank accounts to receive your monthly distributions</p>
+              <h2>Link Payout Account</h2>
+              <p>Connect a bank account to receive your monthly distributions. This account will be used for all your active investments.</p>
               
-              <div className={styles.investmentBankList}>
-                {getInvestmentsNeedingBanks().map(investment => {
-                  const requiredBanks = getRequiredBanksForInvestment(investment)
-                  const paymentType = investment.paymentFrequency === 'monthly' ? 'Monthly Payments' : 'Compounding'
-                  
-                  return (
-                    <div key={investment.id} className={styles.investmentBankItem}>
-                      <div className={styles.investmentInfo}>
-                        <h3 className={styles.investmentTitle}>
-                          {investment.accountType === 'individual' ? 'Individual Account' :
-                           investment.accountType === 'joint' ? 'Joint Account' :
-                           investment.accountType === 'entity' ? 'Entity Account' : 'SDIRA Account'}
-                        </h3>
-                        <p className={styles.investmentDetails}>
-                          ${investment.amount?.toLocaleString()} • {investment.lockupPeriod} • {paymentType}
-                        </p>
-                        
-                        {/* Show payout account status */}
-                        {investmentHasBank(investment, 'payout') ? (
-                          <div className={styles.bankAssigned} style={{ marginTop: '8px' }}>
-                            ✓ Payout account connected
-                          </div>
-                        ) : (
-                          <div className={styles.bankPending} style={{ marginTop: '8px' }}>
-                            ○ Payout account needed
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Connect payout button */}
-                      <button
-                        onClick={() => {
-                          setCurrentInvestmentForBank(investment)
-                          setCurrentBankType('payout')
-                          setShowBankModal(true)
-                        }}
-                        className={investmentHasBank(investment, 'payout') ? styles.secondaryButton : styles.primaryButton}
-                        disabled={isLoading}
-                      >
-                        {investmentHasBank(investment, 'payout') ? 'Change Payout Account' : 'Connect Payout Account'}
-                      </button>
-                    </div>
-                  )
-                })}
+              {/* Summary of investments */}
+              <div className={styles.investmentSummary} style={{ marginBottom: '24px', background: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                  Applicable Investments ({getInvestmentsNeedingBanks().length})
+                </h3>
+                {getInvestmentsNeedingBanks().map(investment => (
+                  <div key={investment.id} style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>
+                       {investment.accountType === 'individual' ? 'Individual' :
+                        investment.accountType === 'joint' ? 'Joint' :
+                        investment.accountType === 'entity' ? 'Entity' : 
+                        (investment.accountType === 'sdira' ? 'SDIRA' : 'Investment')} Account
+                    </span>
+                    <span>${investment.amount?.toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
               
-              {showBankModal && currentInvestmentForBank && currentBankType && (
+              {/* Bank Connection Status / Button */}
+              {getInvestmentsNeedingBanks().every(inv => investmentHasAllRequiredBanks(inv)) ? (
+                 // Connected State
+                 <div className={styles.connectedState} style={{ marginBottom: '24px' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', padding: '16px', border: '1px solid #10b981', borderRadius: '8px', background: '#ecfdf5' }}>
+                     <div style={{ fontSize: '24px', marginRight: '12px' }}>✓</div>
+                     <div>
+                       <div style={{ fontWeight: '600', color: '#065f46' }}>Payout Account Connected</div>
+                       <div style={{ fontSize: '13px', color: '#047857' }}>
+                         {Object.values(investmentBankAssignments)[0]?.payout?.display_name || 'Bank Account'}
+                       </div>
+                     </div>
+                     <button 
+                       onClick={() => {
+                         setShowBankModal(true)
+                       }}
+                       style={{ marginLeft: 'auto', fontSize: '13px', color: '#059669', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                     >
+                       Change
+                     </button>
+                   </div>
+                   
+                   <button 
+                    onClick={() => completeOnboarding()}
+                    className={styles.submitButton}
+                    disabled={isLoading}
+                    style={{ marginTop: '24px' }}
+                  >
+                    {isLoading ? 'Completing Setup...' : 'Complete Setup'}
+                  </button>
+                 </div>
+              ) : (
+                // Not Connected State
+                <button
+                  onClick={() => {
+                    setShowBankModal(true)
+                  }}
+                  className={styles.submitButton}
+                  style={{ width: '100%', marginBottom: '16px' }}
+                  disabled={isLoading}
+                >
+                  Connect Payout Account
+                </button>
+              )}
+              
+              {showBankModal && (
                 <BankConnectionModal
                   isOpen={showBankModal}
                   onClose={() => {
                     setShowBankModal(false)
-                    setCurrentInvestmentForBank(null)
-                    setCurrentBankType(null)
                   }}
                   onAccountSelected={handleBankConnected}
                 />
               )}
               
-              {getInvestmentsNeedingBanks().every(inv => investmentHasAllRequiredBanks(inv)) && (
-                <button 
-                  onClick={() => completeOnboarding()}
-                  className={styles.submitButton}
+              {/* Skip option if not connected */}
+              {!getInvestmentsNeedingBanks().every(inv => investmentHasAllRequiredBanks(inv)) && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Skip bank setup for now? You can add bank accounts later from your profile.')) {
+                      completeOnboarding()
+                    }
+                  }}
+                  className={styles.skipButton}
                   disabled={isLoading}
-                  style={{ marginTop: '20px' }}
+                  style={{ width: '100%', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}
                 >
-                  {isLoading ? 'Completing Setup...' : 'Complete Setup'}
+                  Skip for Now
                 </button>
               )}
-              
-              <button
-                onClick={() => {
-                  if (window.confirm('Skip bank setup for now? You can add bank accounts later from your profile.')) {
-                    completeOnboarding()
-                  }
-                }}
-                className={styles.skipButton}
-                disabled={isLoading}
-              >
-                Skip for Now
-              </button>
             </div>
           )}
 

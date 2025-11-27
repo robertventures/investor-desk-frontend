@@ -17,18 +17,9 @@ export default function DashboardShell({ children }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { userData, loading, loadInvestments, loadActivity, investments, refreshUser } = useUser()
+  const { userData, loading, loadInvestments, loadActivity } = useUser()
   const [ready, setReady] = useState(false)
   const hasRedirectedRef = useRef(false)
-  const hasRefreshedRef = useRef(false)
-  const lastUserIdRef = useRef(userData?.id)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
-  // Reset refresh flag if user changes
-  if (userData?.id !== lastUserIdRef.current) {
-    hasRefreshedRef.current = false
-    lastUserIdRef.current = userData?.id
-  }
 
   // Backward compatibility for legacy query parameters (?section=profile&tab=banking)
   useEffect(() => {
@@ -77,41 +68,13 @@ export default function DashboardShell({ children }) {
       return
     }
 
-    // Check if user needs to complete onboarding (bank connection)
-    if (userData.needsOnboarding) {
-      // Force a refresh of user data once to ensure we have the latest state
-      // This handles the case where user just completed onboarding and navigated back here
-      if (!hasRefreshedRef.current) {
-        hasRefreshedRef.current = true
-        setIsRefreshing(true)
-        refreshUser().finally(() => setIsRefreshing(false))
-        return // Wait for refresh
-      }
-
-      if (isRefreshing) {
-        return
-      }
-
-      // Wait for investments to load (null means still loading, [] is valid empty state)
-      if (investments === null) {
-        return
-      }
-
-      // Check for monthly payment investments
-      const hasMonthlyInvestment = investments.some(inv => 
-        inv.paymentFrequency === 'monthly' &&
-        inv.status !== 'withdrawn' &&
-        inv.paymentMethod !== 'wire-transfer'
-      )
-
-      if (hasMonthlyInvestment) {
-        router.push('/onboarding')
-        return
-      }
-    }
+    // NOTE: Onboarding redirect has been removed.
+    // Onboarding is ONLY triggered via admin-sent email links with a token.
+    // Users who haven't completed onboarding can still access the dashboard.
+    // The onboarding flow is specifically for importing investors from the previous app.
 
     setReady(true)
-  }, [loading, router, userData, investments, refreshUser, isRefreshing])
+  }, [loading, router, userData])
 
   // Lazy load investments and activity when the user data becomes available
   useEffect(() => {

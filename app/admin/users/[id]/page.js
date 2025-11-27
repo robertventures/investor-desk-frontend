@@ -740,31 +740,55 @@ function AdminUserDetailsContent() {
 
   const handleTestOnboarding = async () => {
     try {
-      const token = crypto.randomUUID()
-      const expires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
-
-      // Update user with token and set needs_onboarding flag
-      const updateRes = await fetch(`/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          needsOnboarding: true,
-          onboardingToken: token,
-          onboardingTokenExpires: expires.toISOString()
-        })
-      })
-
-      const updateData = await updateRes.json()
-      if (!updateData.success) {
-        alert('Failed to generate test link: ' + updateData.error)
+      const result = await adminService.resetUserOnboarding(id)
+      
+      if (!result.success) {
+        alert('Failed to reset onboarding: ' + (result.error || 'Unknown error'))
         return
       }
-
-      // Navigate to onboarding with token
-      router.push(`/onboarding?token=${token}`)
+      
+      // Disconnect bank accounts from investments to ensure clean onboarding test
+      try {
+        const invResult = await adminService.getAdminInvestments({ user_id: id })
+        if (invResult.success && invResult.investments) {
+           console.log('Disconnecting banks for investments:', invResult.investments.length)
+           const updates = invResult.investments.map(inv => {
+             if (inv.bankAccountId || (inv.banking && inv.banking.bank)) {
+               console.log('Disconnecting bank for investment:', inv.id)
+               return apiClient.updateInvestment(id, inv.id, { bankAccountId: null })
+             }
+             return Promise.resolve()
+           })
+           await Promise.all(updates)
+        }
+      } catch (e) {
+        console.warn('Failed to disconnect banks for onboarding test:', e)
+      }
+      
+      // Check if user needs bank account (has monthly investments)
+      let needsBank = true // Default to true to be safe
+      try {
+        const invResult = await adminService.getAdminInvestments({ user_id: id })
+        if (invResult.success && invResult.investments) {
+           // Check logic matches getInvestmentsNeedingBanks in onboarding page
+           const hasMonthly = invResult.investments.some(inv => 
+             inv.status !== 'withdrawn' && 
+             inv.paymentFrequency === 'monthly' && 
+             inv.paymentMethod !== 'wire-transfer'
+           )
+           needsBank = hasMonthly
+        }
+      } catch (e) {
+        console.warn('Failed to check investments for onboarding test:', e)
+      }
+      
+      const emailParam = result.user?.email ? `&email=${encodeURIComponent(result.user.email)}` : ''
+      const idParam = result.user?.id ? `&uid=${encodeURIComponent(result.user.id)}` : ''
+      // Navigate to onboarding with the token from backend plus hints
+      router.push(`/onboarding?token=${result.token}&needs_bank=${needsBank}${emailParam}${idParam}`)
     } catch (e) {
       console.error('Failed to test onboarding:', e)
-      alert('An error occurred while setting up test onboarding')
+      alert('An error occurred while resetting onboarding')
     }
   }
 

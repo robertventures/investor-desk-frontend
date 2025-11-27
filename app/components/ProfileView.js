@@ -989,6 +989,7 @@ export default function ProfileView() {
             handleSetDefaultBank={handleSetDefaultBank}
             handleRemoveBank={handleRemoveBank}
             isRemovingBank={isRemovingBank}
+            mounted={mounted}
           />
         )}
 
@@ -1729,7 +1730,7 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
 }
 
 
-function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank }) {
+function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank, mounted }) {
   // Prefer the independently fetched bankAccounts, fall back to userData.bankAccounts
   const availableBanks = Array.isArray(bankAccounts) && bankAccounts.length > 0 
     ? bankAccounts 
