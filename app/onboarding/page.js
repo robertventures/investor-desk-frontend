@@ -182,6 +182,10 @@ function OnboardingContent() {
           const userData = await apiClient.getCurrentUser()
           
           if (userData.success && userData.user) {
+            // Set currentUserId in localStorage for DashboardShell compatibility
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('currentUserId', userData.user.id)
+            }
             await fetchInvestmentsAndProceed(userData.user)
           } else {
             console.error('Failed to fetch user data after password setup')
@@ -203,6 +207,11 @@ function OnboardingContent() {
             const loginResponse = await apiClient.login(email, password)
             if (loginResponse.success && loginResponse.user) {
               console.log('✅ Manual login successful')
+              
+              // Set currentUserId in localStorage for DashboardShell compatibility
+              if (typeof window !== 'undefined' && loginResponse.user.id) {
+                localStorage.setItem('currentUserId', loginResponse.user.id)
+              }
               
               // CRITICAL: Explicitly set tokens on the global apiClient
               // apiClient.login only updates the authService instance, but we need
@@ -231,149 +240,43 @@ function OnboardingContent() {
   }
 
 
-  // Complete onboarding
-  const completeOnboarding = async (userOverride = null) => {
-    const userToUpdate = userOverride || userData
+  // Complete onboarding - just clear session and redirect to dashboard
+  // No profile updates needed - the payment method is already associated with the user via Plaid
+  const completeOnboarding = async () => {
+    console.log('✅ Onboarding completed!')
+    sessionStorage.removeItem('onboarding_via_token')
     
-    if (!userToUpdate) {
-      console.error('No user data available for completion')
-      return
-    }
-
-    try {
-      // Use updateUserProfile instead of direct request to /api/users/{id}
-      // This uses PUT /api/profile which is the correct endpoint for self-update
-      const res = await apiClient.updateUserProfile({
-          needsOnboarding: false,
-          onboardingCompletedAt: new Date().toISOString(),
-          onboardingToken: null,
-          onboardingTokenExpires: null
-      })
-      
-      if (!res.success && !res.user) {
-        // If it fails (e.g. fields not allowed), we might just log it but proceed
-        // as the user has effectively completed the steps locally.
-        console.warn('Backend update for onboarding status failed, but proceeding.')
-      }
-      
-      console.log('✅ Onboarding completed!')
-      sessionStorage.removeItem('onboarding_via_token')
-      
-      // Redirect to dashboard immediately if authenticated
-      if (apiClient.isAuthenticated()) {
-        router.push('/dashboard')
-      } else {
-        setCurrentStep(ONBOARDING_STEPS.COMPLETE)
-      }
-    } catch (err) {
-      console.error('Error completing onboarding:', err)
-      // Still proceed to complete step (or dashboard if possible)
-      if (apiClient.isAuthenticated()) {
-        router.push('/dashboard')
-      } else {
-        setCurrentStep(ONBOARDING_STEPS.COMPLETE)
-      }
+    // Redirect to dashboard if authenticated, otherwise show complete step
+    if (apiClient.isAuthenticated()) {
+      router.push('/dashboard')
+    } else {
+      setCurrentStep(ONBOARDING_STEPS.COMPLETE)
     }
   }
 
-  // Handle bank connection for specific investment
+  // Handle bank connection - payment method is already created via Plaid link-success
+  // We only need to update UI state here, no investment updates needed
   const handleBankConnected = async (bankAccount) => {
-    try {
-      console.log('handleBankConnected called with:', bankAccount, 'for type:', currentBankType)
-      
-      // First, add bank account to user if not already added
-      // Check if this exact bank account already exists (by bankId and last4)
-      const existingBank = userData.bankAccounts?.find(b => 
-        b.bankId === bankAccount.bankId && b.last4 === bankAccount.last4
-      )
-      
-      let bankAccountId = existingBank?.id || bankAccount.id
-      
-      if (!existingBank) {
-        // Bank account is already created via Plaid link-success endpoint
-        // We just need to use the ID if we have it, otherwise we might need to refresh user data
-        // But since we don't have the full bank object from Plaid success callback here (only what we passed),
-        // and the API call to /api/users/{id} fails because it doesn't exist, we skip the explicit "save" call.
-        console.log('Bank account created via Plaid flow, proceeding with assignment...')
-      } else {
-        console.log('Bank account already exists, reusing:', existingBank.id)
+    console.log('handleBankConnected called with:', bankAccount)
+    console.log('Payment method created via Plaid link-success, updating UI state...')
+    
+    // Update local state to show bank is connected for all applicable investments
+    const investmentsNeeding = getInvestmentsNeedingBanks()
+    let updatedAssignments = { ...investmentBankAssignments }
+    
+    for (const inv of investmentsNeeding) {
+      updatedAssignments[inv.id] = {
+        ...(updatedAssignments[inv.id] || {}),
+        payout: bankAccount
       }
-      
-      // Assign bank to the specific investment
-      if (currentInvestmentForBank && currentBankType) {
-        console.log(`Assigning ${currentBankType} bank ${bankAccountId} to investment ${currentInvestmentForBank.id}`)
-        
-        // Update local state
-        const updatedAssignments = {
-          ...investmentBankAssignments,
-          [currentInvestmentForBank.id]: {
-            ...(investmentBankAssignments[currentInvestmentForBank.id] || {}),
-            [currentBankType]: bankAccount
-          }
-        }
-        setInvestmentBankAssignments(updatedAssignments)
-        
-        console.log(`✅ ${currentBankType} bank account assigned to investment ${currentInvestmentForBank.id}`)
-        console.log('Updated assignments:', updatedAssignments)
-        
-        // Check if all investments have required banks assigned
-        const investmentsNeedingBanks = getInvestmentsNeedingBanks()
-        const allAssigned = investmentsNeedingBanks.every(inv => investmentHasAllRequiredBanks(inv, updatedAssignments))
-        
-        console.log('All investments have required banks?', allAssigned)
-        
-        if (allAssigned) {
-          console.log('All banks assigned, completing onboarding...')
-          setShowBankModal(false)
-          setCurrentInvestmentForBank(null)
-          setCurrentBankType(null)
-          await completeOnboarding()
-          return
-        }
-      } else {
-        // Global case: Assign to ALL applicable investments
-        console.log(`Assigning bank ${bankAccountId} as payout account for all applicable investments`)
-        
-        // Prepare updated assignments
-        let updatedAssignments = { ...investmentBankAssignments }
-        const investmentsNeeding = getInvestmentsNeedingBanks()
-        
-        for (const inv of investmentsNeeding) {
-          // 1. Update local state
-          updatedAssignments[inv.id] = {
-            ...(updatedAssignments[inv.id] || {}),
-            payout: bankAccount
-          }
-          
-          // 2. Persist to backend (so it remembers the payout account)
-          try {
-             await apiClient.updateInvestment(null, inv.id, { bankAccountId: bankAccountId })
-          } catch (e) {
-             console.error(`Failed to update investment ${inv.id} with bank account`, e)
-          }
-        }
-        
-        // Update state
-        setInvestmentBankAssignments(updatedAssignments)
-        console.log('Updated assignments:', updatedAssignments)
-        
-        // Since we assigned to all needing banks, we can assume allAssigned is true if investmentsNeeding > 0
-        if (investmentsNeeding.length > 0) {
-           // Allow UI to update and show success state (don't auto-complete immediately so user sees success)
-           console.log('All banks assigned via global flow')
-        }
-      }
-      
-      setShowBankModal(false)
-      setCurrentInvestmentForBank(null)
-      setCurrentBankType(null)
-    } catch (err) {
-      console.error('Error saving bank account:', err)
-      setError(`Failed to save bank account: ${err.message}`)
-      setShowBankModal(false)
-      setCurrentInvestmentForBank(null)
-      setCurrentBankType(null)
     }
+    
+    setInvestmentBankAssignments(updatedAssignments)
+    console.log('✅ Bank account connected, UI state updated:', updatedAssignments)
+    
+    setShowBankModal(false)
+    setCurrentInvestmentForBank(null)
+    setCurrentBankType(null)
   }
   
   // Get investments that need bank accounts (all active investments except wire transfer)
