@@ -662,28 +662,53 @@ function AdminUserDetailsContent() {
   const handleGenerateSetupLink = async () => {
     setIsGeneratingLink(true)
     try {
-      const token = crypto.randomUUID()
-      const expires = new Date(Date.now() + 48 * 60 * 60 * 1000) // 48 hours
-
-      // Update user with token and set needs_onboarding flag
-      const updateRes = await fetch(`/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          needsOnboarding: true,
-          onboardingToken: token,
-          onboardingTokenExpires: expires.toISOString()
-        })
-      })
-
-      const updateData = await updateRes.json()
-      if (!updateData.success) {
-        alert('Failed to generate setup link: ' + updateData.error)
+      // Reset user onboarding via backend API
+      const result = await adminService.resetUserOnboarding(id)
+      
+      if (!result.success) {
+        alert('Failed to generate setup link: ' + (result.error || 'Unknown error'))
         return
       }
-
-      // Build the setup link
-      const generatedLink = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/onboarding?token=${token}`
+      
+      // Disconnect bank accounts from investments to ensure clean onboarding test
+      try {
+        const invResult = await adminService.getAdminInvestments({ user_id: id })
+        if (invResult.success && invResult.investments) {
+           console.log('Disconnecting banks for investments:', invResult.investments.length)
+           const updates = invResult.investments.map(inv => {
+             if (inv.bankAccountId || (inv.banking && inv.banking.bank)) {
+               console.log('Disconnecting bank for investment:', inv.id)
+               return apiClient.updateInvestment(id, inv.id, { bankAccountId: null })
+             }
+             return Promise.resolve()
+           })
+           await Promise.all(updates)
+        }
+      } catch (e) {
+        console.warn('Failed to disconnect banks for setup link:', e)
+      }
+      
+      // Check if user needs bank account (has monthly investments)
+      let needsBank = true // Default to true to be safe
+      try {
+        const invResult = await adminService.getAdminInvestments({ user_id: id })
+        if (invResult.success && invResult.investments) {
+           // Check logic matches getInvestmentsNeedingBanks in onboarding page
+           const hasMonthly = invResult.investments.some(inv => 
+             inv.status !== 'withdrawn' && 
+             inv.paymentFrequency === 'monthly' && 
+             inv.paymentMethod !== 'wire-transfer'
+           )
+           needsBank = hasMonthly
+        }
+      } catch (e) {
+        console.warn('Failed to check investments for setup link:', e)
+      }
+      
+      // Build the full onboarding link with all parameters
+      const emailParam = result.user?.email ? `&email=${encodeURIComponent(result.user.email)}` : ''
+      const idParam = result.user?.id ? `&uid=${encodeURIComponent(result.user.id)}` : ''
+      const generatedLink = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/onboarding?token=${result.token}&needs_bank=${needsBank}${emailParam}${idParam}`
       
       // Copy to clipboard automatically
       try {
@@ -695,11 +720,13 @@ function AdminUserDetailsContent() {
       // Store the link to display in UI
       setSetupLink(generatedLink)
       
-      // Refresh user data
-      const refreshRes = await fetch(`/api/users/${id}`)
-      const refreshData = await refreshRes.json()
-      if (refreshData.success) {
-        setUser(refreshData.user)
+      // Update user data from the reset response (already contains updated user)
+      if (result.user) {
+        setUser(prev => ({
+          ...prev,
+          ...result.user,
+          investments: prev.investments // Preserve existing investments array
+        }))
       }
     } catch (e) {
       console.error('Failed to generate setup link:', e)
@@ -734,61 +761,6 @@ function AdminUserDetailsContent() {
     } catch (e) {
       console.error('Failed to send welcome email:', e)
       alert('An error occurred while sending the welcome email')
-    }
-  }
-
-
-  const handleTestOnboarding = async () => {
-    try {
-      const result = await adminService.resetUserOnboarding(id)
-      
-      if (!result.success) {
-        alert('Failed to reset onboarding: ' + (result.error || 'Unknown error'))
-        return
-      }
-      
-      // Disconnect bank accounts from investments to ensure clean onboarding test
-      try {
-        const invResult = await adminService.getAdminInvestments({ user_id: id })
-        if (invResult.success && invResult.investments) {
-           console.log('Disconnecting banks for investments:', invResult.investments.length)
-           const updates = invResult.investments.map(inv => {
-             if (inv.bankAccountId || (inv.banking && inv.banking.bank)) {
-               console.log('Disconnecting bank for investment:', inv.id)
-               return apiClient.updateInvestment(id, inv.id, { bankAccountId: null })
-             }
-             return Promise.resolve()
-           })
-           await Promise.all(updates)
-        }
-      } catch (e) {
-        console.warn('Failed to disconnect banks for onboarding test:', e)
-      }
-      
-      // Check if user needs bank account (has monthly investments)
-      let needsBank = true // Default to true to be safe
-      try {
-        const invResult = await adminService.getAdminInvestments({ user_id: id })
-        if (invResult.success && invResult.investments) {
-           // Check logic matches getInvestmentsNeedingBanks in onboarding page
-           const hasMonthly = invResult.investments.some(inv => 
-             inv.status !== 'withdrawn' && 
-             inv.paymentFrequency === 'monthly' && 
-             inv.paymentMethod !== 'wire-transfer'
-           )
-           needsBank = hasMonthly
-        }
-      } catch (e) {
-        console.warn('Failed to check investments for onboarding test:', e)
-      }
-      
-      const emailParam = result.user?.email ? `&email=${encodeURIComponent(result.user.email)}` : ''
-      const idParam = result.user?.id ? `&uid=${encodeURIComponent(result.user.id)}` : ''
-      // Navigate to onboarding with the token from backend plus hints
-      router.push(`/onboarding?token=${result.token}&needs_bank=${needsBank}${emailParam}${idParam}`)
-    } catch (e) {
-      console.error('Failed to test onboarding:', e)
-      alert('An error occurred while resetting onboarding')
     }
   }
 
@@ -2099,11 +2071,11 @@ function AdminUserDetailsContent() {
                     <button 
                       onClick={handleGenerateSetupLink} 
                       className={styles.actionCard}
-                      title="Generate and copy setup link for onboarding"
+                      title="Generate and copy onboarding link"
                       disabled={isGeneratingLink}
                     >
                       <span className={styles.actionIcon}>🔗</span>
-                      <span className={styles.actionLabel}>{isGeneratingLink ? 'Generating...' : 'Setup Link'}</span>
+                      <span className={styles.actionLabel}>{isGeneratingLink ? 'Generating...' : 'Onboarding Link'}</span>
                     </button>
                     
                     {!user.isVerified && (
@@ -2119,15 +2091,6 @@ function AdminUserDetailsContent() {
                     )}
                     
                     <button 
-                      onClick={handleTestOnboarding} 
-                      className={styles.actionCard}
-                      title="Experience the onboarding flow as this user"
-                    >
-                      <span className={styles.actionIcon}>🧪</span>
-                      <span className={styles.actionLabel}>Test Onboarding</span>
-                    </button>
-                    
-                    <button 
                       onClick={handleDeleteUser} 
                       className={`${styles.actionCard} ${styles.dangerAction}`}
                       title="Permanently delete user"
@@ -2137,7 +2100,7 @@ function AdminUserDetailsContent() {
                     </button>
                   </div>
                   
-                  {/* Setup Link Display */}
+                  {/* Onboarding Link Display */}
                   {setupLink && (
                     <div style={{
                       marginTop: '16px',
@@ -2153,7 +2116,7 @@ function AdminUserDetailsContent() {
                         marginBottom: '8px'
                       }}>
                         <span style={{ fontSize: '13px', fontWeight: '600', color: '#065f46' }}>
-                          ✅ Setup link copied to clipboard!
+                          ✅ Onboarding link copied to clipboard!
                         </span>
                         <button
                           onClick={() => setSetupLink(null)}
