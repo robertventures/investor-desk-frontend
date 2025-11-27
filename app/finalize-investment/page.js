@@ -796,7 +796,7 @@ function ClientContent() {
           <div className={styles.fundingHeader}>
             <div className={styles.groupTitle}>Funding</div>
             <p className={styles.fundingDescription}>
-              Choose how you'll transfer funds to make your investment
+              Choose how you&apos;ll transfer funds to make your investment
             </p>
           </div>
           <div className={styles.radioGroup}>
