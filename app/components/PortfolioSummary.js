@@ -85,10 +85,6 @@ export default function PortfolioSummary() {
           const investmentDetails = []
           
           confirmedInvestments.forEach(inv => {
-            const calculation = calculateInvestmentValue(inv, currentAppTime)
-            const investmentTransactions = Array.isArray(inv.transactions) ? inv.transactions : []
-            const status = getInvestmentStatus(inv, currentAppTime)
-            
             // Fallback: If confirmedAt is not set, try to get it from activity log
             let confirmedAt = inv.confirmedAt
             if (!confirmedAt && (inv.status === 'active' || inv.status === 'withdrawal_notice' || inv.status === 'withdrawn')) {
@@ -99,35 +95,34 @@ export default function PortfolioSummary() {
               }
             }
             
+            // Use enriched investment object for calculations
+            const invWithConfirmedAt = confirmedAt ? { ...inv, confirmedAt } : inv
+            
+            const calculation = calculateInvestmentValue(invWithConfirmedAt, currentAppTime)
+            const investmentTransactions = Array.isArray(inv.transactions) ? inv.transactions : []
+            const status = getInvestmentStatus(invWithConfirmedAt, currentAppTime)
+            
             // Calculate earnings for ALL investments (including withdrawn)
             // Total Earnings represents lifetime earnings across all investments
             if (inv.status === 'withdrawn') {
               // For withdrawn investments, use the stored final earnings value
               totalEarnings += inv.totalEarnings || 0
             } else if (inv.status === 'active' || inv.status === 'withdrawal_notice') {
-              // For active investments, calculate current earnings
-              if (inv.paymentFrequency === 'monthly') {
-                // For monthly payout investments, sum paid distributions from transactions
-                const paid = investmentTransactions
-                  .filter(tx => tx.type === 'distribution' && new Date(tx.date || 0) <= new Date(currentAppTime) && tx.status !== 'rejected')
-                  .reduce((sum, ev) => sum + (Number(ev.amount) || 0), 0)
-                totalEarnings += Math.round(paid * 100) / 100
-              } else {
-                // For compounding investments, use calculated earnings
-                totalEarnings += calculation.totalEarnings
-              }
+              // For active investments, use calculated earnings (standardized for both types)
+              // This ensures consistency with the investments list view
+              totalEarnings += calculation.totalEarnings
             }
             
             // Only include active and withdrawal_notice investments in portfolio totals
             // Withdrawn investments don't count toward current invested amount or current value
             if (inv.status === 'active' || inv.status === 'withdrawal_notice') {
               totalInvested += inv.amount || 0
-              // Portfolio current value only includes compounding growth
+              
               if (inv.paymentFrequency === 'monthly') {
                 // Monthly payout investments: keep principal only
                 totalCurrentValue += inv.amount || 0
               } else {
-                // Compounding investments: include accrued value
+                // Compounding investments: include accrued value from calculation
                 totalCurrentValue += calculation.currentValue
               }
             }
