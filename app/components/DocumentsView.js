@@ -25,7 +25,7 @@ export default function DocumentsView() {
 
       try {
         // Load user data
-        const data = await apiClient.getUser(userId)
+        const data = await apiClient.getCurrentUser()
         if (data.success) {
           setUser(data.user)
           

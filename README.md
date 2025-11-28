@@ -158,7 +158,7 @@ import { apiClient } from '@/lib/apiClient'
 const result = await apiClient.login(email, password)
 
 // Get user data
-const user = await apiClient.getUser(userId)
+const user = await apiClient.getCurrentUser()
 
 // Create investment
 const investment = await apiClient.createInvestment(userId, investmentData)

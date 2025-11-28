@@ -303,15 +303,19 @@ function AdminUserDetailsContent() {
       if (!res.success) {
         // Revert on failure
         alert('Failed to approve investment: ' + (res.error || 'Unknown error'))
-        const freshUser = await apiClient.getUser(id)
+        const freshUser = await adminService.getUser(id)
         if (freshUser.success) setUser(freshUser.user)
       }
     } catch (error) {
       console.error('Failed to approve investment:', error)
       alert('An error occurred while approving investment')
       // Refresh to ensure consistency
-      const freshUser = await apiClient.getUser(id)
-      if (freshUser.success) setUser(freshUser.user)
+      try {
+        const freshUser = await adminService.getUser(id)
+        if (freshUser.success) setUser(freshUser.user)
+      } catch (refreshError) {
+        console.error('Failed to refresh user data:', refreshError)
+      }
     }
   }
 
@@ -333,15 +337,19 @@ function AdminUserDetailsContent() {
       if (!res.success) {
         // Revert on failure
         alert('Failed to reject investment: ' + (res.error || 'Unknown error'))
-        const freshUser = await apiClient.getUser(id)
+        const freshUser = await adminService.getUser(id)
         if (freshUser.success) setUser(freshUser.user)
       }
     } catch (error) {
       console.error('Failed to reject investment:', error)
       alert('An error occurred while rejecting investment')
       // Refresh to ensure consistency
-      const freshUser = await apiClient.getUser(id)
-      if (freshUser.success) setUser(freshUser.user)
+      try {
+        const freshUser = await adminService.getUser(id)
+        if (freshUser.success) setUser(freshUser.user)
+      } catch (refreshError) {
+        console.error('Failed to refresh user data:', refreshError)
+      }
     }
   }
 

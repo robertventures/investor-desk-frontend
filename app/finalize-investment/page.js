@@ -306,7 +306,7 @@ function ClientContent() {
       }
       
       logger.debug('[FinalizeInvestment] Fetching user data...')
-      const data = await apiClient.getUser(userId)
+      const data = await apiClient.getCurrentUser()
       logger.debug('[FinalizeInvestment] User data:', data)
       
       if (data.success && data.user) {

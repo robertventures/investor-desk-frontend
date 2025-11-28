@@ -23,7 +23,7 @@ export default function TransactionsTable() {
 
       try {
         // Fetch user data first
-        const data = await apiClient.getUser(userId)
+        const data = await apiClient.getCurrentUser()
         
         // Get current app time to ensure earnings/payouts align with time machine - only if user is admin
         let currentAppTime = new Date().toISOString()

@@ -23,7 +23,8 @@ export default function InvestmentReviewForm() {
         return
       }
       try {
-        const data = await apiClient.getUser(userId)
+        // Use getCurrentUser() which handles token refresh and ignore legacy ID param
+        const data = await apiClient.getCurrentUser()
         if (!data.success || !data.user) return
         
         const user = data.user
