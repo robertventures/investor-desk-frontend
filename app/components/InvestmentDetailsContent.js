@@ -268,7 +268,7 @@ export default function InvestmentDetailsContent({ investmentId }) {
         </div>
         <div className={styles.identifierItem}>
           <span className={styles.identifierLabel}>SIGNATURE DATE</span>
-          <span className={styles.identifierValue}>{formatDate(investmentData.signedAt)}</span>
+          <span className={styles.identifierValue}>{formatDate(investmentData.confirmedAt)}</span>
         </div>
       </div>
 
