@@ -16,7 +16,8 @@ export default function PortfolioSummary() {
     totalInvested: 0,
     totalPending: 0,
     totalEarnings: 0,
-    totalCurrentValue: 0,
+    compoundingEarnings: 0,
+    monthlyEarnings: 0,
     investments: []
   })
   const [appTime, setAppTime] = useState(null)
@@ -81,7 +82,8 @@ export default function PortfolioSummary() {
           // Calculate totals using the precise calculation functions - only for confirmed investments
           let totalInvested = 0
           let totalEarnings = 0
-          let totalCurrentValue = 0
+          let compoundingEarnings = 0
+          let monthlyEarnings = 0
           const investmentDetails = []
           
           confirmedInvestments.forEach(inv => {
@@ -104,27 +106,29 @@ export default function PortfolioSummary() {
             
             // Calculate earnings for ALL investments (including withdrawn)
             // Total Earnings represents lifetime earnings across all investments
+            let investmentEarnings = 0
             if (inv.status === 'withdrawn') {
               // For withdrawn investments, use the stored final earnings value
-              totalEarnings += inv.totalEarnings || 0
+              investmentEarnings = inv.totalEarnings || 0
             } else if (inv.status === 'active' || inv.status === 'withdrawal_notice') {
               // For active investments, use calculated earnings (standardized for both types)
               // This ensures consistency with the investments list view
-              totalEarnings += calculation.totalEarnings
+              investmentEarnings = calculation.totalEarnings
+            }
+            
+            totalEarnings += investmentEarnings
+            
+            // Split earnings into compounding vs monthly
+            if (inv.paymentFrequency === 'monthly') {
+              monthlyEarnings += investmentEarnings
+            } else {
+              compoundingEarnings += investmentEarnings
             }
             
             // Only include active and withdrawal_notice investments in portfolio totals
-            // Withdrawn investments don't count toward current invested amount or current value
+            // Withdrawn investments don't count toward current invested amount
             if (inv.status === 'active' || inv.status === 'withdrawal_notice') {
-              totalInvested += inv.amount || 0
-              
-              if (inv.paymentFrequency === 'monthly') {
-                // Monthly payout investments: keep principal only
-                totalCurrentValue += inv.amount || 0
-              } else {
-                // Compounding investments: include accrued value from calculation
-                totalCurrentValue += calculation.currentValue
-              }
+              totalInvested += Number(inv.amount || 0)
             }
             
             investmentDetails.push({
@@ -136,7 +140,7 @@ export default function PortfolioSummary() {
           })
           
           // Pending investments (waiting for admin confirmation) + drafts
-          const totalPending = [...pendingInvestments, ...draftInvestments].reduce((sum, inv) => sum + (inv.amount || 0), 0)
+          const totalPending = [...pendingInvestments, ...draftInvestments].reduce((sum, inv) => sum + Number(inv.amount || 0), 0)
           
           // Add pending investments to display (but without earnings calculations)
           pendingInvestments.forEach(inv => {
@@ -193,7 +197,8 @@ export default function PortfolioSummary() {
             totalInvested,
             totalPending,
             totalEarnings,
-            totalCurrentValue,
+            compoundingEarnings,
+            monthlyEarnings,
             investments: investmentDetails
           }
           setPortfolioData(nextPortfolio)
@@ -346,8 +351,12 @@ export default function PortfolioSummary() {
             </span>
           </div>
           <div className={styles.metric}>
-            <span className={styles.metricLabel}>CURRENT VALUE</span>
-            <span className={styles.metricValue}>{formatCurrency(portfolioData.totalCurrentValue)}</span>
+            <span className={styles.metricLabel}>COMPOUNDING INTEREST</span>
+            <span className={styles.metricValue}>{formatCurrency(portfolioData.compoundingEarnings)}</span>
+          </div>
+          <div className={styles.metric}>
+            <span className={styles.metricLabel}>MONTHLY PAYOUTS</span>
+            <span className={styles.metricValue}>{formatCurrency(portfolioData.monthlyEarnings)}</span>
           </div>
           <div className={styles.metric}>
             <span className={styles.metricLabel}>TOTAL EARNINGS</span>
