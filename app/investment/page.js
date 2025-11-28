@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '@/lib/apiClient'
+import { INVESTMENTS_PAUSED } from '@/lib/featureFlags'
 import logger from '@/lib/logger'
 import { getInvestmentTypeLockInfo } from '@/lib/investmentAccess'
 import Header from '../components/Header'
@@ -24,6 +25,13 @@ function InvestmentPageContent() {
   const searchParams = useSearchParams()
   const context = searchParams?.get('context') // 'onboarding' or 'new'
   const [activeStep, setActiveStep] = useState(1)
+
+  // Redirect to dashboard if investments are paused (SEC approval pending)
+  useEffect(() => {
+    if (INVESTMENTS_PAUSED) {
+      router.push('/dashboard')
+    }
+  }, [router])
   const [isStep1Completed, setIsStep1Completed] = useState(false)
   const [isStep2Completed, setIsStep2Completed] = useState(false)
   const [reviewModeStep1, setReviewModeStep1] = useState(false)

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '../contexts/UserContext'
 import { getInvestmentTypeLockInfo } from '@/lib/investmentAccess'
+import { INVESTMENTS_PAUSED } from '@/lib/featureFlags'
 import styles from './FixedInvestButton.module.css'
 
 const ACCOUNT_TYPE_LABELS = {
@@ -43,7 +44,8 @@ export default function FixedInvestButton() {
     router.push('/investment?context=new')
   }
 
-  const shouldHide = userData?.isAdmin
+  // Hide for admins or when investments are paused (SEC approval pending)
+  const shouldHide = userData?.isAdmin || INVESTMENTS_PAUSED
 
   // Prevent hydration mismatch - don't render until mounted
   if (!mounted || shouldHide) return null
