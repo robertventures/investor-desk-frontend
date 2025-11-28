@@ -539,21 +539,6 @@ function OnboardingContent() {
                 />
               )}
               
-              {/* Skip option if not connected */}
-              {!getInvestmentsNeedingBanks().every(inv => investmentHasAllRequiredBanks(inv)) && (
-                <button
-                  onClick={() => {
-                    if (window.confirm('Skip bank setup for now? You can add bank accounts later from your profile.')) {
-                      completeOnboarding()
-                    }
-                  }}
-                  className={styles.skipButton}
-                  disabled={isLoading}
-                  style={{ width: '100%', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}
-                >
-                  Skip for Now
-                </button>
-              )}
             </div>
           )}
 
