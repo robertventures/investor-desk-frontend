@@ -46,13 +46,8 @@ export function UserProvider({ children }) {
       isLoadingUserRef.current = true
       setLoading(true)
       apiClient.ensureTokensLoaded()
-      if (!apiClient.isAuthenticated()) {
-        setUserProfile(null)
-        setInvestments(null)
-        setActivity(null)
-        setError(null)
-        return null
-      }
+      // Note: We don't check isAuthenticated() here because getCurrentUser()
+      // handles token refresh automatically when there's a valid refresh token
 
       const data = await apiClient.getCurrentUser()
       if (data.success && data.user) {
