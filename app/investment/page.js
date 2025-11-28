@@ -233,7 +233,7 @@ function InvestmentPageContent() {
     }
     const checkAdmin = async () => {
       try {
-        const data = await apiClient.getUser(userId)
+        const data = await apiClient.getCurrentUser()
         // If the account no longer exists, clear session and redirect
         if (!data.success || !data.user) {
           try {

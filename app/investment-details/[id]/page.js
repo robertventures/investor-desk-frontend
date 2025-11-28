@@ -23,7 +23,7 @@ export default function InvestmentDetailsPage() {
         return 
       }
       try {
-        const data = await apiClient.getUser(userId)
+        const data = await apiClient.getCurrentUser()
         if (!data.success || !data.user) {
           localStorage.removeItem('currentUserId')
           localStorage.removeItem('signupEmail')

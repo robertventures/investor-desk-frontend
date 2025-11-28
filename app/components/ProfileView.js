@@ -194,7 +194,7 @@ export default function ProfileView() {
 
     try {
       // Use apiClient to route to Python backend (not Next.js)
-      const data = await apiClient.getUser(userId)
+      const data = await apiClient.getCurrentUser()
       if (data.success && data.user) {
         // Ensure investments array is included even if empty
         setUserData({ ...data.user, investments: data.user.investments || [] })

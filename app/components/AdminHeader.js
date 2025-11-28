@@ -22,7 +22,7 @@ export default function AdminHeader({ onTabChange, activeTab }) {
 
     const loadUser = async () => {
       try {
-        const data = await apiClient.getUser(userId)
+        const data = await apiClient.getCurrentUser()
         if (data && data.success && data.user) {
           setCurrentUser(data.user)
         }

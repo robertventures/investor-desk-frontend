@@ -87,16 +87,32 @@ export function useAdminData() {
     
     const init = async () => {
       try {
-        const userId = localStorage.getItem('currentUserId')
-        if (!userId) {
-          router.push('/')
-          return
+        // Ensure tokens are loaded before checking authentication
+        apiClient.ensureTokensLoaded()
+        
+        // Check if we have authentication tokens
+        if (!apiClient.isAuthenticated()) {
+          // Try to refresh token if we have a refresh token
+          if (apiClient.refreshToken) {
+            try {
+              await apiClient.refreshAccessToken()
+            } catch (refreshError) {
+              logger.error('Failed to refresh token:', refreshError)
+              router.push('/sign-in')
+              return
+            }
+          } else {
+            // No tokens available, redirect to sign-in
+            router.push('/sign-in')
+            return
+          }
         }
 
-        // Load current user
-        const meData = await apiClient.getUser(userId)
+        // Use getCurrentUser() instead of getUser(userId) - it properly handles token refresh
+        const meData = await apiClient.getCurrentUser()
         if (!meData || !meData.success || !meData.user) {
-          router.push('/')
+          logger.error('Failed to get current user:', meData)
+          router.push('/sign-in')
           return
         }
         setCurrentUser(meData.user)
@@ -116,6 +132,10 @@ export function useAdminData() {
         ])
       } catch (e) {
         logger.error('Failed to load admin data', e)
+        // If it's an authentication error, redirect to sign-in
+        if (e.message && (e.message.includes('401') || e.message.includes('Session expired') || e.message.includes('Unauthorized'))) {
+          router.push('/sign-in')
+        }
       } finally {
         setIsLoading(false)
       }
