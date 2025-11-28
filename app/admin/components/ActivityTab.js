@@ -5,76 +5,88 @@ import styles from './ActivityTab.module.css'
 import { formatCurrency } from '../../../lib/formatters.js'
 
 /**
- * Activity tab showing all platform-wide activity events
+ * Helper function to safely convert amount to number
  */
-export default function ActivityTab({ activityEvents, isLoadingActivity, users, onRefreshActivity }) {
+function safeAmount(amount) {
+  if (amount === null || amount === undefined) return 0
+  const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount)
+  return isNaN(num) ? 0 : num
+}
+
+/**
+ * Activity tab showing all platform-wide activity events
+ * Refactored to use transactions (ledger of record) as the primary data source
+ */
+export default function ActivityTab({ users, isLoading, onRefresh }) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
 
-  // Create a map of users by ID for quick lookup
-  // Handle both string IDs (e.g., "USR-1001") and numeric IDs (e.g., 1001)
-  const usersById = useMemo(() => {
-    const map = {}
-    users.forEach(user => {
-      // Store by original ID
-      map[user.id] = user
-      
-      // Also store by numeric ID to match activity event userId (which is numeric)
-      const userIdStr = user.id.toString()
-      const numericMatch = userIdStr.match(/\d+$/)
-      if (numericMatch) {
-        const numericId = parseInt(numericMatch[0], 10)
-        map[numericId] = user
-      }
-    })
-    return map
-  }, [users])
-
-  // Transform and enrich activity events with user data
+  // Extract all activity events from user transactions + investment creation events
   const allActivity = useMemo(() => {
-    // Map API response to component format
-    const events = activityEvents.map(event => {
-      const user = usersById[event.userId] || {}
+    const events = []
+    
+    users.forEach(user => {
+      const investments = Array.isArray(user.investments) ? user.investments : []
       
-      // Parse metadata if it exists
-      let metadata = {}
-      try {
-        if (event.eventMetadata && typeof event.eventMetadata === 'string') {
-          metadata = JSON.parse(event.eventMetadata)
-        } else if (event.eventMetadata && typeof event.eventMetadata === 'object') {
-          metadata = event.eventMetadata
+      investments.forEach(investment => {
+        // 1. Add investment creation event
+        if (investment.createdAt) {
+          events.push({
+            id: `inv-created-${investment.id}`,
+            type: 'investment_created',
+            status: investment.status === 'pending' ? 'pending' : 'completed',
+            userId: user.id,
+            userEmail: user.email,
+            userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+            investmentId: investment.id,
+            amount: safeAmount(investment.amount),
+            date: investment.createdAt,
+            displayDate: investment.createdAt,
+            title: 'Investment Created',
+            description: `Investment created for ${formatCurrency(safeAmount(investment.amount))}`
+          })
         }
-      } catch (e) {
-        console.error('Failed to parse event metadata:', e)
-      }
-
-      // Try to get amount from metadata first, then from investment data if available
-      let amount = metadata.amount
+        
+        // 2. Add transaction events (distributions, contributions, etc)
+        const transactions = Array.isArray(investment.transactions) ? investment.transactions : []
+        transactions.forEach(tx => {
+          events.push({
+            id: tx.id,
+            type: tx.type, // 'investment', 'distribution', 'contribution', 'monthly_distribution', etc.
+            status: tx.status || 'completed', // pending, approved, rejected, received
+            userId: user.id,
+            userEmail: user.email,
+            userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+            investmentId: investment.id,
+            amount: safeAmount(tx.amount),
+            date: tx.date,
+            displayDate: tx.date,
+            title: getEventTitle(tx.type),
+            description: tx.description || `${getEventTitle(tx.type)} of ${formatCurrency(safeAmount(tx.amount))}`,
+            metadata: tx.metadata
+          })
+        })
+      })
       
-      // If no amount in metadata and this is an investment-related event, look it up
-      if (amount == null && event.investmentId && user.investments) {
-        const investment = user.investments.find(inv => inv.id === event.investmentId)
-        if (investment) {
-          amount = investment.amount
-        }
-      }
-
-      return {
-        id: event.id,
-        type: event.activityType,
-        userId: event.userId,
-        userEmail: user.email || '-',
-        userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || '-',
-        investmentId: event.investmentId,
-        amount: amount,
-        date: event.eventDate,
-        displayDate: event.eventDate,
-        title: event.title,
-        description: event.description,
-        status: event.status,
-        metadata: metadata
+      // 3. Add account creation event
+      if (user.createdAt || user.created_at) {
+        const createdDate = user.createdAt || user.created_at
+        events.push({
+          id: `user-created-${user.id}`,
+          type: 'account_created',
+          status: 'completed',
+          userId: user.id,
+          userEmail: user.email,
+          userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+          investmentId: null,
+          amount: null,
+          date: createdDate,
+          displayDate: createdDate,
+          title: 'Account Created',
+          description: 'User account created'
+        })
       }
     })
 
@@ -86,7 +98,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
     })
 
     return events
-  }, [activityEvents, usersById])
+  }, [users])
 
   // Filter activity based on search term
   const filteredActivity = useMemo(() => {
@@ -100,10 +112,10 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
         event.userEmail?.toLowerCase().includes(term) ||
         event.userId?.toString().toLowerCase().includes(term) ||
         event.investmentId?.toString().toLowerCase().includes(term) ||
-        event.id?.toString().toLowerCase().includes(term)
+        event.id?.toString().toLowerCase().includes(term) ||
+        event.status?.toLowerCase().includes(term)
       )
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allActivity, searchTerm])
 
   // Paginate filtered activity
@@ -120,41 +132,55 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
     setCurrentPage(1)
   }, [searchTerm])
 
-  // Get event metadata (icon, title, color)
+  // Helper functions for display
+  const getEventTitle = (eventType) => {
+    switch (eventType) {
+      case 'account_created': return 'Account Created'
+      case 'investment_created': return 'Investment Created'
+      case 'investment_submitted': return 'Investment Submitted'
+      case 'investment_confirmed': return 'Investment Confirmed'
+      case 'investment_rejected': return 'Investment Rejected'
+      case 'investment': return 'Investment Transaction'
+      case 'distribution': return 'Distribution'
+      case 'monthly_distribution': return 'Monthly Payout'
+      case 'contribution': return 'Contribution'
+      case 'monthly_compounded': return 'Monthly Compounded'
+      case 'withdrawal_requested': return 'Withdrawal Requested'
+      case 'withdrawal_notice_started': return 'Withdrawal Notice Started'
+      case 'withdrawal_approved': return 'Withdrawal Processed'
+      case 'withdrawal_rejected': return 'Withdrawal Rejected'
+      case 'redemption': return 'Redemption'
+      default: return eventType || 'Unknown Event'
+    }
+  }
+
+  // Get event metadata (icon, color)
   const getEventMeta = (eventType) => {
     switch (eventType) {
       case 'account_created':
-        return { icon: '👤', title: 'Account Created', color: '#0369a1' }
+        return { icon: '👤', color: '#0369a1' }
       case 'investment_created':
-        return { icon: '🧾', title: 'Investment Created', color: '#0369a1' }
       case 'investment_submitted':
-        return { icon: '📋', title: 'Investment Submitted', color: '#0369a1' }
-      case 'investment_confirmed':
-        return { icon: '✅', title: 'Investment Confirmed', color: '#065f46' }
-      case 'investment_rejected':
-        return { icon: '❌', title: 'Investment Rejected', color: '#991b1b' }
       case 'investment':
-        return { icon: '🧾', title: 'Investment Transaction', color: '#0369a1' }
-      case 'distribution':
-        return { icon: '💸', title: 'Distribution', color: '#5b21b6' }
-      case 'monthly_distribution':
-        return { icon: '💸', title: 'Monthly Payout', color: '#5b21b6' }
-      case 'contribution':
-        return { icon: '📈', title: 'Contribution', color: '#5b21b6' }
-      case 'monthly_compounded':
-        return { icon: '📈', title: 'Monthly Compounded', color: '#5b21b6' }
-      case 'withdrawal_requested':
-        return { icon: '🏦', title: 'Withdrawal Requested', color: '#ca8a04' }
-      case 'withdrawal_notice_started':
-        return { icon: '⏳', title: 'Withdrawal Notice Started', color: '#ca8a04' }
+        return { icon: '🧾', color: '#0369a1' }
+      case 'investment_confirmed':
       case 'withdrawal_approved':
-        return { icon: '✅', title: 'Withdrawal Processed', color: '#065f46' }
+        return { icon: '✅', color: '#065f46' }
+      case 'investment_rejected':
       case 'withdrawal_rejected':
-        return { icon: '❌', title: 'Withdrawal Rejected', color: '#991b1b' }
+        return { icon: '❌', color: '#991b1b' }
+      case 'distribution':
+      case 'monthly_distribution':
+        return { icon: '💸', color: '#5b21b6' }
+      case 'contribution':
+      case 'monthly_compounded':
+        return { icon: '📈', color: '#5b21b6' }
+      case 'withdrawal_requested':
+      case 'withdrawal_notice_started':
       case 'redemption':
-        return { icon: '🏦', title: 'Redemption', color: '#ca8a04' }
+        return { icon: '🏦', color: '#ca8a04' }
       default:
-        return { icon: '•', title: eventType || 'Unknown Event', color: '#6b7280' }
+        return { icon: '•', color: '#6b7280' }
     }
   }
 
@@ -164,16 +190,16 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
         <div>
           <h2 className={styles.title}>Platform Activity</h2>
           <p className={styles.subtitle}>
-            All activity events across the platform ({filteredActivity.length} total)
+            All financial activity and events ({filteredActivity.length} total)
             {totalPages > 1 && ` - Page ${currentPage} of ${totalPages}`}
           </p>
         </div>
         <button
           className={styles.refreshButton}
-          onClick={() => onRefreshActivity(true)}
-          disabled={isLoadingActivity}
+          onClick={onRefresh}
+          disabled={isLoading}
         >
-          {isLoadingActivity ? '⟳ Loading...' : '↻ Refresh'}
+          {isLoading ? '⟳ Loading...' : '↻ Refresh'}
         </button>
       </div>
 
@@ -181,7 +207,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
       <div className={styles.searchContainer}>
         <input
           type="text"
-          placeholder="Search by user, email, investment ID, event type..."
+          placeholder="Search by user, email, investment ID, event type, status..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className={styles.searchInput}
@@ -203,6 +229,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
           <thead>
             <tr>
               <th>Event</th>
+              <th>Status</th>
               <th>User</th>
               <th>Email</th>
               <th>Investment ID</th>
@@ -213,15 +240,15 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
             </tr>
           </thead>
           <tbody>
-            {isLoadingActivity ? (
+            {isLoading ? (
               <tr>
-                <td colSpan="8" className={styles.emptyState}>
+                <td colSpan="9" className={styles.emptyState}>
                   Loading activity events...
                 </td>
               </tr>
             ) : filteredActivity.length === 0 ? (
               <tr>
-                <td colSpan="8" className={styles.emptyState}>
+                <td colSpan="9" className={styles.emptyState}>
                   {searchTerm ? `No activity events found matching "${searchTerm}"` : 'No activity events yet'}
                 </td>
               </tr>
@@ -247,8 +274,13 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
                         <span className={styles.eventIcon} style={{ color: meta.color }}>
                           {meta.icon}
                         </span>
-                        <span className={styles.eventTitle}>{meta.title}</span>
+                        <span className={styles.eventTitle}>{event.title}</span>
                       </div>
+                    </td>
+                    <td>
+                      <span className={`${styles.badge} ${styles[event.status?.toLowerCase()] || styles.defaultBadge}`}>
+                        {event.status || '-'}
+                      </span>
                     </td>
                     <td>
                       <button
@@ -272,7 +304,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
                       )}
                     </td>
                     <td>
-                      {event.amount != null && event.type !== 'account_created' ? (
+                      {event.amount != null ? (
                         <strong className={styles.amount}>{formatCurrency(event.amount)}</strong>
                       ) : (
                         <span className={styles.naText}>-</span>
@@ -280,7 +312,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
                     </td>
                     <td className={styles.dateCell}>{date}</td>
                     <td className={styles.eventIdCell}>
-                      {(event.type === 'investment' || event.type === 'distribution' || event.type === 'contribution') && event.id ? (
+                      {(event.type === 'investment' || event.type === 'distribution' || event.type === 'contribution' || event.type === 'monthly_distribution' || event.type === 'monthly_compounded') && event.id && !event.id.startsWith('inv-created') ? (
                         <button
                           className={styles.eventIdButton}
                           onClick={() => router.push(`/admin/transactions/${event.id}`)}
@@ -289,7 +321,7 @@ export default function ActivityTab({ activityEvents, isLoadingActivity, users, 
                           <code>{event.id}</code>
                         </button>
                       ) : (
-                        <span>{event.id}</span>
+                        <span>{event.id.startsWith('inv-created') || event.id.startsWith('user-created') ? '-' : event.id}</span>
                       )}
                     </td>
                     <td>

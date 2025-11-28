@@ -6,7 +6,7 @@ import { apiClient } from '../../lib/apiClient'
 import Header from '../components/Header'
 import styles from './page.module.css'
 
-function ResetPasswordContent() {
+function PasswordChangeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [token, setToken] = useState('')
@@ -221,7 +221,7 @@ function ResetPasswordContent() {
   )
 }
 
-export default function ResetPasswordPage() {
+export default function PasswordChangePage() {
   return (
     <Suspense fallback={
       <main className={styles.main}>
@@ -233,8 +233,7 @@ export default function ResetPasswordPage() {
         </div>
       </main>
     }>
-      <ResetPasswordContent />
+      <PasswordChangeContent />
     </Suspense>
   )
 }
-

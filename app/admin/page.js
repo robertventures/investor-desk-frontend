@@ -573,10 +573,9 @@ function AdminPageContent() {
           {/* Activity Tab */}
           {activeTab === 'activity' && (
             <ActivityTab 
-              activityEvents={activityEvents || []} 
-              isLoadingActivity={isLoadingActivity}
               users={users || []}
-              onRefreshActivity={refreshActivity}
+              isLoading={isLoading}
+              onRefresh={() => refreshUsers(true)}
             />
           )}
 
