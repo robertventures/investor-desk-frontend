@@ -1,11 +1,26 @@
 'use client'
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { apiClient } from '../../lib/apiClient'
 import { useUser } from '../contexts/UserContext'
 import styles from './PortfolioSummary.module.css'
 import TransactionsList from './TransactionsList'
 import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../lib/investmentCalculations.js'
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className={styles.customTooltip}>
+        <p className={styles.tooltipDate}>{new Date(label).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+        <p className={styles.tooltipValue}>
+          {formatCurrency(payload[0].value)}
+        </p>
+      </div>
+    )
+  }
+  return null
+}
 
 export default function PortfolioSummary() {
   const router = useRouter()
@@ -21,8 +36,6 @@ export default function PortfolioSummary() {
     investments: []
   })
   const [appTime, setAppTime] = useState(null)
-  const [chartWidth, setChartWidth] = useState(600)
-  const chartAreaRef = useRef(null)
 
   const loadData = useCallback(async () => {
     if (typeof window === 'undefined') return
@@ -220,13 +233,21 @@ export default function PortfolioSummary() {
     }
 
     try {
-      const confirmedInvestments = portfolioData.investments.filter(inv => 
-        inv.status === 'active' || 
-        inv.status === 'withdrawal_notice' || 
-        inv.status === 'withdrawn'
-      )
+      const confirmedInvestments = portfolioData.investments.filter(inv => {
+        const statusStr = inv.status?.status || inv.status
+        return statusStr === 'active' || 
+               statusStr === 'withdrawal_notice' || 
+               statusStr === 'withdrawn'
+      })
+
+      console.log('[PortfolioSummary] Chart Series Calculation:', { 
+        appTime, 
+        investmentsCount: portfolioData.investments?.length,
+        confirmedCount: confirmedInvestments.length 
+      })
 
       if (confirmedInvestments.length === 0) {
+        console.log('[PortfolioSummary] No confirmed investments for chart')
         return []
       }
 
@@ -251,14 +272,21 @@ export default function PortfolioSummary() {
         let totalEarnings = 0
         
         confirmedInvestments.forEach(inv => {
+          // Normalize status and payment frequency for consistent handling
+          const statusStr = inv.status?.status || inv.status
+          const paymentFrequency = (inv.paymentFrequency || '').toLowerCase()
+          // Create a normalized investment object for calculations that expects status as string
+          const normalizedInv = { ...inv, status: statusStr }
+
           if (inv.confirmedAt && new Date(inv.confirmedAt) <= asOf) {
             const investmentTransactions = Array.isArray(inv.transactions) ? inv.transactions : []
+            
             // Include withdrawn investments in historical earnings
             // If withdrawn before this point, use final earnings; otherwise calculate as of this point
-            if (inv.status === 'withdrawn' && inv.withdrawalNoticeStartAt && new Date(inv.withdrawalNoticeStartAt) <= asOf) {
+            if (statusStr === 'withdrawn' && inv.withdrawalNoticeStartAt && new Date(inv.withdrawalNoticeStartAt) <= asOf) {
               // Investment was withdrawn by this point - use stored final earnings
               totalEarnings += inv.totalEarnings || 0
-            } else if (inv.paymentFrequency === 'monthly') {
+            } else if (paymentFrequency === 'monthly') {
               // For monthly payout investments, sum paid distributions from transactions
               const paidDistributions = investmentTransactions
                 .filter(tx => tx.type === 'distribution' && new Date(tx.date || 0) <= asOf && tx.status !== 'rejected')
@@ -266,12 +294,13 @@ export default function PortfolioSummary() {
               totalEarnings += Math.round(paidDistributions * 100) / 100
             } else {
               // For compounding investments, use calculated earnings
-              const calc = calculateInvestmentValue(inv, asOfIso)
+              // IMPORTANT: Pass normalizedInv (with string status) so calculateInvestmentValue works correctly
+              const calc = calculateInvestmentValue(normalizedInv, asOfIso)
               totalEarnings += calc.totalEarnings
             }
           }
         })
-        points.push({ date: asOf, value: totalEarnings })
+        points.push({ date: asOf.toISOString(), value: totalEarnings })
       }
       
       // Final point at current app time to match current investment info
@@ -281,13 +310,18 @@ export default function PortfolioSummary() {
         let totalEarnings = 0
         
         confirmedInvestments.forEach(inv => {
+          const statusStr = inv.status?.status || inv.status
+          const paymentFrequency = (inv.paymentFrequency || '').toLowerCase()
+          const normalizedInv = { ...inv, status: statusStr }
+
           if (inv.confirmedAt && new Date(inv.confirmedAt) <= asOf) {
             const investmentTransactions = Array.isArray(inv.transactions) ? inv.transactions : []
+            
             // Include withdrawn investments in current earnings
-            if (inv.status === 'withdrawn') {
+            if (statusStr === 'withdrawn') {
               // Investment was withdrawn - use stored final earnings
               totalEarnings += inv.totalEarnings || 0
-            } else if (inv.paymentFrequency === 'monthly') {
+            } else if (paymentFrequency === 'monthly') {
               // For monthly payout investments, sum paid distributions from transactions
               const paidDistributions = investmentTransactions
                 .filter(tx => tx.type === 'distribution' && new Date(tx.date || 0) <= asOf && tx.status !== 'rejected')
@@ -295,14 +329,15 @@ export default function PortfolioSummary() {
               totalEarnings += Math.round(paidDistributions * 100) / 100
             } else {
               // For compounding investments, use calculated earnings
-              const calc = calculateInvestmentValue(inv, asOfIso)
+              const calc = calculateInvestmentValue(normalizedInv, asOfIso)
               totalEarnings += calc.totalEarnings
             }
           }
         })
-        points.push({ date: asOf, value: totalEarnings })
+        points.push({ date: asOf.toISOString(), value: totalEarnings })
       }
       
+      console.log('[PortfolioSummary] Generated chart points:', points.length, points)
       return points
     } catch (e) {
       console.error('Error calculating chart series:', e)
@@ -314,19 +349,6 @@ export default function PortfolioSummary() {
     setMounted(true)
     loadData()
   }, [loadData])
-
-  // Observe width of chart area for responsiveness
-  useEffect(() => {
-    if (!chartAreaRef.current) return
-    const el = chartAreaRef.current
-    const ro = new ResizeObserver(entries => {
-      if (!entries || !entries[0]) return
-      const w = Math.max(320, Math.floor(entries[0].contentRect.width))
-      setChartWidth(w)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   // Prevent hydration mismatch by not rendering until mounted on client
   if (!mounted || !userData) {
@@ -378,82 +400,50 @@ export default function PortfolioSummary() {
             </div>
           </div>
           <div className={styles.chartPlaceholder}>
-            <div className={styles.chartGrid}>
-              <div className={styles.yAxisLabel}>Valuation</div>
-              <div className={styles.chartArea} ref={chartAreaRef}>
-                {chartSeries.length > 0 && (() => {
-                  const width = Math.max(320, chartWidth)
-                  const height = 240
-                  const padding = 28
-                  const values = chartSeries.map(p => p.value)
-                  const minV = Math.min(...values)
-                  const maxV = Math.max(...values)
-                  const range = Math.max(1, maxV - minV)
-                  const xStep = (width - padding * 2) / Math.max(1, chartSeries.length - 1)
-                  const points = chartSeries.map((p, i) => {
-                    const x = padding + i * xStep
-                    const y = padding + (1 - (p.value - minV) / range) * (height - padding * 2)
-                    return { x, y }
-                  })
-                  const path = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ')
-                  const areaPath = `${path} L ${padding + (chartSeries.length - 1) * xStep} ${height - padding} L ${padding} ${height - padding} Z`
-                  // Y-axis ticks (min to max)
-                  const yTickCount = 4
-                  const yTicks = Array.from({ length: yTickCount + 1 }, (_, i) => {
-                    const v = minV + (range * (i / yTickCount))
-                    const y = padding + (1 - (v - minV) / range) * (height - padding * 2)
-                    return { v, y }
-                  })
-                  // X-axis labels (evenly spaced)
-                  const xLabelCount = width < 480 ? 4 : 7
-                  const lastIdx = chartSeries.length - 1
-                  const step = Math.max(1, Math.round(lastIdx / (xLabelCount - 1)))
-                  const labelIndices = Array.from({ length: xLabelCount }, (_, i) => Math.min(i * step, lastIdx))
-                  
-                  return (
-                    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height}>
-                      <defs>
-                        <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-                          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      {/* Gridlines */}
-                      {yTicks.map((t, i) => (
-                        <line key={`grid-${i}`} x1={padding} y1={t.y} x2={width - padding} y2={t.y} stroke="#e5e7eb" strokeDasharray="3,3" />
-                      ))}
-                      {/* Axes */}
-                      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#9ca3af" strokeWidth="1" />
-                      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#9ca3af" strokeWidth="1" />
-                      {/* Y-axis labels */}
-                      {yTicks.map((t, i) => (
-                        <text key={`ylabel-${i}`} x={padding - 8} y={t.y} textAnchor="end" dominantBaseline="middle" fill="#6b7280" fontSize="10">
-                          {formatCurrency(Math.round(t.v))}
-                        </text>
-                      ))}
-                      {/* X-axis labels */}
-                      {labelIndices.map((idx) => {
-                        const p = points[idx]
-                        const d = chartSeries[idx].date
-                        // Only render date string on client to avoid hydration mismatch
-                        const label = mounted ? new Date(d).toLocaleString('en-US', { month: 'short' }) : ''
-                        return (
-                          <text key={`xlabel-${idx}`} x={p.x} y={height - padding + 14} textAnchor="middle" fill="#6b7280" fontSize="10">
-                            {label}
-                          </text>
-                        )
-                      })}
-                      {/* Series */}
-                      <path d={areaPath} fill="url(#grad)" stroke="none" />
-                      <path d={path} fill="none" stroke="#3b82f6" strokeWidth="2" />
-                      {points.map((pt, i) => (
-                        <circle key={i} cx={pt.x} cy={pt.y} r="2.5" fill="#3b82f6" />
-                      ))}
-                    </svg>
-                  )
-                })()}
-              </div>
-            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartSeries}
+                margin={{
+                  top: 10,
+                  right: 10,
+                  left: 0,
+                  bottom: 0,
+                }}
+              >
+                <defs>
+                  <linearGradient id="colorEarnings" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short' })}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  dy={10}
+                  minTickGap={30}
+                />
+                <YAxis 
+                  tickFormatter={(value) => `$${value.toLocaleString()}`}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  width={60}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  fillOpacity={1} 
+                  fill="url(#colorEarnings)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

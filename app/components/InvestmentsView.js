@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import { useUser } from '../contexts/UserContext'
+import { INVESTMENTS_PAUSED } from '../../lib/featureFlags'
 import styles from './InvestmentsView.module.css'
 import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../lib/investmentCalculations.js'
 
@@ -178,14 +179,20 @@ export default function InvestmentsView() {
             <div className={styles.investmentCard} style={{ cursor: 'default', justifyContent: 'center' }}>
               <div className={styles.cardLeft}>
                 <div className={styles.amountLabel}>No investments yet</div>
-                <div className={styles.investmentType}>Start your first investment to begin earning</div>
+                <div className={styles.investmentType}>
+                  {INVESTMENTS_PAUSED 
+                    ? 'New investments are temporarily paused' 
+                    : 'Start your first investment to begin earning'}
+                </div>
               </div>
-              <div className={styles.cardActions}>
-                <div className={styles.viewDetails} onClick={() => {
-                  try { localStorage.removeItem('currentInvestmentId') } catch {}
-                  router.push('/investment?context=new')
-                }}>Start an Investment →</div>
-              </div>
+              {!INVESTMENTS_PAUSED && (
+                <div className={styles.cardActions}>
+                  <div className={styles.viewDetails} onClick={() => {
+                    try { localStorage.removeItem('currentInvestmentId') } catch {}
+                    router.push('/investment?context=new')
+                  }}>Start an Investment →</div>
+                </div>
+              )}
             </div>
           </div>
         ) : (

@@ -6,7 +6,7 @@ import { apiClient } from '../../lib/apiClient'
 import Header from '../components/Header'
 import styles from './page.module.css'
 
-function ResetPasswordContent() {
+function PasswordChangeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [token, setToken] = useState('')
@@ -42,6 +42,8 @@ function ResetPasswordContent() {
     { label: '1 Number', isMet: hasNumber },
     { label: '1 Special character', isMet: hasSpecial }
   ]
+
+  const shouldShowRequirements = isPasswordFocused
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -147,54 +149,68 @@ function ResetPasswordContent() {
                   className={`${styles.input} ${styles.inputWithToggle} ${errors.password ? styles.inputError : ''}`}
                   placeholder="Enter new password"
                   disabled={isLoading}
+                  autoComplete="new-password"
                   maxLength={128}
                 />
                 <button
                   type="button"
                   className={styles.toggleButton}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setShowPassword(prev => !prev)}
                   disabled={isLoading}
+                  tabIndex={-1}
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
+              <div
+                className={`${styles.requirements} ${shouldShowRequirements ? styles.requirementsVisible : ''}`}
+                aria-live="polite"
+              >
+                {passwordRequirements.map((requirement, index) => (
+                  <span
+                    key={requirement.label}
+                    className={`${styles.requirementItem} ${requirement.isMet ? styles.valid : styles.invalid}`}
+                  >
+                    {requirement.label}
+                    {index < passwordRequirements.length - 1 && (
+                      <span aria-hidden="true" className={styles.requirementSeparator}>·</span>
+                    )}
+                  </span>
+                ))}
+              </div>
               {errors.password && <span className={styles.errorText}>{errors.password}</span>}
-              
-              {isPasswordFocused && (
-                <div className={styles.requirements}>
-                  <p className={styles.requirementsTitle}>Password must contain:</p>
-                  <ul className={styles.requirementsList}>
-                    {passwordRequirements.map((req, index) => (
-                      <li
-                        key={index}
-                        className={req.isMet ? styles.requirementMet : styles.requirementUnmet}
-                      >
-                        <span className={styles.requirementIcon}>
-                          {req.isMet ? '✓' : '○'}
-                        </span>
-                        {req.label}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
 
             <div className={styles.field}>
               <label htmlFor="confirmPassword" className={styles.label}>
                 Confirm Password
               </label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className={`${styles.input} ${errors.confirmPassword ? styles.inputError : ''}`}
-                placeholder="Confirm new password"
-                disabled={isLoading}
-                maxLength={128}
-              />
+              <div className={styles.inputWrapper}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`${styles.input} ${styles.inputWithToggle} ${errors.confirmPassword ? styles.inputError : ''}`}
+                  placeholder="Re-enter your password"
+                  disabled={isLoading}
+                  autoComplete="new-password"
+                  maxLength={128}
+                />
+                <button
+                  type="button"
+                  className={styles.toggleButton}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword(prev => !prev)}
+                  disabled={isLoading}
+                  tabIndex={-1}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
               {errors.confirmPassword && <span className={styles.errorText}>{errors.confirmPassword}</span>}
             </div>
 
@@ -221,7 +237,7 @@ function ResetPasswordContent() {
   )
 }
 
-export default function ResetPasswordPage() {
+export default function PasswordChangePage() {
   return (
     <Suspense fallback={
       <main className={styles.main}>
@@ -233,8 +249,7 @@ export default function ResetPasswordPage() {
         </div>
       </main>
     }>
-      <ResetPasswordContent />
+      <PasswordChangeContent />
     </Suspense>
   )
 }
-

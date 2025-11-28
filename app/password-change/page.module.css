@@ -1,0 +1,269 @@
+.main {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 32px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.description {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 32px 0;
+  text-align: center;
+  line-height: 1.5;
+  font-family: 'Inter', sans-serif;
+}
+
+.hint {
+  font-size: 14px;
+  color: #9ca3af;
+  margin: 16px 0 0 0;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.successIcon {
+  width: 60px;
+  height: 60px;
+  background: #10b981;
+  color: white;
+  font-size: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.form {
+  margin-bottom: 24px;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+  font-family: 'Inter', sans-serif;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 16px;
+  background: #fff;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #1e40af;
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.inputWithToggle {
+  padding-right: 84px;
+}
+
+.toggleButton {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  bottom: 6px;
+  transform: none;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0 12px;
+  font-size: 12px;
+  cursor: pointer;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.toggleButton:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.toggleButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.inputError {
+  border-color: #dc2626;
+}
+
+.inputError:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.errorText {
+  display: block;
+  color: #dc2626;
+  font-size: 14px;
+  margin-top: 6px;
+  font-family: 'Inter', sans-serif;
+}
+
+.generalError {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.generalError p {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Password requirements - inline horizontal layout */
+.requirements {
+  margin-top: 8px;
+  display: none;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.field:focus-within .requirements {
+  display: flex;
+}
+
+.requirementsVisible {
+  display: flex;
+}
+
+.requirementItem {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Inter', sans-serif;
+}
+
+.requirementSeparator {
+  margin: 0 4px;
+  color: #9ca3af;
+}
+
+.invalid {
+  color: #b91c1c;
+}
+
+.valid {
+  color: #065f46;
+}
+
+.submitButton {
+  width: 100%;
+  padding: 14px 24px;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #374151;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.submitButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submitButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.footer {
+  text-align: center;
+  padding-top: 24px;
+  margin-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  color: #1e40af;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: 'Inter', sans-serif;
+  transition: color 0.2s ease;
+}
+
+.linkButton:hover {
+  color: #1d4ed8;
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 24px;
+  }
+  
+  .input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}

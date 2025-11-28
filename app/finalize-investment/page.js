@@ -17,6 +17,7 @@
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
 import { apiClient } from '../../lib/apiClient'
+import { INVESTMENTS_PAUSED } from '../../lib/featureFlags'
 import logger from '../../lib/logger'
 import {
   DRAFT_PAYMENT_METHOD_KEY,
@@ -32,6 +33,18 @@ import { useRouter } from 'next/navigation'
 
 export default function FinalizeInvestmentPage() {
   const router = useRouter()
+  
+  // Redirect to dashboard if investments are paused (SEC approval pending)
+  useEffect(() => {
+    if (INVESTMENTS_PAUSED) {
+      router.push('/dashboard')
+    }
+  }, [router])
+
+  // Don't render anything while redirecting
+  if (INVESTMENTS_PAUSED) {
+    return null
+  }
   
   return (
     <main className={styles.main}>

@@ -13,13 +13,13 @@ export default function AuthWrapper({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/sign-in', '/forgot-password', '/reset-password', '/confirmation', '/onboarding']
+  const publicRoutes = ['/', '/sign-in', '/forgot-password', '/password-change', '/confirmation', '/onboarding']
   
   // Routes that don't require onboarding check
   const noOnboardingCheckRoutes = ['/onboarding']
   
   // Check if current route is public
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/reset-password')
+  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/password-change')
   const isOnboardingRoute = noOnboardingCheckRoutes.includes(pathname)
 
   useEffect(() => {

@@ -57,24 +57,30 @@
 .chartPlaceholder {
   height: 300px;
   position: relative;
+  /* Ensure recharts container takes full space */
+  width: 100%;
 }
 
-.chartGrid {
-  height: 100%;
-  display: flex;
-  position: relative;
+.customTooltip {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.yAxisLabel {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+.tooltipDate {
   font-size: 12px;
   color: #6b7280;
-  margin-right: 12px;
-  padding-top: 20px;
+  margin: 0 0 4px 0;
 }
 
-.chartArea { flex: 1; background: #f8fafc; border: 1px solid var(--color-border); border-radius: 4px; position: relative; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: var(--text-sm); }
+.tooltipValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
 
 .loading {
   text-align: center;

@@ -744,31 +744,20 @@ function AdminUserDetailsContent() {
     }
   }
 
-  const handleSendWelcomeEmail = async () => {
-    if (!window.confirm('Send welcome email with password reset link to this user?')) {
+  const handleSendPasswordReset = async () => {
+    if (!window.confirm(`Send password reset email to ${user.email}?`)) {
       return
     }
-
     try {
-      const res = await fetchWithCsrf('/api/auth/send-welcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminUserId: currentUser.id,
-          userIds: [user.id],
-          single: true
-        })
-      })
-
-      const data = await res.json()
-      if (data.success) {
-        alert(`✅ Welcome email sent successfully to ${user.email}!\n\nThe user can now reset their password using the link in the email (valid for 24 hours).`)
+      const result = await apiClient.requestPasswordReset(user.email)
+      if (result.success) {
+        alert(`Password reset email sent to ${user.email}`)
       } else {
-        alert('Failed to send welcome email: ' + data.error)
+        alert('Failed to send reset email: ' + (result.error || 'Unknown error'))
       }
     } catch (e) {
-      console.error('Failed to send welcome email:', e)
-      alert('An error occurred while sending the welcome email')
+      console.error('Failed to send password reset:', e)
+      alert('An error occurred while sending password reset email')
     }
   }
 
@@ -2068,22 +2057,22 @@ function AdminUserDetailsContent() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <button 
-                      onClick={handleSendWelcomeEmail} 
-                      className={styles.actionCard}
-                      title="Send password reset email"
-                    >
-                      <span className={styles.actionIcon}>📧</span>
-                      <span className={styles.actionLabel}>Send Welcome</span>
-                    </button>
-                    
-                    <button 
                       onClick={handleGenerateSetupLink} 
                       className={styles.actionCard}
                       title="Generate and copy onboarding link"
                       disabled={isGeneratingLink}
                     >
                       <span className={styles.actionIcon}>🔗</span>
-                      <span className={styles.actionLabel}>{isGeneratingLink ? 'Generating...' : 'Onboarding Link'}</span>
+                      <span className={styles.actionLabel}>{isGeneratingLink ? 'Generating...' : 'Send Onboarding Link'}</span>
+                    </button>
+                    
+                    <button 
+                      onClick={handleSendPasswordReset} 
+                      className={styles.actionCard}
+                      title="Send password reset email to user"
+                    >
+                      <span className={styles.actionIcon}>🔑</span>
+                      <span className={styles.actionLabel}>Send Reset Password</span>
                     </button>
                     
                     {!user.isVerified && (
