@@ -126,8 +126,18 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
         })
         // No filtering needed - backend now only creates relevant activity events
         const combined = [...baseEvents, ...investmentEvents]
+
+        // Deduplicate events by ID
+        const uniqueEventsMap = new Map()
+        combined.forEach(ev => {
+          if (ev.id) {
+            uniqueEventsMap.set(ev.id, ev)
+          }
+        })
+        const uniqueEvents = Array.from(uniqueEventsMap.values())
+
         // Sort descending (newest first) to show most recent activity at the top
-        const sorted = combined.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+        const sorted = uniqueEvents.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
         setEvents(sorted)
       } catch (e) {
         console.error('Failed to load transactions:', e)
