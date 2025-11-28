@@ -1002,6 +1002,7 @@ export default function ProfileView() {
             handleChangePassword={handleChangePassword}
             isChangingPassword={isChangingPassword}
             passwordChangeSuccess={passwordChangeSuccess}
+            mounted={mounted}
           />
         )}
       </div>
@@ -1815,7 +1816,7 @@ function BankAccountCard({ bank, isDefault, mounted }) {
   )
 }
 
-function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, handleChangePassword, isChangingPassword, passwordChangeSuccess }) {
+function SecurityTab({ userData, passwordForm, errors, handlePasswordChange, handleChangePassword, isChangingPassword, passwordChangeSuccess, mounted }) {
   const [showPasswords, setShowPasswords] = useState(false)
 
   const togglePasswords = () => setShowPasswords(prev => !prev)
