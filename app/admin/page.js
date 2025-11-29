@@ -69,7 +69,10 @@ function AdminPageContent() {
     createdDateStart: '',
     createdDateEnd: '',
     numInvestmentsMin: '',
-    numInvestmentsMax: ''
+    numInvestmentsMax: '',
+    isVerified: 'all',
+    passwordSet: 'all',
+    bankConnected: 'all'
   })
   
   // PERFORMANCE: Pagination for accounts view
@@ -185,6 +188,20 @@ function AdminPageContent() {
       // Filter by number of investments
       if (accountFilters.numInvestmentsMin && numInvestments < Number(accountFilters.numInvestmentsMin)) return false
       if (accountFilters.numInvestmentsMax && numInvestments > Number(accountFilters.numInvestmentsMax)) return false
+      
+      // Filter by verification status
+      if (accountFilters.isVerified === 'yes' && !user.isVerified) return false
+      if (accountFilters.isVerified === 'no' && user.isVerified) return false
+
+      // Filter by password set status
+      const isPasswordSet = user.onboardingStatus?.passwordSet
+      if (accountFilters.passwordSet === 'yes' && !isPasswordSet) return false
+      if (accountFilters.passwordSet === 'no' && isPasswordSet) return false
+
+      // Filter by bank connected status
+      const isBankConnected = user.onboardingStatus?.bankConnected
+      if (accountFilters.bankConnected === 'yes' && !isBankConnected) return false
+      if (accountFilters.bankConnected === 'no' && isBankConnected) return false
       
       // Filter by created date (prefer displayCreatedAt, fallback to createdAt)
       const createdRaw = user.displayCreatedAt || user.createdAt || user.created_at
@@ -635,7 +652,10 @@ function AdminPageContent() {
                                 createdDateStart: '',
                                 createdDateEnd: '',
                                 numInvestmentsMin: '',
-                                numInvestmentsMax: ''
+                                numInvestmentsMax: '',
+                                isVerified: 'all',
+                                passwordSet: 'all',
+                                bankConnected: 'all'
                               })
                             }}
                           >
@@ -656,6 +676,45 @@ function AdminPageContent() {
                           </select>
                         </div>
                         
+                        <div className={styles.filterSection}>
+                          <label className={styles.filterLabel}>Verification Status</label>
+                          <select
+                            className={styles.filterSelect}
+                            value={accountFilters.isVerified}
+                            onChange={(e) => setAccountFilters({...accountFilters, isVerified: e.target.value})}
+                          >
+                            <option value="all">All Users</option>
+                            <option value="yes">Verified</option>
+                            <option value="no">Not Verified</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.filterSection}>
+                          <label className={styles.filterLabel}>Password Status</label>
+                          <select
+                            className={styles.filterSelect}
+                            value={accountFilters.passwordSet}
+                            onChange={(e) => setAccountFilters({...accountFilters, passwordSet: e.target.value})}
+                          >
+                            <option value="all">All Users</option>
+                            <option value="yes">Password Set</option>
+                            <option value="no">Password Not Set</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.filterSection}>
+                          <label className={styles.filterLabel}>Bank Connection</label>
+                          <select
+                            className={styles.filterSelect}
+                            value={accountFilters.bankConnected}
+                            onChange={(e) => setAccountFilters({...accountFilters, bankConnected: e.target.value})}
+                          >
+                            <option value="all">All Users</option>
+                            <option value="yes">Bank Connected</option>
+                            <option value="no">No Bank Connected</option>
+                          </select>
+                        </div>
+
                         <div className={styles.filterSection}>
                           <label className={styles.filterLabel}>Investment Amount (Principal)</label>
                           <div className={styles.filterRange}>
@@ -802,6 +861,33 @@ function AdminPageContent() {
                           <div className={styles.accountJointEmail}>Joint: {user.jointHolder.email}</div>
                         )}
                         <div className={styles.accountPhone}>{user.phone || user.phoneNumber || '-'}</div>
+                        
+                        <div className={styles.onboardingStatusGrid}>
+                          <div className={styles.statusItem}>
+                            <span className={styles.statusLabel}>Verified</span>
+                            <span className={`${styles.statusValue} ${user.isVerified ? styles.statusSuccess : styles.statusPending}`}>
+                              {user.isVerified ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className={styles.statusItem}>
+                            <span className={styles.statusLabel}>Password</span>
+                            <span className={`${styles.statusValue} ${user.onboardingStatus?.passwordSet ? styles.statusSuccess : styles.statusPending}`}>
+                              {user.onboardingStatus?.passwordSet ? 'Set' : 'Not Set'}
+                            </span>
+                          </div>
+                          <div className={styles.statusItem}>
+                            <span className={styles.statusLabel}>Bank</span>
+                            <span className={`${styles.statusValue} ${user.onboardingStatus?.bankConnected ? styles.statusSuccess : styles.statusPending}`}>
+                              {user.onboardingStatus?.bankConnected ? 'Connected' : 'Not Connected'}
+                            </span>
+                          </div>
+                          <div className={styles.statusItem}>
+                            <span className={styles.statusLabel}>Complete</span>
+                            <span className={`${styles.statusValue} ${user.onboardingStatus?.isComplete ? styles.statusSuccess : styles.statusPending}`}>
+                              {user.onboardingStatus?.isComplete ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                       <div className={styles.accountCardFooter}>
                         <div className={styles.accountStat}>

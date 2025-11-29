@@ -368,7 +368,7 @@
   display: grid;
   grid-template-columns: 200px 1fr auto auto;
   gap: 24px;
-  align-items: center;
+  align-items: start;
   position: relative;
 }
 
@@ -500,6 +500,49 @@
 .accountPhone {
   font-size: 14px;
   color: #64748b;
+}
+
+.onboardingStatusGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+  align-items: center;
+}
+
+.statusItem {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: center;
+}
+
+.statusLabel {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statusValue {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.statusSuccess {
+  color: var(--color-success);
+}
+
+.statusPending {
+  color: #f59e0b;
+}
+
+.statusError {
+  color: var(--color-danger);
 }
 
 .accountCardFooter {
@@ -690,6 +733,10 @@
   .filterDropdown {
     min-width: 320px;
     right: -10px;
+  }
+  
+  .onboardingStatusGrid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
