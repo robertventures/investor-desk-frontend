@@ -24,17 +24,11 @@ export function UserProvider({ children }) {
   // reading userData.investments to update.
   const legacyUserData = useMemo(() => {
     if (!userProfile) return null
-    const combined = {
+    return {
       ...userProfile,
       investments: investments || (userProfile.investments || []), // Fallback to profile's investments if preloaded
       activity: activity || (userProfile.activity || [])
     }
-    console.log('[UserContext] legacyUserData updated:', { 
-      hasProfile: !!userProfile, 
-      investmentsCount: combined.investments.length,
-      activityCount: combined.activity.length
-    })
-    return combined
   }, [userProfile, investments, activity])
 
   const loadUser = useCallback(async () => {
@@ -111,7 +105,6 @@ export function UserProvider({ children }) {
   const isLoadingActivityRef = useRef(false)
 
   const loadInvestments = useCallback(async () => {
-    console.log('[UserContext] loadInvestments called')
     // Prevent concurrent calls
     if (isLoadingInvestmentsRef.current) return []
     
@@ -119,7 +112,6 @@ export function UserProvider({ children }) {
       isLoadingInvestmentsRef.current = true
       const response = await apiClient.getInvestments()
       const newInvestments = response?.investments || []
-      console.log('[UserContext] investments loaded:', newInvestments.length)
       setInvestments(newInvestments)
       return newInvestments
     } catch (e) {
@@ -135,7 +127,6 @@ export function UserProvider({ children }) {
   }, [])
 
   const loadActivity = useCallback(async () => {
-    console.log('[UserContext] loadActivity called')
     // Prevent concurrent calls
     if (isLoadingActivityRef.current) return []
     
@@ -152,7 +143,6 @@ export function UserProvider({ children }) {
         status: event.status,
         ...(typeof event.eventMetadata === 'string' ? (() => { try { return JSON.parse(event.eventMetadata) } catch { return {} } })() : (event.eventMetadata || {}))
       }))
-      console.log('[UserContext] activity loaded:', newActivity.length)
       setActivity(newActivity)
       return newActivity
     } catch (e) {
