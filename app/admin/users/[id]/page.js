@@ -263,15 +263,13 @@ function AdminUserDetailsContent() {
     }
   }
 
-  const handleRefreshBalance = async (paymentMethodId) => {
+  const handleRefreshBalance = async () => {
     try {
-      setRefreshingBalanceId(paymentMethodId)
-      const response = await adminService.refreshUserPaymentMethodBalance(user.id, paymentMethodId)
+      setRefreshingBalanceId(true)
+      const response = await adminService.refreshUserPaymentMethodBalance(user.id)
       
       if (response.success && response.payment_method) {
-        setPaymentMethods(prev => prev.map(pm => 
-          pm.id === paymentMethodId ? response.payment_method : pm
-        ))
+        setPaymentMethods([response.payment_method])
         alert('Balance refreshed successfully')
       } else {
         alert('Failed to refresh balance: ' + (response.error || 'Unknown error'))
@@ -2178,10 +2176,10 @@ function AdminUserDetailsContent() {
                   )}
                 </div>
 
-                {/* Bank Accounts Section */}
+                {/* Bank Account Section */}
                 <div className={styles.sectionCard}>
                   <div className={styles.sectionHeader}>
-                    <h2 className={styles.sectionTitle}>Bank Accounts</h2>
+                    <h2 className={styles.sectionTitle}>Bank Account</h2>
                   </div>
                   {paymentMethods && paymentMethods.length > 0 ? (
                     <div className={styles.list}>
@@ -2218,33 +2216,33 @@ function AdminUserDetailsContent() {
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <div style={{ fontSize: '12px', color: '#6b7280' }}>Current Balance</div>
                                 <div style={{ fontWeight: '600', color: '#111827' }}>
-                                  {pm.current_balance ? `$${Number(pm.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '-'}
+                                  {pm.current_balance ? `$${Number(pm.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available'}
                                 </div>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                                 <div style={{ fontSize: '12px', color: '#6b7280' }}>Available Balance</div>
                                 <div style={{ fontWeight: '600', color: '#111827' }}>
-                                  {pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '-'}
+                                  {pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available'}
                                 </div>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ fontSize: '10px', color: '#9ca3af' }}>
-                                  Updated: {pm.balance_last_updated ? new Date(pm.balance_last_updated).toLocaleString() : 'Never'}
+                                  Updated: {pm.balance_last_updated ? new Date(pm.balance_last_updated).toLocaleString() : 'Not available'}
                                 </div>
                                 <button
-                                  onClick={() => handleRefreshBalance(pm.id)}
-                                  disabled={refreshingBalanceId === pm.id}
+                                  onClick={() => handleRefreshBalance()}
+                                  disabled={refreshingBalanceId}
                                   style={{
                                     fontSize: '12px',
                                     color: '#0369a1',
                                     background: 'none',
                                     border: 'none',
                                     padding: 0,
-                                    cursor: refreshingBalanceId === pm.id ? 'not-allowed' : 'pointer',
+                                    cursor: refreshingBalanceId ? 'not-allowed' : 'pointer',
                                     textDecoration: 'underline'
                                   }}
                                 >
-                                  {refreshingBalanceId === pm.id ? 'Refreshing...' : 'Refresh Balance'}
+                                  {refreshingBalanceId ? 'Refreshing...' : 'Refresh Balance'}
                                 </button>
                               </div>
                             </div>
@@ -2254,7 +2252,7 @@ function AdminUserDetailsContent() {
                     </div>
                   ) : (
                     <div className={styles.muted} style={{ padding: '20px', textAlign: 'center' }}>
-                      No bank accounts connected
+                      No bank account connected
                     </div>
                   )}
                 </div>
