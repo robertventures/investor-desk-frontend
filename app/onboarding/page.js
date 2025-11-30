@@ -307,6 +307,8 @@ function OnboardingContent() {
     return !!investmentBanks[bankType]
   }
 
+  const allBanksConnected = getInvestmentsNeedingBanks().every(inv => investmentHasAllRequiredBanks(inv))
+
 
   // Show loading state
   if (isLoading && !userData && !token) {
@@ -362,7 +364,13 @@ function OnboardingContent() {
               </div>
             )}
             {bankAccountRequired && (
-              <div className={`${styles.step} ${currentStep === ONBOARDING_STEPS.BANK ? styles.active : currentStep === ONBOARDING_STEPS.COMPLETE ? styles.completed : ''}`}>
+              <div className={`${styles.step} ${
+                currentStep === ONBOARDING_STEPS.COMPLETE || (currentStep === ONBOARDING_STEPS.BANK && allBanksConnected)
+                  ? styles.completed
+                  : currentStep === ONBOARDING_STEPS.BANK
+                  ? styles.active
+                  : ''
+              }`}>
                 <div className={styles.stepNumber}>{requiresPasswordChange ? 2 : 1}</div>
                 <div className={styles.stepLabel}>Payout Account</div>
               </div>
