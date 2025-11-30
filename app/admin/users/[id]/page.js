@@ -43,13 +43,14 @@ function AdminUserDetailsContent() {
     if (!activityEvents) return []
     
     const events = activityEvents.map(event => {
-      // Parse metadata if it exists
+      // Parse metadata if it exists (handle both camelCase and snake_case)
       let metadata = {}
+      const rawMetadata = event.eventMetadata || event.event_metadata
       try {
-        if (event.eventMetadata && typeof event.eventMetadata === 'string') {
-          metadata = JSON.parse(event.eventMetadata)
-        } else if (event.eventMetadata && typeof event.eventMetadata === 'object') {
-          metadata = event.eventMetadata
+        if (rawMetadata && typeof rawMetadata === 'string') {
+          metadata = JSON.parse(rawMetadata)
+        } else if (rawMetadata && typeof rawMetadata === 'object') {
+          metadata = rawMetadata
         }
       } catch (e) {
         console.error('Failed to parse event metadata:', e)
@@ -57,11 +58,12 @@ function AdminUserDetailsContent() {
 
       return {
         id: event.id,
-        type: event.activityType,
-        userId: event.userId,
-        investmentId: event.investmentId,
+        type: event.activityType || event.activity_type,
+        userId: event.userId || event.user_id,
+        investmentId: event.investmentId || event.investment_id,
         amount: metadata.amount,
-        date: event.eventDate,
+        date: event.eventDate || event.event_date,
+        createdAt: event.createdAt || event.created_at,
         title: event.title,
         description: event.description,
         status: event.status,
@@ -70,11 +72,25 @@ function AdminUserDetailsContent() {
       }
     })
 
-    // Sort by date (newest first)
+    // Sort by date (newest first), with secondary sort by createdAt and tertiary by id
     events.sort((a, b) => {
       const dateA = a.date ? new Date(a.date).getTime() : 0
       const dateB = b.date ? new Date(b.date).getTime() : 0
-      return dateB - dateA
+      
+      if (dateB !== dateA) {
+        return dateB - dateA
+      }
+      
+      // Secondary sort by createdAt (newest first)
+      const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      
+      if (createdB !== createdA) {
+        return createdB - createdA
+      }
+      
+      // Tertiary sort by id (descending string comparison for TX-INV-... format)
+      return String(b.id || '').localeCompare(String(a.id || ''))
     })
     
     return events
@@ -1593,7 +1609,7 @@ function AdminUserDetailsContent() {
                   >
                     <option value="all">All Investments</option>
                     {(user.investments || []).map(inv => (
-                      <option key={inv.id} value={inv.id}>
+                      <option key={inv.id} value={String(inv.id)}>
                         Inv #{inv.id} - ${(Number(inv.amount) || 0).toLocaleString()}
                       </option>
                     ))}
