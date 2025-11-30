@@ -27,6 +27,7 @@ function AdminInvestmentDetailsContent() {
   const [isTerminating, setIsTerminating] = useState(false)
   const [overrideLockupConfirmed, setOverrideLockupConfirmed] = useState(false)
   const [appTime, setAppTime] = useState(null)
+  const [isDownloadingAgreement, setIsDownloadingAgreement] = useState(false)
   const [form, setForm] = useState({
     amount: '',
     status: '',
@@ -402,6 +403,71 @@ function AdminInvestmentDetailsContent() {
     setOverrideLockupConfirmed(false)
   }
 
+  const handleViewAgreement = async () => {
+    setIsDownloadingAgreement(true)
+    try {
+      // Use admin endpoint to fetch agreement for any investment
+      // Ensure tokens are loaded for authentication
+      apiClient.ensureTokensLoaded()
+      const headers = {
+        'Accept': 'application/json, application/pdf;q=0.9,*/*;q=0.8'
+      }
+      if (apiClient.accessToken) {
+        headers['Authorization'] = `Bearer ${apiClient.accessToken}`
+      }
+      
+      const response = await fetch(`/api/admin/investments/${investment.id}/agreement`, {
+        method: 'GET',
+        headers,
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || errorData.detail || errorData.message
+        if (response.status === 404) {
+          throw new Error('Agreement endpoint not available. The backend may need to implement /api/admin/investments/{id}/agreement')
+        }
+        throw new Error(errorMessage || `Failed to load agreement (${response.status})`)
+      }
+      
+      const contentType = response.headers.get('content-type') || ''
+      
+      if (contentType.includes('application/json')) {
+        // JSON response with signed_url or pdf_base64
+        const data = await response.json()
+        const signed_url = data.signed_url || data.signedUrl || data.url
+        const pdf_base64 = data.pdf_base64 || data.pdfBase64 || data.pdf
+        
+        if (signed_url) {
+          window.open(signed_url, '_blank')
+        } else if (pdf_base64) {
+          const byteCharacters = atob(pdf_base64)
+          const byteNumbers = new Array(byteCharacters.length)
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+          }
+          const byteArray = new Uint8Array(byteNumbers)
+          const blob = new Blob([byteArray], { type: 'application/pdf' })
+          const url = window.URL.createObjectURL(blob)
+          window.open(url, '_blank')
+        } else {
+          throw new Error('No document available')
+        }
+      } else {
+        // Direct PDF binary response
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        window.open(url, '_blank')
+      }
+    } catch (error) {
+      logger.error('Failed to load agreement', error)
+      alert(error.message || 'Failed to load agreement')
+    } finally {
+      setIsDownloadingAgreement(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className={styles.main}>
@@ -507,11 +573,20 @@ function AdminInvestmentDetailsContent() {
             <div className={styles.sectionHeader}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 className={styles.sectionTitle}>Investment Details</h2>
-                {!isEditing && (
-                  <button className={styles.editButton} onClick={handleEdit}>
-                    Edit Investment
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    className={styles.viewAgreementButton} 
+                    onClick={handleViewAgreement}
+                    disabled={isDownloadingAgreement || investment.status === 'draft'}
+                  >
+                    {isDownloadingAgreement ? 'Loading...' : 'View Agreement'}
                   </button>
-                )}
+                  {!isEditing && (
+                    <button className={styles.editButton} onClick={handleEdit}>
+                      Edit Investment
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             <div className={styles.grid}>

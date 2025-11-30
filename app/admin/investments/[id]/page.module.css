@@ -267,6 +267,30 @@
   box-shadow: 0 4px 8px rgba(37,99,235,0.2);
 }
 
+.viewAgreementButton {
+  padding: 8px 16px;
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viewAgreementButton:hover:not(:disabled) {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(5, 150, 105, 0.3);
+}
+
+.viewAgreementButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .cancelButton {
   border: 1px solid var(--color-border);
   background: white;

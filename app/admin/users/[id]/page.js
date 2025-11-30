@@ -7,6 +7,7 @@ import { adminService } from '../../../../lib/services/admin'
 import AdminHeader from '../../../components/AdminHeader'
 import { calculateInvestmentValue } from '../../../../lib/investmentCalculations.js'
 import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
+import { maskSSN } from '../../../../lib/formatters.js'
 import styles from './page.module.css'
 import { useUser } from '@/app/contexts/UserContext'
 
@@ -31,6 +32,9 @@ function AdminUserDetailsContent() {
   const [refreshingBalanceId, setRefreshingBalanceId] = useState(null)
   const [setupLink, setSetupLink] = useState(null)
   const [isGeneratingLink, setIsGeneratingLink] = useState(false)
+  const [showSSN, setShowSSN] = useState(false)
+  const [showJointSSN, setShowJointSSN] = useState(false)
+  const [showAuthRepSSN, setShowAuthRepSSN] = useState(false)
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -1004,7 +1008,25 @@ function AdminUserDetailsContent() {
                   </div>
                   <div>
                     <label><b>SSN</b></label>
-                    <input name="ssn" value={form.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
+                    <div className={styles.ssnInputWrapper}>
+                      <input 
+                        className={styles.ssnInputWithToggle}
+                        name="ssn" 
+                        value={showSSN ? form.ssn : maskSSN(form.ssn)} 
+                        onChange={handleChange} 
+                        placeholder="123-45-6789" 
+                        disabled={!isEditing || !showSSN}
+                        readOnly={!showSSN}
+                      />
+                      <button
+                        type="button"
+                        className={styles.ssnToggleButton}
+                        onClick={() => setShowSSN(!showSSN)}
+                        aria-label={showSSN ? 'Hide SSN' : 'Show SSN'}
+                      >
+                        {showSSN ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
                     {errors.ssn && <div className={styles.muted}>{errors.ssn}</div>}
                   </div>
                 </>
@@ -1093,7 +1115,25 @@ function AdminUserDetailsContent() {
                 </div>
                 <div>
                   <label><b>SSN</b></label>
-                  <input name="authorizedRep.ssn" value={form.authorizedRep.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
+                  <div className={styles.ssnInputWrapper}>
+                    <input 
+                      className={styles.ssnInputWithToggle}
+                      name="authorizedRep.ssn" 
+                      value={showAuthRepSSN ? form.authorizedRep.ssn : maskSSN(form.authorizedRep.ssn)} 
+                      onChange={handleChange} 
+                      placeholder="123-45-6789" 
+                      disabled={!isEditing || !showAuthRepSSN}
+                      readOnly={!showAuthRepSSN}
+                    />
+                    <button
+                      type="button"
+                      className={styles.ssnToggleButton}
+                      onClick={() => setShowAuthRepSSN(!showAuthRepSSN)}
+                      aria-label={showAuthRepSSN ? 'Hide SSN' : 'Show SSN'}
+                    >
+                      {showAuthRepSSN ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                   {errors['authorizedRep.ssn'] && <div className={styles.muted}>{errors['authorizedRep.ssn']}</div>}
                 </div>
                 <div>
@@ -1178,7 +1218,25 @@ function AdminUserDetailsContent() {
                   </div>
                   <div>
                     <label><b>SSN</b></label>
-                    <input name="jointHolder.ssn" value={form.jointHolder.ssn} onChange={handleChange} placeholder="123-45-6789" disabled={!isEditing} />
+                    <div className={styles.ssnInputWrapper}>
+                      <input 
+                        className={styles.ssnInputWithToggle}
+                        name="jointHolder.ssn" 
+                        value={showJointSSN ? form.jointHolder.ssn : maskSSN(form.jointHolder.ssn)} 
+                        onChange={handleChange} 
+                        placeholder="123-45-6789" 
+                        disabled={!isEditing || !showJointSSN}
+                        readOnly={!showJointSSN}
+                      />
+                      <button
+                        type="button"
+                        className={styles.ssnToggleButton}
+                        onClick={() => setShowJointSSN(!showJointSSN)}
+                        aria-label={showJointSSN ? 'Hide SSN' : 'Show SSN'}
+                      >
+                        {showJointSSN ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
                     {errors['jointHolder.ssn'] && <div className={styles.muted}>{errors['jointHolder.ssn']}</div>}
                   </div>
                   <div>

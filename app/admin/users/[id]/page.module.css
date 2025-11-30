@@ -508,6 +508,39 @@
   margin-top: 4px;
 }
 
+/* SSN Input with Toggle Button */
+.ssnInputWrapper {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+.ssnInputWithToggle {
+  padding-right: 70px !important;
+  width: 100%;
+}
+
+.ssnToggleButton {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: var(--color-accent);
+}
+
+.ssnToggleButton:hover {
+  background: #e5e7eb;
+  border-color: var(--color-info);
+}
+
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
