@@ -35,6 +35,7 @@ function AdminUserDetailsContent() {
   const [showSSN, setShowSSN] = useState(false)
   const [showJointSSN, setShowJointSSN] = useState(false)
   const [showAuthRepSSN, setShowAuthRepSSN] = useState(false)
+  const [showBalance, setShowBalance] = useState(false)
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -209,7 +210,7 @@ function AdminUserDetailsContent() {
             ssn: u.ssn || '',
             entityName: u.entity?.name || u.entityName || '',
             entityTaxId: u.entity?.taxId || '',
-            entityRegistrationDate: u.entity?.registrationDate || '',
+            entityRegistrationDate: u.entity?.formationDate || u.entity?.registrationDate || '',
             jointHoldingType: u.jointHoldingType || '',
             jointHolder: {
               firstName: u.jointHolder?.firstName || '',
@@ -226,17 +227,18 @@ function AdminUserDetailsContent() {
               country: u.jointHolder?.address?.country || 'United States'
             },
             authorizedRep: {
-              firstName: u.authorizedRepresentative?.firstName || '',
-              lastName: u.authorizedRepresentative?.lastName || '',
-              title: u.authorizedRepresentative?.title || '',
-              dob: u.authorizedRepresentative?.dob || '',
-              ssn: u.authorizedRepresentative?.ssn || '',
-              street1: u.authorizedRepresentative?.address?.street1 || '',
-              street2: u.authorizedRepresentative?.address?.street2 || '',
-              city: u.authorizedRepresentative?.address?.city || '',
-              state: u.authorizedRepresentative?.address?.state || '',
-              zip: u.authorizedRepresentative?.address?.zip || '',
-              country: u.authorizedRepresentative?.address?.country || 'United States'
+              // For entity accounts, authorized rep data comes from root user fields
+              firstName: u.accountType === 'entity' ? (u.firstName || '') : (u.authorizedRepresentative?.firstName || ''),
+              lastName: u.accountType === 'entity' ? (u.lastName || '') : (u.authorizedRepresentative?.lastName || ''),
+              title: u.entity?.title || u.authorizedRepresentative?.title || '',
+              dob: u.accountType === 'entity' ? (u.dob || '') : (u.authorizedRepresentative?.dob || ''),
+              ssn: u.accountType === 'entity' ? (u.ssn || '') : (u.authorizedRepresentative?.ssn || ''),
+              street1: u.accountType === 'entity' ? (u.address?.street1 || '') : (u.authorizedRepresentative?.address?.street1 || ''),
+              street2: u.accountType === 'entity' ? (u.address?.street2 || '') : (u.authorizedRepresentative?.address?.street2 || ''),
+              city: u.accountType === 'entity' ? (u.address?.city || '') : (u.authorizedRepresentative?.address?.city || ''),
+              state: u.accountType === 'entity' ? (u.address?.state || '') : (u.authorizedRepresentative?.address?.state || ''),
+              zip: u.accountType === 'entity' ? (u.address?.zip || '') : (u.authorizedRepresentative?.address?.zip || ''),
+              country: u.accountType === 'entity' ? (u.address?.country || 'United States') : (u.authorizedRepresentative?.address?.country || 'United States')
             }
           })
       } catch (e) {
@@ -517,7 +519,7 @@ function AdminUserDetailsContent() {
       ssn: u.ssn || '',
       entityName: u.entity?.name || u.entityName || '',
       entityTaxId: u.entity?.taxId || '',
-      entityRegistrationDate: u.entity?.registrationDate || '',
+      entityRegistrationDate: u.entity?.formationDate || u.entity?.registrationDate || '',
       jointHoldingType: u.jointHoldingType || '',
       jointHolder: {
         firstName: u.jointHolder?.firstName || '',
@@ -534,17 +536,18 @@ function AdminUserDetailsContent() {
         country: u.jointHolder?.address?.country || 'United States'
       },
       authorizedRep: {
-        firstName: u.authorizedRepresentative?.firstName || '',
-        lastName: u.authorizedRepresentative?.lastName || '',
-        title: u.authorizedRepresentative?.title || '',
-        dob: u.authorizedRepresentative?.dob || '',
-        ssn: u.authorizedRepresentative?.ssn || '',
-        street1: u.authorizedRepresentative?.address?.street1 || '',
-        street2: u.authorizedRepresentative?.address?.street2 || '',
-        city: u.authorizedRepresentative?.address?.city || '',
-        state: u.authorizedRepresentative?.address?.state || '',
-        zip: u.authorizedRepresentative?.address?.zip || '',
-        country: u.authorizedRepresentative?.address?.country || 'United States'
+        // For entity accounts, authorized rep data comes from root user fields
+        firstName: u.accountType === 'entity' ? (u.firstName || '') : (u.authorizedRepresentative?.firstName || ''),
+        lastName: u.accountType === 'entity' ? (u.lastName || '') : (u.authorizedRepresentative?.lastName || ''),
+        title: u.entity?.title || u.authorizedRepresentative?.title || '',
+        dob: u.accountType === 'entity' ? (u.dob || '') : (u.authorizedRepresentative?.dob || ''),
+        ssn: u.accountType === 'entity' ? (u.ssn || '') : (u.authorizedRepresentative?.ssn || ''),
+        street1: u.accountType === 'entity' ? (u.address?.street1 || '') : (u.authorizedRepresentative?.address?.street1 || ''),
+        street2: u.accountType === 'entity' ? (u.address?.street2 || '') : (u.authorizedRepresentative?.address?.street2 || ''),
+        city: u.accountType === 'entity' ? (u.address?.city || '') : (u.authorizedRepresentative?.address?.city || ''),
+        state: u.accountType === 'entity' ? (u.address?.state || '') : (u.authorizedRepresentative?.address?.state || ''),
+        zip: u.accountType === 'entity' ? (u.address?.zip || '') : (u.authorizedRepresentative?.address?.zip || ''),
+        country: u.accountType === 'entity' ? (u.address?.country || 'United States') : (u.authorizedRepresentative?.address?.country || 'United States')
       }
     })
     setErrors({})
@@ -2220,14 +2223,29 @@ function AdminUserDetailsContent() {
                             <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <div style={{ fontSize: '12px', color: '#6b7280' }}>Current Balance</div>
-                                <div style={{ fontWeight: '600', color: '#111827' }}>
-                                  {pm.current_balance ? `$${Number(pm.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ fontWeight: '600', color: '#111827' }}>
+                                    {showBalance 
+                                      ? (pm.current_balance ? `$${Number(pm.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available')
+                                      : '$•••••••'}
+                                  </div>
                                 </div>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                                 <div style={{ fontSize: '12px', color: '#6b7280' }}>Available Balance</div>
-                                <div style={{ fontWeight: '600', color: '#111827' }}>
-                                  {pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ fontWeight: '600', color: '#111827' }}>
+                                    {showBalance 
+                                      ? (pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available')
+                                      : '$•••••••'}
+                                  </div>
+                                  <button
+                                    onClick={() => setShowBalance(!showBalance)}
+                                    aria-label={showBalance ? 'Hide Balance' : 'Show Balance'}
+                                    className={styles.ssnToggleButton}
+                                  >
+                                    {showBalance ? 'Hide' : 'Show'}
+                                  </button>
                                 </div>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
