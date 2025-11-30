@@ -259,6 +259,7 @@ export default function PortfolioSummary() {
       }
       
       const start = new Date(end)
+      start.setDate(1) // Set to 1st of month to avoid overflow when subtracting months
       start.setMonth(start.getMonth() - 23)
 
       const points = []
@@ -286,14 +287,9 @@ export default function PortfolioSummary() {
             if (statusStr === 'withdrawn' && inv.withdrawalNoticeStartAt && new Date(inv.withdrawalNoticeStartAt) <= asOf) {
               // Investment was withdrawn by this point - use stored final earnings
               totalEarnings += inv.totalEarnings || 0
-            } else if (paymentFrequency === 'monthly') {
-              // For monthly payout investments, sum paid distributions from transactions
-              const paidDistributions = investmentTransactions
-                .filter(tx => tx.type === 'distribution' && new Date(tx.date || 0) <= asOf && tx.status !== 'rejected')
-                .reduce((sum, ev) => sum + (Number(ev.amount) || 0), 0)
-              totalEarnings += Math.round(paidDistributions * 100) / 100
             } else {
-              // For compounding investments, use calculated earnings
+              // For both compounding and monthly investments, use calculated earnings
+              // This ensures the chart matches the total earnings shown in the metrics
               // IMPORTANT: Pass normalizedInv (with string status) so calculateInvestmentValue works correctly
               const calc = calculateInvestmentValue(normalizedInv, asOfIso)
               totalEarnings += calc.totalEarnings
@@ -321,14 +317,9 @@ export default function PortfolioSummary() {
             if (statusStr === 'withdrawn') {
               // Investment was withdrawn - use stored final earnings
               totalEarnings += inv.totalEarnings || 0
-            } else if (paymentFrequency === 'monthly') {
-              // For monthly payout investments, sum paid distributions from transactions
-              const paidDistributions = investmentTransactions
-                .filter(tx => tx.type === 'distribution' && new Date(tx.date || 0) <= asOf && tx.status !== 'rejected')
-                .reduce((sum, ev) => sum + (Number(ev.amount) || 0), 0)
-              totalEarnings += Math.round(paidDistributions * 100) / 100
             } else {
-              // For compounding investments, use calculated earnings
+              // For both compounding and monthly investments, use calculated earnings
+              // This ensures the chart matches the total earnings shown in the metrics
               const calc = calculateInvestmentValue(normalizedInv, asOfIso)
               totalEarnings += calc.totalEarnings
             }
@@ -424,7 +415,6 @@ export default function PortfolioSummary() {
                   tickLine={false}
                   tick={{ fill: '#6b7280', fontSize: 12 }}
                   dy={10}
-                  minTickGap={30}
                 />
                 <YAxis 
                   tickFormatter={(value) => `$${value.toLocaleString()}`}
