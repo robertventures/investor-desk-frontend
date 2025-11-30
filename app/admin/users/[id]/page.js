@@ -2239,34 +2239,46 @@ function AdminUserDetailsContent() {
                                       ? (pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available')
                                       : '$•••••••'}
                                   </div>
-                                  <button
-                                    onClick={() => setShowBalance(!showBalance)}
-                                    aria-label={showBalance ? 'Hide Balance' : 'Show Balance'}
-                                    className={styles.ssnToggleButton}
-                                  >
-                                    {showBalance ? 'Hide' : 'Show'}
-                                  </button>
                                 </div>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ fontSize: '10px', color: '#9ca3af' }}>
                                   Updated: {pm.balance_last_updated ? new Date(pm.balance_last_updated).toLocaleString() : 'Not available'}
                                 </div>
-                                <button
-                                  onClick={() => handleRefreshBalance()}
-                                  disabled={refreshingBalanceId}
-                                  style={{
-                                    fontSize: '12px',
-                                    color: '#0369a1',
-                                    background: 'none',
-                                    border: 'none',
-                                    padding: 0,
-                                    cursor: refreshingBalanceId ? 'not-allowed' : 'pointer',
-                                    textDecoration: 'underline'
-                                  }}
-                                >
-                                  {refreshingBalanceId ? 'Refreshing...' : 'Refresh Balance'}
-                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <button
+                                    onClick={() => setShowBalance(!showBalance)}
+                                    aria-label={showBalance ? 'Hide Balance' : 'Show Balance'}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                      fontWeight: '500',
+                                      color: '#6b7280',
+                                      textDecoration: 'underline'
+                                    }}
+                                  >
+                                    {showBalance ? 'Hide' : 'Show'}
+                                  </button>
+                                  <span style={{ color: '#e5e7eb' }}>|</span>
+                                  <button
+                                    onClick={() => handleRefreshBalance()}
+                                    disabled={refreshingBalanceId}
+                                    style={{
+                                      fontSize: '12px',
+                                      color: '#0369a1',
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      cursor: refreshingBalanceId ? 'not-allowed' : 'pointer',
+                                      textDecoration: 'underline'
+                                    }}
+                                  >
+                                    {refreshingBalanceId ? 'Refreshing...' : 'Refresh Balance'}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           )}
