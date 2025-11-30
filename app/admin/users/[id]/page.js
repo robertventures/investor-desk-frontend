@@ -36,6 +36,58 @@ function AdminUserDetailsContent() {
   const [showJointSSN, setShowJointSSN] = useState(false)
   const [showAuthRepSSN, setShowAuthRepSSN] = useState(false)
   const [showBalance, setShowBalance] = useState(false)
+  const [activityFilterInvestmentId, setActivityFilterInvestmentId] = useState('all')
+
+  // Memoize processed activity events
+  const allActivity = useMemo(() => {
+    if (!activityEvents) return []
+    
+    const events = activityEvents.map(event => {
+      // Parse metadata if it exists
+      let metadata = {}
+      try {
+        if (event.eventMetadata && typeof event.eventMetadata === 'string') {
+          metadata = JSON.parse(event.eventMetadata)
+        } else if (event.eventMetadata && typeof event.eventMetadata === 'object') {
+          metadata = event.eventMetadata
+        }
+      } catch (e) {
+        console.error('Failed to parse event metadata:', e)
+      }
+
+      return {
+        id: event.id,
+        type: event.activityType,
+        userId: event.userId,
+        investmentId: event.investmentId,
+        amount: metadata.amount,
+        date: event.eventDate,
+        title: event.title,
+        description: event.description,
+        status: event.status,
+        metadata: metadata,
+        monthIndex: metadata.monthIndex
+      }
+    })
+
+    // Sort by date (newest first)
+    events.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0
+      const dateB = b.date ? new Date(b.date).getTime() : 0
+      return dateB - dateA
+    })
+    
+    return events
+  }, [activityEvents])
+
+  // Filter activity based on selected investment
+  const filteredActivity = useMemo(() => {
+    if (activityFilterInvestmentId === 'all') return allActivity
+    // Ensure we're comparing strings
+    return allActivity.filter(event => {
+      return event.investmentId && String(event.investmentId) === String(activityFilterInvestmentId)
+    })
+  }, [allActivity, activityFilterInvestmentId])
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -1510,17 +1562,42 @@ function AdminUserDetailsContent() {
           <div className={styles.sectionCard}>
             <div className={styles.sectionHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', width: '100%' }}>
-                <div>
-                  <h2 className={styles.sectionTitle}>Activity History</h2>
-                  {(() => {
-                    const total = activityEvents.length
-                    const totalPages = Math.ceil(total / ACTIVITY_ITEMS_PER_PAGE)
-                    return totalPages > 1 ? (
-                      <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
-                        Page {activityPage} of {totalPages}
-                      </div>
-                    ) : null
-                  })()}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div>
+                    <h2 className={styles.sectionTitle}>Activity History</h2>
+                    {(() => {
+                      const total = filteredActivity.length
+                      const totalPages = Math.ceil(total / ACTIVITY_ITEMS_PER_PAGE)
+                      return totalPages > 1 ? (
+                        <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
+                          Page {activityPage} of {totalPages}
+                        </div>
+                      ) : null
+                    })()}
+                  </div>
+                  <select
+                    value={activityFilterInvestmentId}
+                    onChange={(e) => {
+                      setActivityFilterInvestmentId(e.target.value)
+                      setActivityPage(1)
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '14px',
+                      color: '#374151',
+                      backgroundColor: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="all">All Investments</option>
+                    {(user.investments || []).map(inv => (
+                      <option key={inv.id} value={inv.id}>
+                        Inv #{inv.id} - ${(Number(inv.amount) || 0).toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <button
                   onClick={() => user && loadUserActivity(user.id)}
@@ -1598,41 +1675,8 @@ function AdminUserDetailsContent() {
                 )
               }
 
-              // Parse and prepare activity events from API
-              const allActivity = activityEvents.map(event => {
-                // Parse metadata if it exists
-                let metadata = {}
-                try {
-                  if (event.eventMetadata && typeof event.eventMetadata === 'string') {
-                    metadata = JSON.parse(event.eventMetadata)
-                  } else if (event.eventMetadata && typeof event.eventMetadata === 'object') {
-                    metadata = event.eventMetadata
-                  }
-                } catch (e) {
-                  console.error('Failed to parse event metadata:', e)
-                }
+              // Use pre-calculated activity values from component scope
 
-                return {
-                  id: event.id,
-                  type: event.activityType,
-                  userId: event.userId,
-                  investmentId: event.investmentId,
-                  amount: metadata.amount,
-                  date: event.eventDate,
-                  title: event.title,
-                  description: event.description,
-                  status: event.status,
-                  metadata: metadata,
-                  monthIndex: metadata.monthIndex
-                }
-              })
-
-              // Sort by date (newest first)
-              allActivity.sort((a, b) => {
-                const dateA = a.date ? new Date(a.date).getTime() : 0
-                const dateB = b.date ? new Date(b.date).getTime() : 0
-                return dateB - dateA
-              })
 
               // Calculate summary stats
               // Build an index of investments so we can reflect their CURRENT status
@@ -1642,9 +1686,9 @@ function AdminUserDetailsContent() {
                 investmentsById[inv.id] = inv
               })
 
-              const distributions = allActivity.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
-              const contributions = allActivity.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
-              const accountEvents = allActivity.filter(e => 
+              const distributions = filteredActivity.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
+              const contributions = filteredActivity.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
+              const accountEvents = filteredActivity.filter(e => 
                 e.type?.includes('account') || 
                 e.type?.includes('investment_created') || 
                 e.type?.includes('investment_submitted') ||
@@ -1657,7 +1701,7 @@ function AdminUserDetailsContent() {
               // We deduplicate by investmentId to avoid double counting (e.g. Created + Submitted both showing as pending)
               // We also exclude 'investment_created' from being considered "pending" even if the investment is pending
               const pendingInvestmentsSet = new Set()
-              const pendingCount = allActivity.filter(e => {
+              const pendingCount = filteredActivity.filter(e => {
                 // Skip if we already counted this investment
                 if (e.investmentId && pendingInvestmentsSet.has(e.investmentId)) return false
                 
@@ -1675,10 +1719,10 @@ function AdminUserDetailsContent() {
               }).length
 
               // Pagination
-              const totalActivityPages = Math.ceil(allActivity.length / ACTIVITY_ITEMS_PER_PAGE)
+              const totalActivityPages = Math.ceil(filteredActivity.length / ACTIVITY_ITEMS_PER_PAGE)
               const startIndex = (activityPage - 1) * ACTIVITY_ITEMS_PER_PAGE
               const endIndex = startIndex + ACTIVITY_ITEMS_PER_PAGE
-              const paginatedActivity = allActivity.slice(startIndex, endIndex)
+              const paginatedActivity = filteredActivity.slice(startIndex, endIndex)
 
               return allActivity.length > 0 ? (
                 <>
@@ -1687,7 +1731,7 @@ function AdminUserDetailsContent() {
                     <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Total Activity</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937' }}>
-                        {allActivity.length}
+                        {filteredActivity.length}
                       </div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{accountEvents.length} account events</div>
                     </div>
@@ -1715,8 +1759,13 @@ function AdminUserDetailsContent() {
                   </div>
 
                   {/* Activity List */}
-                  <div className={styles.list}>
-                    {paginatedActivity.map(event => {
+                  {paginatedActivity.length === 0 ? (
+                    <div className={styles.muted} style={{ padding: '40px', textAlign: 'center' }}>
+                      No activity events found matching filter
+                    </div>
+                  ) : (
+                    <div className={styles.list}>
+                      {paginatedActivity.map(event => {
                       const meta = getEventMeta(event.type)
                       // For investment events, display the INVESTMENT's current status (draft/pending/active)
                       // instead of the API event status which is typically 'completed'.
@@ -1847,6 +1896,7 @@ function AdminUserDetailsContent() {
                       )
                     })}
                   </div>
+                  )}
 
                   {/* Pagination Controls */}
                   {totalActivityPages > 1 && (
@@ -2239,34 +2289,46 @@ function AdminUserDetailsContent() {
                                       ? (pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available')
                                       : '$•••••••'}
                                   </div>
-                                  <button
-                                    onClick={() => setShowBalance(!showBalance)}
-                                    aria-label={showBalance ? 'Hide Balance' : 'Show Balance'}
-                                    className={styles.ssnToggleButton}
-                                  >
-                                    {showBalance ? 'Hide' : 'Show'}
-                                  </button>
                                 </div>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ fontSize: '10px', color: '#9ca3af' }}>
                                   Updated: {pm.balance_last_updated ? new Date(pm.balance_last_updated).toLocaleString() : 'Not available'}
                                 </div>
-                                <button
-                                  onClick={() => handleRefreshBalance()}
-                                  disabled={refreshingBalanceId}
-                                  style={{
-                                    fontSize: '12px',
-                                    color: '#0369a1',
-                                    background: 'none',
-                                    border: 'none',
-                                    padding: 0,
-                                    cursor: refreshingBalanceId ? 'not-allowed' : 'pointer',
-                                    textDecoration: 'underline'
-                                  }}
-                                >
-                                  {refreshingBalanceId ? 'Refreshing...' : 'Refresh Balance'}
-                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <button
+                                    onClick={() => setShowBalance(!showBalance)}
+                                    aria-label={showBalance ? 'Hide Balance' : 'Show Balance'}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                      fontWeight: '500',
+                                      color: '#6b7280',
+                                      textDecoration: 'underline'
+                                    }}
+                                  >
+                                    {showBalance ? 'Hide' : 'Show'}
+                                  </button>
+                                  <span style={{ color: '#e5e7eb' }}>|</span>
+                                  <button
+                                    onClick={() => handleRefreshBalance()}
+                                    disabled={refreshingBalanceId}
+                                    style={{
+                                      fontSize: '12px',
+                                      color: '#0369a1',
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
+                                      cursor: refreshingBalanceId ? 'not-allowed' : 'pointer',
+                                      textDecoration: 'underline'
+                                    }}
+                                  >
+                                    {refreshingBalanceId ? 'Refreshing...' : 'Refresh Balance'}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           )}

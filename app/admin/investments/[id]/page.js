@@ -185,6 +185,36 @@ function AdminInvestmentDetailsContent() {
 
         logger.info('[AdminInvestmentDetails] ✓ Found user:', { id: foundUser.id, email: foundUser.email })
 
+        // Fetch activity events for this investment
+        try {
+          const numericInvestmentId = foundInvestment.id.toString().replace(/\D/g, '')
+          const activityData = await apiClient.getAdminActivityEvents({ 
+            investment_id: parseInt(numericInvestmentId, 10),
+            size: 100 
+          })
+          
+          if (activityData && activityData.success) {
+            const events = activityData.items || activityData.events || []
+            logger.debug('[AdminInvestmentDetails] Fetched activity events:', events.length)
+            
+            // Map activity events to transactions format expected by UI
+            foundInvestment.transactions = events.map(event => ({
+              id: event.id,
+              type: event.activity_type || event.type || event.activityType,
+              amount: event.amount,
+              date: event.created_at || event.createdAt || event.date,
+              displayDate: event.display_date || event.displayDate,
+              status: event.status
+            }))
+          } else {
+            logger.warn('[AdminInvestmentDetails] Failed to fetch activity events')
+            foundInvestment.transactions = []
+          }
+        } catch (activityError) {
+          logger.error('[AdminInvestmentDetails] Error fetching activity events:', activityError)
+          foundInvestment.transactions = []
+        }
+
         setInvestment(foundInvestment)
         setUser(foundUser)
         setForm({
