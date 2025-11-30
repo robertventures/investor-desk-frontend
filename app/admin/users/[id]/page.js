@@ -21,7 +21,6 @@ function AdminUserDetailsContent() {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [isVerifying, setIsVerifying] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [appTime, setAppTime] = useState(null)
   const [activityPage, setActivityPage] = useState(1)
@@ -491,35 +490,6 @@ function AdminUserDetailsContent() {
     return Object.keys(v).length === 0
   }
 
-  const handleVerifyAccount = async () => {
-    if (!confirm('Manually verify this account? The user will be able to access their dashboard and make investments.')) {
-      return
-    }
-    setIsVerifying(true)
-    try {
-      const res = await fetch(`/api/users/${user.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isVerified: true,
-          verifiedAt: new Date().toISOString()
-        })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setUser(data.user)
-        alert('Account verified successfully!')
-      } else {
-        alert(data.error || 'Failed to verify account')
-      }
-    } catch (e) {
-      console.error('Failed to verify account', e)
-      alert('An error occurred')
-    } finally {
-      setIsVerifying(false)
-    }
-  }
-
   const handleEdit = () => {
     setIsEditing(true)
   }
@@ -986,20 +956,9 @@ function AdminUserDetailsContent() {
                 <h2 className={styles.sectionTitle}>Account Profile</h2>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   {!isEditing && (
-                    <>
-                      <button className={styles.editButton} onClick={handleEdit}>
-                        Edit Profile
-                      </button>
-                      {!user.isVerified && (
-                        <button 
-                          onClick={handleVerifyAccount} 
-                          disabled={isVerifying}
-                          className={styles.verifyButton}
-                        >
-                          {isVerifying ? 'Verifying...' : 'Verify Account'}
-                        </button>
-                      )}
-                    </>
+                    <button className={styles.editButton} onClick={handleEdit}>
+                      Edit Profile
+                    </button>
                   )}
                 </div>
               </div>
@@ -2073,18 +2032,6 @@ function AdminUserDetailsContent() {
                       <span className={styles.actionLabel}>Send Reset Password</span>
                     </button>
                     
-                    {!user.isVerified && (
-                      <button 
-                        onClick={handleVerifyAccount} 
-                        disabled={isVerifying} 
-                        className={styles.actionCard}
-                        title="Manually verify account"
-                      >
-                        <span className={styles.actionIcon}>✅</span>
-                        <span className={styles.actionLabel}>{isVerifying ? 'Verifying...' : 'Verify User'}</span>
-                      </button>
-                    )}
-                    
                     <button 
                       onClick={handleDeleteUser} 
                       className={`${styles.actionCard} ${styles.dangerAction}`}
@@ -2211,7 +2158,7 @@ function AdminUserDetailsContent() {
                             </span>
                           </div>
 
-                          {pm.type === 'plaid' && (
+                          {(pm.type === 'plaid' || pm.type === 'bank_ach') && (
                             <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <div style={{ fontSize: '12px', color: '#6b7280' }}>Current Balance</div>
