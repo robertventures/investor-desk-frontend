@@ -198,14 +198,29 @@ function AdminInvestmentDetailsContent() {
             logger.debug('[AdminInvestmentDetails] Fetched activity events:', events.length)
             
             // Map activity events to transactions format expected by UI
-            foundInvestment.transactions = events.map(event => ({
-              id: event.id,
-              type: event.activity_type || event.type || event.activityType,
-              amount: event.amount,
-              date: event.created_at || event.createdAt || event.date,
-              displayDate: event.display_date || event.displayDate,
-              status: event.status
-            }))
+            foundInvestment.transactions = events.map(event => {
+              // Extract amount from nested structures (transaction or eventMetadata)
+              let amount = event.amount
+              if (amount === undefined || amount === null) {
+                amount = event.transaction?.amount ?? event.eventMetadata?.amount ?? null
+              }
+              // Convert string amounts to numbers for proper formatting
+              if (typeof amount === 'string') {
+                amount = parseFloat(amount)
+              }
+              
+              // Extract status (check event level and nested transaction)
+              const status = event.status || event.transaction?.status || null
+              
+              return {
+                id: event.id,
+                type: event.activity_type || event.type || event.activityType,
+                amount: amount,
+                date: event.created_at || event.createdAt || event.date,
+                displayDate: event.display_date || event.displayDate,
+                status: status
+              }
+            })
           } else {
             logger.warn('[AdminInvestmentDetails] Failed to fetch activity events')
             foundInvestment.transactions = []
@@ -878,6 +893,7 @@ function AdminInvestmentDetailsContent() {
                     <tr>
                       <th>Event</th>
                       <th>Amount</th>
+                      <th>Status</th>
                       <th>Date</th>
                       <th>Event ID</th>
                     </tr>
@@ -919,6 +935,33 @@ function AdminInvestmentDetailsContent() {
                                 <strong className={styles.amount}>
                                   ${event.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </strong>
+                              ) : (
+                                <span className={styles.naText}>-</span>
+                              )}
+                            </td>
+                            <td>
+                              {event.status ? (
+                                <span className={styles.statusBadge} style={{
+                                  backgroundColor: {
+                                    'completed': '#dcfce7',
+                                    'pending': '#fef3c7',
+                                    'failed': '#fee2e2',
+                                    'processing': '#dbeafe'
+                                  }[event.status] || '#f3f4f6',
+                                  color: {
+                                    'completed': '#166534',
+                                    'pending': '#92400e',
+                                    'failed': '#991b1b',
+                                    'processing': '#1e40af'
+                                  }[event.status] || '#374151',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  fontWeight: '500',
+                                  textTransform: 'capitalize'
+                                }}>
+                                  {event.status}
+                                </span>
                               ) : (
                                 <span className={styles.naText}>-</span>
                               )}
