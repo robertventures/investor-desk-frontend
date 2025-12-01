@@ -96,6 +96,11 @@ function AdminUserDetailsContent() {
     return events
   }, [activityEvents])
 
+  // Simple filter - just compare as strings (computed on each render for freshness)
+  const filteredActivity = activityFilterInvestmentId === 'all' 
+    ? allActivity 
+    : allActivity.filter(e => String(e.investmentId) === String(activityFilterInvestmentId))
+
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
 
@@ -1678,11 +1683,6 @@ function AdminUserDetailsContent() {
                   </div>
                 )
               }
-
-              // Simple filter - just compare as strings
-              const filteredActivity = activityFilterInvestmentId === 'all' 
-                ? allActivity 
-                : allActivity.filter(e => String(e.investmentId) === String(activityFilterInvestmentId))
 
               // Build an index of investments so we can reflect their CURRENT status
               // when rendering investment-related events (created/submitted/confirmed)
