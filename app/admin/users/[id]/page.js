@@ -11,21 +11,6 @@ import { maskSSN } from '../../../../lib/formatters.js'
 import styles from './page.module.css'
 import { useUser } from '@/app/contexts/UserContext'
 
-/**
- * Normalize investment ID to a consistent numeric string for comparison.
- * This handles various formats: number, string, "INV-123", etc.
- */
-function normalizeInvestmentId(id) {
-  if (id === null || id === undefined || id === '' || id === 'all') return null
-  // Convert to string and extract numeric portion
-  const str = String(id)
-  // If it's already a pure number string, return it
-  if (/^\d+$/.test(str)) return str
-  // Try to extract the numeric ID (e.g., from "INV-10012" or "10012.0")
-  const match = str.match(/(\d+)/)
-  return match ? match[1] : str
-}
-
 function AdminUserDetailsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -110,20 +95,6 @@ function AdminUserDetailsContent() {
     
     return events
   }, [activityEvents])
-
-  // Filter activity based on selected investment
-  const filteredActivity = useMemo(() => {
-    if (activityFilterInvestmentId === 'all') return allActivity
-    
-    const normalizedFilterId = normalizeInvestmentId(activityFilterInvestmentId)
-    if (!normalizedFilterId) return allActivity
-    
-    return allActivity.filter(event => {
-      if (!event.investmentId) return false
-      const normalizedEventId = normalizeInvestmentId(event.investmentId)
-      return normalizedEventId === normalizedFilterId
-    })
-  }, [allActivity, activityFilterInvestmentId])
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -1708,26 +1679,20 @@ function AdminUserDetailsContent() {
                 )
               }
 
-              // Use pre-calculated activity values from component scope
+              // Simple filter - just compare as strings
+              const filteredActivity = activityFilterInvestmentId === 'all' 
+                ? allActivity 
+                : allActivity.filter(e => String(e.investmentId) === String(activityFilterInvestmentId))
 
-
-              // Calculate summary stats
               // Build an index of investments so we can reflect their CURRENT status
               // when rendering investment-related events (created/submitted/confirmed)
-              // Use normalized IDs as keys for consistent lookups
               const investmentsById = {}
               ;(user.investments || []).forEach(inv => {
-                const normalizedId = normalizeInvestmentId(inv.id)
-                if (normalizedId) {
-                  investmentsById[normalizedId] = inv
-                }
+                investmentsById[String(inv.id)] = inv
               })
               
-              // Helper to lookup investment by potentially unnormalized ID
-              const getInvestmentById = (id) => {
-                const normalizedId = normalizeInvestmentId(id)
-                return normalizedId ? investmentsById[normalizedId] : null
-              }
+              // Helper to lookup investment by ID
+              const getInvestmentById = (id) => investmentsById[String(id)] || null
 
               const distributions = filteredActivity.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
               const contributions = filteredActivity.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
@@ -1745,9 +1710,8 @@ function AdminUserDetailsContent() {
               // We also exclude 'investment_created' from being considered "pending" even if the investment is pending
               const pendingInvestmentsSet = new Set()
               const pendingCount = filteredActivity.filter(e => {
-                // Skip if we already counted this investment (use normalized ID for consistent deduplication)
-                const normalizedEventInvId = e.investmentId ? normalizeInvestmentId(e.investmentId) : null
-                if (normalizedEventInvId && pendingInvestmentsSet.has(normalizedEventInvId)) return false
+                const invIdStr = String(e.investmentId || '')
+                if (invIdStr && pendingInvestmentsSet.has(invIdStr)) return false
                 
                 const inv = e.investmentId ? getInvestmentById(e.investmentId) : null
                 // Don't override status for creation events - they are historical points in time
@@ -1756,7 +1720,7 @@ function AdminUserDetailsContent() {
                 const status = (inv && e.type?.includes('investment') && !isCreationEvent) ? inv.status : e.status
                 
                 if (status === 'pending') {
-                  if (normalizedEventInvId) pendingInvestmentsSet.add(normalizedEventInvId)
+                  if (invIdStr) pendingInvestmentsSet.add(invIdStr)
                   return true
                 }
                 return false
