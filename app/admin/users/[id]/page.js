@@ -11,6 +11,21 @@ import { maskSSN } from '../../../../lib/formatters.js'
 import styles from './page.module.css'
 import { useUser } from '@/app/contexts/UserContext'
 
+/**
+ * Normalize investment ID to a consistent numeric string for comparison.
+ * This handles various formats: number, string, "INV-123", etc.
+ */
+function normalizeInvestmentId(id) {
+  if (id === null || id === undefined || id === '' || id === 'all') return null
+  // Convert to string and extract numeric portion
+  const str = String(id)
+  // If it's already a pure number string, return it
+  if (/^\d+$/.test(str)) return str
+  // Try to extract the numeric ID (e.g., from "INV-10012" or "10012.0")
+  const match = str.match(/(\d+)/)
+  return match ? match[1] : str
+}
+
 function AdminUserDetailsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -99,9 +114,14 @@ function AdminUserDetailsContent() {
   // Filter activity based on selected investment
   const filteredActivity = useMemo(() => {
     if (activityFilterInvestmentId === 'all') return allActivity
-    // Ensure we're comparing strings
+    
+    const normalizedFilterId = normalizeInvestmentId(activityFilterInvestmentId)
+    if (!normalizedFilterId) return allActivity
+    
     return allActivity.filter(event => {
-      return event.investmentId && String(event.investmentId) === String(activityFilterInvestmentId)
+      if (!event.investmentId) return false
+      const normalizedEventId = normalizeInvestmentId(event.investmentId)
+      return normalizedEventId === normalizedFilterId
     })
   }, [allActivity, activityFilterInvestmentId])
 
@@ -1044,9 +1064,6 @@ function AdminUserDetailsContent() {
                 <b>Verified:</b> {user.isVerified ? 'Yes' : 'No'}
               </div>
               <div>
-                <b>Account Setup:</b> {user.onboarding_completed_at ? 'Complete' : user.needs_onboarding ? 'Pending' : 'N/A'}
-              </div>
-              <div>
                 <label><b>Email</b></label>
                 <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} />
                 {errors.email && <div className={styles.muted}>{errors.email}</div>}
@@ -1697,10 +1714,20 @@ function AdminUserDetailsContent() {
               // Calculate summary stats
               // Build an index of investments so we can reflect their CURRENT status
               // when rendering investment-related events (created/submitted/confirmed)
+              // Use normalized IDs as keys for consistent lookups
               const investmentsById = {}
               ;(user.investments || []).forEach(inv => {
-                investmentsById[inv.id] = inv
+                const normalizedId = normalizeInvestmentId(inv.id)
+                if (normalizedId) {
+                  investmentsById[normalizedId] = inv
+                }
               })
+              
+              // Helper to lookup investment by potentially unnormalized ID
+              const getInvestmentById = (id) => {
+                const normalizedId = normalizeInvestmentId(id)
+                return normalizedId ? investmentsById[normalizedId] : null
+              }
 
               const distributions = filteredActivity.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
               const contributions = filteredActivity.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
@@ -1718,17 +1745,18 @@ function AdminUserDetailsContent() {
               // We also exclude 'investment_created' from being considered "pending" even if the investment is pending
               const pendingInvestmentsSet = new Set()
               const pendingCount = filteredActivity.filter(e => {
-                // Skip if we already counted this investment
-                if (e.investmentId && pendingInvestmentsSet.has(e.investmentId)) return false
+                // Skip if we already counted this investment (use normalized ID for consistent deduplication)
+                const normalizedEventInvId = e.investmentId ? normalizeInvestmentId(e.investmentId) : null
+                if (normalizedEventInvId && pendingInvestmentsSet.has(normalizedEventInvId)) return false
                 
-                const inv = e.investmentId ? investmentsById[e.investmentId] : null
+                const inv = e.investmentId ? getInvestmentById(e.investmentId) : null
                 // Don't override status for creation events - they are historical points in time
                 const isCreationEvent = e.type === 'investment_created'
                 
                 const status = (inv && e.type?.includes('investment') && !isCreationEvent) ? inv.status : e.status
                 
                 if (status === 'pending') {
-                  if (e.investmentId) pendingInvestmentsSet.add(e.investmentId)
+                  if (normalizedEventInvId) pendingInvestmentsSet.add(normalizedEventInvId)
                   return true
                 }
                 return false
@@ -1786,7 +1814,7 @@ function AdminUserDetailsContent() {
                       // For investment events, display the INVESTMENT's current status (draft/pending/active)
                       // instead of the API event status which is typically 'completed'.
                       // Exception: 'investment_created' is a historical log and shouldn't reflect current status
-                      const invForEvent = event.investmentId ? investmentsById[event.investmentId] : null
+                      const invForEvent = event.investmentId ? getInvestmentById(event.investmentId) : null
                       const isCreationEvent = event.type === 'investment_created'
                       const displayStatus = (invForEvent && event.type?.includes('investment') && !isCreationEvent) 
                         ? (invForEvent.status || event.status) 
@@ -2244,7 +2272,7 @@ function AdminUserDetailsContent() {
                         </button>
                       </div>
                       <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px' }}>
-                        Valid for 48 hours
+                        Valid for 72 hours
                       </div>
                     </div>
                   )}
