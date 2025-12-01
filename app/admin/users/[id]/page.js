@@ -1064,9 +1064,6 @@ function AdminUserDetailsContent() {
                 <b>Verified:</b> {user.isVerified ? 'Yes' : 'No'}
               </div>
               <div>
-                <b>Account Setup:</b> {user.onboarding_completed_at ? 'Complete' : user.needs_onboarding ? 'Pending' : 'N/A'}
-              </div>
-              <div>
                 <label><b>Email</b></label>
                 <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} />
                 {errors.email && <div className={styles.muted}>{errors.email}</div>}
