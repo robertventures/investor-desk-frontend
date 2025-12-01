@@ -2244,7 +2244,7 @@ function AdminUserDetailsContent() {
                         </button>
                       </div>
                       <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px' }}>
-                        Valid for 48 hours
+                        Valid for 72 hours
                       </div>
                     </div>
                   )}
