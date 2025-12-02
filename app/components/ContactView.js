@@ -5,28 +5,21 @@ import { apiClient } from '../../lib/apiClient'
 import logger from '@/lib/logger'
 import styles from './ContactView.module.css'
 
-// Format US phone numbers as (XXX) XXX-XXXX while typing
-const formatPhone = (value = '') => {
-  const digitsOnly = (value || '').replace(/\D/g, '')
-  const withoutCountry = digitsOnly.startsWith('1') ? digitsOnly.slice(1) : digitsOnly
-  const len = withoutCountry.length
-  if (len === 0) return ''
-  if (len <= 3) return `(${withoutCountry}`
-  if (len <= 6) return `(${withoutCountry.slice(0, 3)}) ${withoutCountry.slice(3)}`
-  return `(${withoutCountry.slice(0, 3)}) ${withoutCountry.slice(3, 6)}-${withoutCountry.slice(6, 10)}`
-}
+// Category options with display labels and API values
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'Select a category' },
+  { value: 'investments', label: 'Investment Question' },
+  { value: 'withdrawals', label: 'Payment/Distribution Question' },
+  { value: 'account', label: 'Account Issue' },
+  { value: 'other', label: 'General Inquiry / Other' }
+]
 
-// Normalize phone number to E.164 format for database storage (+1XXXXXXXXXX)
-const normalizePhoneForDB = (value = '') => {
-  const digits = value.replace(/\D/g, '')
-  if (digits.length === 10) {
-    return `+1${digits}`
-  }
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`
-  }
-  return value // Return original if format is unexpected
-}
+// Priority options matching API enum (low, medium, high)
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' }
+]
 
 export default function ContactView() {
   const { userData } = useUser()
@@ -35,8 +28,7 @@ export default function ContactView() {
     message: '',
     priority: 'medium',
     category: '',
-    contactMethod: 'email',
-    phoneNumber: ''
+    preferredContactMethod: 'email'
   })
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -64,31 +56,13 @@ export default function ContactView() {
       newErrors.category = 'Category is required'
     }
 
-    if (formData.contactMethod === 'sms') {
-      if (!formData.phoneNumber || formData.phoneNumber.trim().length === 0) {
-        newErrors.phoneNumber = 'Phone number is required for SMS contact'
-      } else {
-        const digits = formData.phoneNumber.replace(/\D/g, '')
-        const withoutCountry = digits.startsWith('1') ? digits.slice(1) : digits
-        if (withoutCountry.length !== 10) {
-          newErrors.phoneNumber = 'Please enter a valid 10-digit phone number'
-        }
-      }
-    }
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    let formattedValue = value
-
-    if (name === 'phoneNumber') {
-      formattedValue = formatPhone(value)
-    }
-
-    setFormData(prev => ({ ...prev, [name]: formattedValue }))
+    setFormData(prev => ({ ...prev, [name]: value }))
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -108,16 +82,13 @@ export default function ContactView() {
     setSubmitSuccess(false)
 
     try {
+      // Build request matching ContactRequestCreate schema
       const contactData = {
         subject: formData.subject.trim(),
         message: formData.message.trim(),
         priority: formData.priority,
         category: formData.category,
-        contactMethod: formData.contactMethod
-      }
-
-      if (formData.contactMethod === 'sms' && formData.phoneNumber) {
-        contactData.phoneNumber = normalizePhoneForDB(formData.phoneNumber)
+        preferredContactMethod: formData.preferredContactMethod
       }
 
       const response = await apiClient.submitContactForm(contactData)
@@ -130,8 +101,7 @@ export default function ContactView() {
           message: '',
           priority: 'medium',
           category: '',
-          contactMethod: 'email',
-          phoneNumber: ''
+          preferredContactMethod: 'email'
         })
         // Clear success message after 5 seconds
         setTimeout(() => {
@@ -209,13 +179,11 @@ export default function ContactView() {
               className={`${styles.select} ${errors.category ? styles.inputError : ''}`}
               disabled={isSubmitting}
             >
-              <option value="">Select a category</option>
-              <option value="General Inquiry">General Inquiry</option>
-              <option value="Investment Question">Investment Question</option>
-              <option value="Account Issue">Account Issue</option>
-              <option value="Technical Support">Technical Support</option>
-              <option value="Payment/Distribution Question">Payment/Distribution Question</option>
-              <option value="Other">Other</option>
+              {CATEGORY_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             {errors.category && <span className={styles.errorText}>{errors.category}</span>}
           </div>
@@ -232,10 +200,11 @@ export default function ContactView() {
               className={styles.select}
               disabled={isSubmitting}
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
+              {PRIORITY_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -267,9 +236,9 @@ export default function ContactView() {
             <label className={styles.radioLabel}>
               <input
                 type="radio"
-                name="contactMethod"
+                name="preferredContactMethod"
                 value="email"
-                checked={formData.contactMethod === 'email'}
+                checked={formData.preferredContactMethod === 'email'}
                 onChange={handleChange}
                 disabled={isSubmitting}
                 className={styles.radio}
@@ -279,37 +248,17 @@ export default function ContactView() {
             <label className={styles.radioLabel}>
               <input
                 type="radio"
-                name="contactMethod"
-                value="sms"
-                checked={formData.contactMethod === 'sms'}
+                name="preferredContactMethod"
+                value="phone"
+                checked={formData.preferredContactMethod === 'phone'}
                 onChange={handleChange}
                 disabled={isSubmitting}
                 className={styles.radio}
               />
-              <span>SMS/Text Message</span>
+              <span>Phone</span>
             </label>
           </div>
         </div>
-
-        {formData.contactMethod === 'sms' && (
-          <div className={styles.field}>
-            <label htmlFor="phoneNumber" className={styles.label}>
-              Phone Number <span className={styles.required}>*</span>
-            </label>
-            <input
-              type="tel"
-              id="phoneNumber"
-              name="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`}
-              placeholder="(XXX) XXX-XXXX"
-              disabled={isSubmitting}
-              maxLength={30}
-            />
-            {errors.phoneNumber && <span className={styles.errorText}>{errors.phoneNumber}</span>}
-          </div>
-        )}
 
         <div className={styles.actions}>
           <button
