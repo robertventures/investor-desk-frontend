@@ -24,6 +24,7 @@ export function useAdminData() {
   const [isLoadingWithdrawals, setIsLoadingWithdrawals] = useState(false)
   const [pendingPayouts, setPendingPayouts] = useState([])
   const [isLoadingPayouts, setIsLoadingPayouts] = useState(false)
+  const [processingPayoutId, setProcessingPayoutId] = useState(null)
   const [activityEvents, setActivityEvents] = useState([])
   const [isLoadingActivity, setIsLoadingActivity] = useState(false)
   const [timeMachineData, setTimeMachineData] = useState({ 
@@ -341,6 +342,34 @@ export function useAdminData() {
     clearCache(CACHE_KEY_ACTIVITY)
   }
 
+  /**
+   * Process ACHQ payment for a pending payout transaction
+   * @param {number} transactionId - The transaction ID to process
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  const processAchqPayment = async (transactionId) => {
+    try {
+      setProcessingPayoutId(transactionId)
+      
+      const result = await apiClient.processAchqPayment(transactionId)
+      
+      if (result.success) {
+        logger.log(`✓ ACHQ payment processed for transaction ${transactionId}`)
+        // Refresh payouts list to get updated status
+        await loadPendingPayouts(true)
+        return { success: true, data: result }
+      } else {
+        logger.error(`ACHQ payment failed for transaction ${transactionId}:`, result.error)
+        return { success: false, error: result.error }
+      }
+    } catch (e) {
+      logger.error('Failed to process ACHQ payment', e)
+      return { success: false, error: e.message || 'Failed to process payment' }
+    } finally {
+      setProcessingPayoutId(null)
+    }
+  }
+
   return {
     currentUser,
     users,
@@ -349,6 +378,7 @@ export function useAdminData() {
     isLoadingWithdrawals,
     pendingPayouts,
     isLoadingPayouts,
+    processingPayoutId,
     activityEvents,
     isLoadingActivity,
     timeMachineData,
@@ -357,7 +387,8 @@ export function useAdminData() {
     refreshWithdrawals: loadWithdrawals,
     refreshPayouts: loadPendingPayouts,
     refreshActivity: loadActivityEvents,
-    refreshTimeMachine: loadTimeMachine
+    refreshTimeMachine: loadTimeMachine,
+    processAchqPayment
   }
 }
 

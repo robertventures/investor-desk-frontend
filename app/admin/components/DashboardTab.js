@@ -1,9 +1,7 @@
 import { useState, useCallback, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import MetricCard from './MetricCard'
-import ActionCard from './ActionCard'
 import SectionCard from './SectionCard'
-import { fetchWithCsrf } from '../../../lib/csrfClient'
 import styles from './DashboardTab.module.css'
 import { formatCurrency } from '../../../lib/formatters.js'
 
@@ -16,10 +14,11 @@ const DashboardTab = memo(function DashboardTab({
   pendingInvestments, 
   pendingPayouts,
   isLoadingPayouts,
+  processingPayoutId,
   onApprove, 
   onReject, 
   savingId,
-  onPayoutAction,
+  onProcessPayment,
   onRefreshPayouts
 }) {
   const router = useRouter()
@@ -50,11 +49,29 @@ const DashboardTab = memo(function DashboardTab({
     }
   }, [pendingPayouts, selectedPayouts.size])
 
-  // Bulk complete selected payouts
-  const handleBulkComplete = useCallback(async () => {
+  // Handle single payment processing
+  const handleProcessPayment = useCallback(async (transactionId) => {
+    const payout = pendingPayouts.find(p => p.id === transactionId)
+    const userName = payout?.userName || `Transaction #${transactionId}`
+    
+    if (!confirm(`Process payment for ${userName}?\n\nAmount: ${formatCurrency(payout?.amount || 0)}\n\nThis will initiate the bank transfer via ACHQ.`)) {
+      return
+    }
+
+    const result = await onProcessPayment(transactionId)
+    
+    if (result.success) {
+      alert(`Payment processed successfully for ${userName}!`)
+    } else {
+      alert(`Failed to process payment: ${result.error}`)
+    }
+  }, [pendingPayouts, onProcessPayment])
+
+  // Bulk process selected payouts
+  const handleBulkProcess = useCallback(async () => {
     if (selectedPayouts.size === 0) return
     
-    if (!confirm(`Mark ${selectedPayouts.size} payout(s) as completed? This will bypass bank transfers.`)) {
+    if (!confirm(`Process ${selectedPayouts.size} payment(s)? This will initiate bank transfers via ACHQ.`)) {
       return
     }
 
@@ -67,120 +84,32 @@ const DashboardTab = memo(function DashboardTab({
       for (const payoutId of selectedPayouts) {
         const payout = pendingPayouts.find(p => p.id === payoutId)
         if (payout) {
-          try {
-            const res = await fetchWithCsrf('/api/admin/pending-payouts', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                action: 'complete', 
-                userId: payout.userId, 
-                transactionId: payout.id 
-              })
-            })
-            
-            if (!res.ok) {
-              throw new Error(`HTTP ${res.status}`)
-            }
-            
-            const data = await res.json()
-            if (data.success) {
-              successCount++
-            } else {
-              failCount++
-              errors.push(`${payout.userName}: ${data.error || 'Unknown error'}`)
-            }
-          } catch (e) {
+          const result = await onProcessPayment(payoutId)
+          if (result.success) {
+            successCount++
+          } else {
             failCount++
-            errors.push(`${payout.userName}: ${e.message}`)
+            errors.push(`${payout.userName || payoutId}: ${result.error || 'Unknown error'}`)
           }
         }
       }
       
       // Show summary message
       if (failCount === 0) {
-        alert(`Successfully completed ${successCount} payout(s)!`)
+        alert(`Successfully processed ${successCount} payment(s)!`)
       } else {
         const errorMsg = errors.length > 0 ? `\n\nErrors:\n${errors.slice(0, 5).join('\n')}` : ''
-        alert(`Completed ${successCount} payout(s). ${failCount} failed.${errorMsg}`)
+        alert(`Processed ${successCount} payment(s). ${failCount} failed.${errorMsg}`)
       }
       
-      // Refresh data
-      console.log('Refreshing data after bulk complete...')
-      await onRefreshPayouts()
       setSelectedPayouts(new Set())
     } catch (error) {
-      console.error('Bulk complete error:', error)
+      console.error('Bulk process error:', error)
       alert(`An error occurred during bulk processing: ${error.message}`)
     } finally {
       setIsProcessingBulk(false)
     }
-  }, [selectedPayouts, pendingPayouts, onRefreshPayouts])
-
-  // Bulk fail selected payouts
-  const handleBulkFail = useCallback(async () => {
-    if (selectedPayouts.size === 0) return
-    
-    const reason = prompt(`Enter failure reason for ${selectedPayouts.size} payout(s):`)
-    if (!reason) return
-
-    setIsProcessingBulk(true)
-    let successCount = 0
-    let failCount = 0
-    const errors = []
-    
-    try {
-      for (const payoutId of selectedPayouts) {
-        const payout = pendingPayouts.find(p => p.id === payoutId)
-        if (payout) {
-          try {
-            const res = await fetchWithCsrf('/api/admin/pending-payouts', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                action: 'fail', 
-                userId: payout.userId, 
-                transactionId: payout.id,
-                failureReason: reason
-              })
-            })
-            
-            if (!res.ok) {
-              throw new Error(`HTTP ${res.status}`)
-            }
-            
-            const data = await res.json()
-            if (data.success) {
-              successCount++
-            } else {
-              failCount++
-              errors.push(`${payout.userName}: ${data.error || 'Unknown error'}`)
-            }
-          } catch (e) {
-            failCount++
-            errors.push(`${payout.userName}: ${e.message}`)
-          }
-        }
-      }
-      
-      // Show summary message
-      if (failCount === 0) {
-        alert(`Successfully marked ${successCount} payout(s) as failed.`)
-      } else {
-        const errorMsg = errors.length > 0 ? `\n\nErrors:\n${errors.slice(0, 5).join('\n')}` : ''
-        alert(`Marked ${successCount} payout(s) as failed. ${failCount} operations failed.${errorMsg}`)
-      }
-      
-      // Refresh data
-      console.log('Refreshing data after bulk fail...')
-      await onRefreshPayouts()
-      setSelectedPayouts(new Set())
-    } catch (error) {
-      console.error('Bulk fail error:', error)
-      alert(`An error occurred during bulk processing: ${error.message}`)
-    } finally {
-      setIsProcessingBulk(false)
-    }
-  }, [selectedPayouts, pendingPayouts, onRefreshPayouts])
+  }, [selectedPayouts, pendingPayouts, onProcessPayment])
 
   const allSelected = pendingPayouts && pendingPayouts.length > 0 && selectedPayouts.size === pendingPayouts.length
   const someSelected = selectedPayouts.size > 0
@@ -297,11 +226,11 @@ const DashboardTab = memo(function DashboardTab({
       <SectionCard title="Pending Payouts">
         <div className={styles.sectionHeader}>
           <p className={styles.sectionDescription}>
-            Monthly interest payments requiring admin approval
+            Monthly interest payments ready to be processed
           </p>
           <button 
             className={styles.refreshButton} 
-            onClick={onRefreshPayouts} 
+            onClick={() => onRefreshPayouts(true)} 
             disabled={isLoadingPayouts}
           >
             {isLoadingPayouts ? 'Refreshing...' : 'Refresh'}
@@ -310,10 +239,10 @@ const DashboardTab = memo(function DashboardTab({
 
         {pendingPayouts && pendingPayouts.length > 0 && (
           <div className={styles.alertBox}>
-            <strong>⚠️ {pendingPayouts.length} Payout{pendingPayouts.length !== 1 ? 's' : ''} Pending</strong>
+            <strong>💰 {pendingPayouts.length} Payout{pendingPayouts.length !== 1 ? 's' : ''} Ready</strong>
             <p>
-              These monthly interest payments require manual approval from admin.
-              You can retry the payouts or manually mark them as completed once approved.
+              These monthly interest payments are ready to be processed.
+              Click &quot;Process Payment&quot; to initiate the bank transfer via ACHQ.
             </p>
           </div>
         )}
@@ -334,18 +263,11 @@ const DashboardTab = memo(function DashboardTab({
             </div>
             <div className={styles.bulkActionsRight}>
               <button
-                className={styles.bulkCompleteButton}
-                onClick={handleBulkComplete}
+                className={styles.bulkProcessButton}
+                onClick={handleBulkProcess}
                 disabled={isProcessingBulk}
               >
-                ✓ Complete Selected
-              </button>
-              <button
-                className={styles.bulkFailButton}
-                onClick={handleBulkFail}
-                disabled={isProcessingBulk}
-              >
-                ✗ Fail Selected
+                {isProcessingBulk ? 'Processing...' : `💳 Process ${selectedPayouts.size} Payment${selectedPayouts.size !== 1 ? 's' : ''}`}
               </button>
             </div>
           </div>
@@ -365,90 +287,75 @@ const DashboardTab = memo(function DashboardTab({
                   />
                 </th>
                 <th>User</th>
-                    <th>Investment ID</th>
+                <th>Investment ID</th>
                 <th>Amount</th>
                 <th>Scheduled Date</th>
                 <th>Bank Account</th>
                 <th>Status</th>
-                <th>Failure Reason</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {!pendingPayouts || pendingPayouts.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className={styles.emptyState}>
-                    ✅ No pending payouts - all monthly payments have been successfully processed!
+                  <td colSpan="8" className={styles.emptyState}>
+                    ✅ No pending payouts - all monthly payments have been processed!
                   </td>
                 </tr>
               ) : (
-                pendingPayouts.map(payout => (
-                  <tr 
-                    key={payout.id} 
-                    className={`${payout.status === 'rejected' ? styles.failedRow : styles.pendingRow} ${selectedPayouts.has(payout.id) ? styles.selectedRow : ''}`}
-                  >
-                    <td className={styles.checkboxCell}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPayouts.has(payout.id)}
-                        onChange={() => togglePayoutSelection(payout.id)}
-                        className={styles.checkbox}
-                      />
-                    </td>
-                    <td>
-                      <div className={styles.userCell}>
-                        <div className={styles.userName}>{payout.userName || payout.userId}</div>
-                        <div className={styles.userEmail}>{payout.userEmail}</div>
-                      </div>
-                    </td>
-                    <td className={styles.monospaceCell}>{payout.investmentId}</td>
-                    <td><strong>{formatCurrency(payout.amount || 0)}</strong></td>
-                    <td className={styles.dateCell}>{new Date(payout.date).toLocaleDateString()}</td>
-                    <td className={styles.bankCell}>{payout.payoutBankNickname || 'Not configured'}</td>
-                    <td>
-                      <span className={`${styles.badge} ${styles[payout.status]}`}>
-                        {payout.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className={styles.reasonCell}>
-                      {payout.failureReason || (payout.status === 'pending' ? 'Awaiting admin approval' : '-')}
-                    </td>
-                    <td>
-                      <div className={styles.actionButtonGroup}>
+                pendingPayouts.map(payout => {
+                  const isProcessing = processingPayoutId === payout.id
+                  const isFailed = payout.status === 'rejected' || payout.status === 'failed'
+                  
+                  return (
+                    <tr 
+                      key={payout.id} 
+                      className={`${isFailed ? styles.failedRow : styles.pendingRow} ${selectedPayouts.has(payout.id) ? styles.selectedRow : ''}`}
+                    >
+                      <td className={styles.checkboxCell}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPayouts.has(payout.id)}
+                          onChange={() => togglePayoutSelection(payout.id)}
+                          className={styles.checkbox}
+                          disabled={isProcessing}
+                        />
+                      </td>
+                      <td>
+                        <div className={styles.userCell}>
+                          <div className={styles.userName}>{payout.userName || `User #${payout.userId}`}</div>
+                          <div className={styles.userEmail}>{payout.userEmail || '-'}</div>
+                        </div>
+                      </td>
+                      <td className={styles.monospaceCell}>{payout.investmentId || '-'}</td>
+                      <td><strong>{formatCurrency(payout.amount || 0)}</strong></td>
+                      <td className={styles.dateCell}>
+                        {payout.date ? new Date(payout.date).toLocaleDateString() : '-'}
+                      </td>
+                      <td className={styles.bankCell}>{payout.payoutBankNickname || 'Default'}</td>
+                      <td>
+                        <span className={`${styles.badge} ${styles[payout.status] || styles.pending}`}>
+                          {(payout.status || 'pending').toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
                         <button
-                          className={styles.retryButton}
-                          onClick={() => onPayoutAction('retry', payout.userId, payout.id)}
-                          title="Retry payout"
+                          className={isFailed ? styles.retryButton : styles.processButton}
+                          onClick={() => handleProcessPayment(payout.id)}
+                          disabled={isProcessing || isProcessingBulk}
+                          title={isFailed ? 'Retry payment' : 'Process payment via ACHQ'}
                         >
-                          🔄 Retry
+                          {isProcessing 
+                            ? '⏳ Processing...' 
+                            : isFailed 
+                              ? '🔄 Retry Payment' 
+                              : '💳 Process Payment'
+                          }
                         </button>
-                        <button
-                          className={styles.completeButton}
-                          onClick={() => {
-                            if (confirm('Mark this payout as completed? This will bypass the bank transfer.')) {
-                              onPayoutAction('complete', payout.userId, payout.id)
-                            }
-                          }}
-                          title="Mark as completed"
-                        >
-                          ✓ Complete
-                        </button>
-                        <button
-                          className={styles.failButton}
-                          onClick={() => {
-                            const reason = prompt('Enter failure reason:')
-                            if (reason) {
-                              onPayoutAction('fail', payout.userId, payout.id, reason)
-                            }
-                          }}
-                          title="Mark as failed"
-                        >
-                          ✗ Fail
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
