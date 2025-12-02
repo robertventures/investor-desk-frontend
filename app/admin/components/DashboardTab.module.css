@@ -682,6 +682,223 @@
   padding: 6px 12px;
 }
 
+/* Section Header Actions */
+.sectionActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.expandAllButton {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #374151;
+}
+
+.expandAllButton:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* Accordion Styles */
+.accordionContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.accordionItem {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.accordionItem:last-child {
+  border-bottom: none;
+}
+
+.accordionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.accordionHeader:hover {
+  background: #f3f4f6;
+}
+
+.accordionHeader.expanded {
+  background: #e0f2fe;
+  border-bottom: 1px solid #bae6fd;
+}
+
+.accordionHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.accordionToggle {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accordionArrow {
+  font-size: 12px;
+  color: #6b7280;
+  transition: transform 0.2s ease;
+}
+
+.accordionUserInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.accordionUserNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.accordionUserName {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-accent);
+}
+
+.bankConnectedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.bankNotConnectedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  white-space: nowrap;
+  border: 1px solid #f59e0b;
+}
+
+.accordionUserEmail {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.accordionHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.accordionPayoutCount {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  padding: 4px 10px;
+  background: #e5e7eb;
+  border-radius: 12px;
+}
+
+.accordionTotalAmount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.accordionContent {
+  padding: 0;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Payout Table (inside accordion) */
+.payoutTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.payoutTable thead {
+  background: #f9fafb;
+}
+
+.payoutTable th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.payoutTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.payoutTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.payoutTable tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* Investment Link */
+.investmentLink {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+  font-family: monospace;
+  font-size: 13px;
+  transition: color 0.2s ease;
+}
+
+.investmentLink:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .primaryMetricsGrid {
     grid-template-columns: 1fr 1fr;
@@ -748,6 +965,48 @@
   .approveButton,
   .rejectButton {
     flex: 1;
+  }
+
+  /* Accordion responsive */
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .sectionActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .accordionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .accordionHeaderLeft {
+    width: 100%;
+  }
+
+  .accordionHeaderRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .payoutTable {
+    font-size: 12px;
+  }
+
+  .payoutTable th,
+  .payoutTable td {
+    padding: 8px 10px;
+  }
+
+  .processButton,
+  .retryButton {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 }
 
@@ -832,5 +1091,28 @@
   .rejectButton {
     padding: 8px 10px;
     font-size: 12px;
+  }
+
+  /* Accordion small screens */
+  .accordionUserName {
+    font-size: 13px;
+  }
+
+  .accordionUserEmail {
+    font-size: 12px;
+  }
+
+  .accordionTotalAmount {
+    font-size: 14px;
+  }
+
+  .accordionPayoutCount {
+    font-size: 12px;
+    padding: 3px 8px;
+  }
+
+  .payoutTable th,
+  .payoutTable td {
+    padding: 6px 8px;
   }
 }
