@@ -211,9 +211,9 @@ function AdminInvestmentDetailsContent() {
                 amount = parseFloat(amount)
               }
               
-              // Extract status (check event level and nested transaction)
+              // Extract status (prefer transaction status over activity status)
               // TransactionStatus: pending, submitted, approved, rejected, received
-              const status = event.status || event.transaction?.status || null
+              const status = event.transaction?.status || event.status || null
               
               // Extract human-readable transaction ID (available in API)
               const humanId = event.transaction?.human_id 
