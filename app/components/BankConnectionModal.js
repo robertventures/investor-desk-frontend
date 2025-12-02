@@ -19,11 +19,13 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
   const [isFetchingToken, setIsFetchingToken] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [showManualEntry, setShowManualEntry] = useState(false)
-  const [manualName, setManualName] = useState('')
   const [manualRouting, setManualRouting] = useState('')
   const [manualAccount, setManualAccount] = useState('')
+  const [manualConfirmAccount, setManualConfirmAccount] = useState('')
   const [manualType, setManualType] = useState('checking')
+  const [manualHolderType, setManualHolderType] = useState('Personal')
   const [isSubmittingManual, setIsSubmittingManual] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState([]) // Track which fields have errors
 
   const resetState = () => {
     setStep(1)
@@ -31,11 +33,13 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
     setIsFetchingToken(false)
     setErrorMessage('')
     setShowManualEntry(false)
-    setManualName('')
     setManualRouting('')
     setManualAccount('')
+    setManualConfirmAccount('')
     setManualType('checking')
+    setManualHolderType('Personal')
     setIsSubmittingManual(false)
+    setFieldErrors([])
   }
 
   useEffect(() => {
@@ -243,25 +247,49 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
 
   const handleManualSubmit = async (e) => {
     e.preventDefault()
-    if (!manualName || !manualRouting || !manualAccount) return
-    if (!/^[0-9]{9}$/.test(manualRouting)) {
-      setErrorMessage('Routing number must be 9 digits')
+    setFieldErrors([])
+    setErrorMessage('')
+    
+    // Validate required fields
+    if (!manualRouting || !manualAccount || !manualConfirmAccount) {
+      setErrorMessage('Please fill in all required fields')
       return
     }
+    
+    // Validate routing number: exactly 9 digits
+    if (!/^\d{9}$/.test(manualRouting)) {
+      setErrorMessage('Routing number must be exactly 9 digits')
+      setFieldErrors(['routingNumber'])
+      return
+    }
+    
+    // Validate account number: 4-17 digits
+    if (!/^\d{4,17}$/.test(manualAccount)) {
+      setErrorMessage('Account number must be 4-17 digits')
+      setFieldErrors(['accountNumber'])
+      return
+    }
+    
+    // Validate account number confirmation
+    if (manualAccount !== manualConfirmAccount) {
+      setErrorMessage('Account numbers do not match')
+      setFieldErrors(['accountNumber', 'confirmAccountNumber'])
+      return
+    }
+    
     try {
       setIsSubmittingManual(true)
-      setErrorMessage('')
       if (process.env.NODE_ENV === 'development') {
-        console.log('[BankConnectionModal] Submitting manual bank account...')
+        console.log('[BankConnectionModal] Submitting manual bank account with real-time verification...')
       }
       const res = await apiClient.request('/api/payment-methods/manual', {
         method: 'POST',
         body: JSON.stringify({
-          account_holder_name: manualName,
           routing_number: manualRouting,
           account_number: manualAccount,
           account_type: manualType,
-          save_for_reuse: true,
+          account_holder_type: manualHolderType,
+          verification_method: 'real_time',
           idempotency_key: generateIdempotencyKey()
         })
       })
@@ -273,11 +301,42 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
         onAccountSelected(method)
       }
       onClose()
-    } catch (e) {
+    } catch (err) {
       if (process.env.NODE_ENV === 'development') {
-        console.error('[BankConnectionModal] Manual submission failed:', e)
+        console.error('[BankConnectionModal] Manual submission failed:', err)
       }
-      setErrorMessage(e?.message || 'Failed to add bank account. Please verify your information.')
+      
+      // Handle verification error types from real-time ACHQ verification
+      const errorData = err?.responseData || {}
+      const errorType = errorData.error_type || ''
+      
+      switch (errorType) {
+        case 'invalid_account':
+          setErrorMessage('Please check your routing and account numbers')
+          setFieldErrors(['routingNumber', 'accountNumber'])
+          break
+        case 'ownership_failed':
+          setErrorMessage(
+            'Your name must match exactly as it appears on your bank account. ' +
+            'Please verify your profile information matches your bank records.'
+          )
+          break
+        case 'account_flagged':
+          setErrorMessage(
+            'We couldn\'t verify this account. ' +
+            'Please contact your bank or try a different account.'
+          )
+          break
+        case 'unsupported_account':
+          setErrorMessage(
+            'This account type isn\'t supported. ' +
+            'Please use a checking or savings account.'
+          )
+          break
+        default:
+          // Generic error fallback
+          setErrorMessage(err?.message || 'Failed to add bank account. Please verify your information and try again.')
+      }
     } finally {
       setIsSubmittingManual(false)
     }
@@ -377,21 +436,25 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                 </div>
               )}
               <div className={styles.formGroup}>
-                <label className={styles.label}>Account holder name</label>
-                <input
+                <label className={styles.label}>Account holder type</label>
+                <select
                   className={styles.input}
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                  placeholder="John Doe"
-                  maxLength={100}
-                />
+                  value={manualHolderType}
+                  onChange={(e) => setManualHolderType(e.target.value)}
+                >
+                  <option value="Personal">Personal</option>
+                  <option value="Business">Business</option>
+                </select>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Routing number</label>
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${fieldErrors.includes('routingNumber') ? styles.inputError : ''}`}
                   value={manualRouting}
-                  onChange={(e) => setManualRouting(e.target.value.replace(/[^0-9]/g, '').slice(0, 9))}
+                  onChange={(e) => {
+                    setManualRouting(e.target.value.replace(/[^0-9]/g, '').slice(0, 9))
+                    setFieldErrors(prev => prev.filter(f => f !== 'routingNumber'))
+                  }}
                   placeholder="9 digits"
                   maxLength={9}
                 />
@@ -399,11 +462,27 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
               <div className={styles.formGroup}>
                 <label className={styles.label}>Account number</label>
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${fieldErrors.includes('accountNumber') ? styles.inputError : ''}`}
                   value={manualAccount}
-                  onChange={(e) => setManualAccount(e.target.value.replace(/[^0-9]/g, '').slice(0, 17))}
-                  placeholder="Account number"
-                  maxLength={50}
+                  onChange={(e) => {
+                    setManualAccount(e.target.value.replace(/[^0-9]/g, '').slice(0, 17))
+                    setFieldErrors(prev => prev.filter(f => f !== 'accountNumber'))
+                  }}
+                  placeholder="4-17 digits"
+                  maxLength={17}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Confirm account number</label>
+                <input
+                  className={`${styles.input} ${fieldErrors.includes('confirmAccountNumber') ? styles.inputError : ''}`}
+                  value={manualConfirmAccount}
+                  onChange={(e) => {
+                    setManualConfirmAccount(e.target.value.replace(/[^0-9]/g, '').slice(0, 17))
+                    setFieldErrors(prev => prev.filter(f => f !== 'confirmAccountNumber'))
+                  }}
+                  placeholder="Re-enter account number"
+                  maxLength={17}
                 />
               </div>
               <div className={styles.formGroup}>
@@ -420,12 +499,12 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
               <button
                 type="submit"
                 className={styles.submitButton}
-                disabled={isSubmittingManual || !manualName || !manualRouting || !manualAccount}
+                disabled={isSubmittingManual || !manualRouting || !manualAccount || !manualConfirmAccount}
               >
                 {isSubmittingManual ? (
                   <>
                     <span className={styles.spinner}></span>
-                    Adding account...
+                    Verifying account...
                   </>
                 ) : (
                   'Add bank account'
