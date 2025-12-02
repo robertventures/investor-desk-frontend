@@ -142,7 +142,8 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       case 'investment_rejected': return 'Investment Rejected'
       case 'investment': return 'Investment Transaction'
       case 'distribution': return 'Distribution'
-      case 'monthly_distribution': return 'Monthly Payout'
+      case 'monthly_distribution': return 'Distribution'
+      case 'monthly_contribution': return 'Contribution'
       case 'contribution': return 'Contribution'
       case 'monthly_compounded': return 'Monthly Compounded'
       case 'withdrawal_requested': return 'Withdrawal Requested'
@@ -173,6 +174,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       case 'monthly_distribution':
         return { icon: '💸', color: '#5b21b6' }
       case 'contribution':
+      case 'monthly_contribution':
       case 'monthly_compounded':
         return { icon: '📈', color: '#5b21b6' }
       case 'withdrawal_requested':

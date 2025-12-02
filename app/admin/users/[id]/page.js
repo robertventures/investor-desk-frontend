@@ -1648,7 +1648,9 @@ function AdminUserDetailsContent() {
                   case 'distribution':
                     return { icon: '💸', title: 'Distribution', color: '#7c3aed', showAmount: true }
                   case 'monthly_distribution':
-                    return { icon: '💸', title: 'Monthly Payout', color: '#7c3aed', showAmount: true }
+                    return { icon: '💸', title: 'Distribution', color: '#7c3aed', showAmount: true }
+                  case 'monthly_contribution':
+                    return { icon: '📈', title: 'Contribution', color: '#0369a1', showAmount: true }
                   case 'contribution':
                     return { icon: '📈', title: 'Contribution', color: '#0369a1', showAmount: true }
                   case 'monthly_compounded':

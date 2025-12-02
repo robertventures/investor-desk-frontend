@@ -1299,7 +1299,9 @@ function getEventMeta(eventType) {
     case 'distribution':
       return { icon: '💸', title: 'Distribution', color: '#5b21b6' }
     case 'monthly_distribution':
-      return { icon: '💸', title: 'Monthly Payout', color: '#5b21b6' }
+      return { icon: '💸', title: 'Distribution', color: '#5b21b6' }
+    case 'monthly_contribution':
+      return { icon: '📈', title: 'Contribution', color: '#5b21b6' }
     case 'contribution':
       return { icon: '📈', title: 'Contribution', color: '#5b21b6' }
     case 'monthly_compounded':
