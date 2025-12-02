@@ -66,7 +66,8 @@ function AdminUserDetailsContent() {
         createdAt: event.createdAt || event.created_at,
         title: event.title,
         description: event.description,
-        status: event.status,
+        // Prefer transaction status over activity status
+        status: event.transaction?.status || event.status,
         metadata: metadata,
         monthIndex: metadata.monthIndex
       }
