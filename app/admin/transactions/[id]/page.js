@@ -110,20 +110,39 @@ export default function AdminTransactionDetailsPage() {
     init()
   }, [router, transactionId])
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      pending: { label: 'Pending', color: '#f59e0b' },
-      received: { label: 'Received', color: '#10b981' },
-      completed: { label: 'Completed', color: '#10b981' },
-      failed: { label: 'Failed', color: '#ef4444' },
-      active: { label: 'Active', color: '#10b981' },
-      approved: { label: 'Approved', color: '#3b82f6' },
-      rejected: { label: 'Rejected', color: '#ef4444' }
+  // Transaction status configuration
+  // API TransactionStatus: pending, submitted, approved, rejected, received
+  const STATUS_CONFIG = {
+    // Transaction states from API
+    pending: { label: 'Pending', bg: '#fef3c7', color: '#92400e', icon: '⏳' },
+    submitted: { label: 'Submitted', bg: '#dbeafe', color: '#1e40af', icon: '📤' },
+    approved: { label: 'Approved', bg: '#dcfce7', color: '#166534', icon: '✓' },
+    rejected: { label: 'Rejected', bg: '#fee2e2', color: '#991b1b', icon: '✕' },
+    received: { label: 'Received', bg: '#dcfce7', color: '#166534', icon: '✅' },
+    // Legacy/alias states for backwards compatibility
+    completed: { label: 'Completed', bg: '#dcfce7', color: '#166534', icon: '✅' },
+    failed: { label: 'Failed', bg: '#fee2e2', color: '#991b1b', icon: '❌' },
+    active: { label: 'Active', bg: '#dcfce7', color: '#166534', icon: '✓' },
+    draft: { label: 'Draft', bg: '#f3f4f6', color: '#374151', icon: '📝' }
+  }
+
+  const getStatusConfig = (status) => {
+    if (!status) return null
+    const normalizedStatus = status.toString().toLowerCase()
+    return STATUS_CONFIG[normalizedStatus] || { 
+      label: status, 
+      bg: '#f3f4f6', 
+      color: '#374151', 
+      icon: '•' 
     }
-    const statusInfo = statusMap[status] || { label: status, color: '#6b7280' }
+  }
+
+  const getStatusBadge = (status) => {
+    const config = getStatusConfig(status)
+    if (!config) return null
     return (
-      <span className={styles.statusBadge} style={{ backgroundColor: `${statusInfo.color}20`, color: statusInfo.color }}>
-        {statusInfo.label}
+      <span className={styles.statusBadge} style={{ backgroundColor: config.bg, color: config.color }}>
+        {config.icon} {config.label}
       </span>
     )
   }
@@ -278,6 +297,62 @@ export default function AdminTransactionDetailsPage() {
             </div>
           )}
 
+          {/* Transaction Status Section - Show for payment-related transactions */}
+          {(transaction.type === 'distribution' || transaction.type === 'contribution' || 
+            transaction.type === 'monthly_distribution' || transaction.type === 'monthly_compounded') && (
+            <div className={styles.paymentStatusSection}>
+              <h2 className={styles.sectionTitle}>Transaction Status</h2>
+              <div className={styles.paymentStatusGrid}>
+                <div className={styles.paymentStatusCard}>
+                  <div className={styles.paymentStatusLabel}>Current Status</div>
+                  <div className={styles.paymentStatusValue}>
+                    {getStatusBadge(transaction.status)}
+                  </div>
+                </div>
+                {transaction.humanId && (
+                  <div className={styles.paymentStatusCard}>
+                    <div className={styles.paymentStatusLabel}>Transaction ID</div>
+                    <div className={styles.paymentStatusValue}>
+                      <code>{transaction.humanId}</code>
+                    </div>
+                  </div>
+                )}
+                {transaction.description && (
+                  <div className={styles.paymentStatusCard}>
+                    <div className={styles.paymentStatusLabel}>Description</div>
+                    <div className={styles.paymentStatusValue}>
+                      {transaction.description}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Transaction Lifecycle Timeline */}
+              <div className={styles.paymentTimeline}>
+                <div className={styles.timelineTitle}>Transaction Lifecycle</div>
+                <div className={styles.timelineSteps}>
+                  <div className={`${styles.timelineStep} ${transaction.status ? styles.completed : ''}`}>
+                    <div className={styles.timelineStepIcon}>1</div>
+                    <div className={styles.timelineStepLabel}>Pending</div>
+                  </div>
+                  <div className={styles.timelineConnector} />
+                  <div className={`${styles.timelineStep} ${['submitted', 'approved', 'received', 'completed'].includes(transaction.status) ? styles.completed : ''}`}>
+                    <div className={styles.timelineStepIcon}>2</div>
+                    <div className={styles.timelineStepLabel}>Submitted</div>
+                  </div>
+                  <div className={styles.timelineConnector} />
+                  <div className={`${styles.timelineStep} ${['approved', 'received', 'completed'].includes(transaction.status) ? styles.completed : ''} ${transaction.status === 'rejected' || transaction.status === 'failed' ? styles.failed : ''}`}>
+                    <div className={styles.timelineStepIcon}>3</div>
+                    <div className={styles.timelineStepLabel}>
+                      {transaction.status === 'rejected' ? 'Rejected' : 
+                       transaction.status === 'failed' ? 'Failed' : 'Received'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Additional Details */}
           <div className={styles.infoGrid}>
             {/* Investment-specific details */}
@@ -299,7 +374,8 @@ export default function AdminTransactionDetailsPage() {
             )}
 
             {/* Distribution/Contribution details */}
-            {(transaction.type === 'distribution' || transaction.type === 'contribution') && (
+            {(transaction.type === 'distribution' || transaction.type === 'contribution' || 
+              transaction.type === 'monthly_distribution' || transaction.type === 'monthly_compounded') && (
               <>
                 {transaction.principal && (
                   <div className={styles.infoCard}>

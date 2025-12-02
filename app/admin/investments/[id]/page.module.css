@@ -477,8 +477,20 @@
   line-height: 1;
 }
 
+.eventDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .eventTitle {
   font-weight: 500;
+}
+
+.eventHumanId {
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
 }
 
 /* Amount */

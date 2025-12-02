@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --test",
-    "sync-api": "curl -s https://api.dev.robertventures.barva.dev/openapi.json | npx json > docs/openapi.json",
+    "sync-api": "curl -s https://backend-9r5h.onrender.com/openapi.json | npx json > docs/openapi.json",
     "generate-types": "npx openapi-typescript docs/openapi.json -o lib/apiTypes.ts",
     "update-api": "npm run sync-api && npm run generate-types"
   },

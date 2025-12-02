@@ -198,6 +198,8 @@ function AdminInvestmentDetailsContent() {
             logger.debug('[AdminInvestmentDetails] Fetched activity events:', events.length)
             
             // Map activity events to transactions format expected by UI
+            // Available fields from API: id, transaction_type, amount, transaction_date, 
+            // status (pending/submitted/approved/rejected/received), description, human_id, created_at
             foundInvestment.transactions = events.map(event => {
               // Extract amount from nested structures (transaction or eventMetadata)
               let amount = event.amount
@@ -210,15 +212,31 @@ function AdminInvestmentDetailsContent() {
               }
               
               // Extract status (check event level and nested transaction)
+              // TransactionStatus: pending, submitted, approved, rejected, received
               const status = event.status || event.transaction?.status || null
+              
+              // Extract human-readable transaction ID (available in API)
+              const humanId = event.transaction?.human_id 
+                || event.transaction?.humanId 
+                || event.eventMetadata?.human_id 
+                || event.eventMetadata?.humanId 
+                || null
+              
+              // Extract description (available in API)
+              const description = event.transaction?.description 
+                || event.description 
+                || event.eventMetadata?.description 
+                || null
               
               return {
                 id: event.id,
                 type: event.activity_type || event.type || event.activityType,
                 amount: amount,
                 date: event.created_at || event.createdAt || event.date,
-                displayDate: event.display_date || event.displayDate,
-                status: status
+                displayDate: event.display_date || event.displayDate || event.transaction?.transaction_date,
+                status: status,
+                humanId: humanId,
+                description: description
               }
             })
           } else {
@@ -924,6 +942,10 @@ function AdminInvestmentDetailsContent() {
                             })
                           : '-'
                         
+                        // Get status configuration
+                        // TransactionStatus: pending, submitted, approved, rejected, received
+                        const statusConfig = getStatusConfig(event.status)
+                        
                         return (
                           <tr key={event.id} className={styles.activityRow}>
                             <td>
@@ -931,7 +953,12 @@ function AdminInvestmentDetailsContent() {
                                 <span className={styles.eventIcon} style={{ color: meta.color }}>
                                   {meta.icon}
                                 </span>
-                                <span className={styles.eventTitle}>{meta.title}</span>
+                                <div className={styles.eventDetails}>
+                                  <span className={styles.eventTitle}>{meta.title}</span>
+                                  {event.humanId && (
+                                    <span className={styles.eventHumanId}>#{event.humanId}</span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             <td>
@@ -944,27 +971,16 @@ function AdminInvestmentDetailsContent() {
                               )}
                             </td>
                             <td>
-                              {event.status ? (
+                              {statusConfig ? (
                                 <span className={styles.statusBadge} style={{
-                                  backgroundColor: {
-                                    'completed': '#dcfce7',
-                                    'pending': '#fef3c7',
-                                    'failed': '#fee2e2',
-                                    'processing': '#dbeafe'
-                                  }[event.status] || '#f3f4f6',
-                                  color: {
-                                    'completed': '#166534',
-                                    'pending': '#92400e',
-                                    'failed': '#991b1b',
-                                    'processing': '#1e40af'
-                                  }[event.status] || '#374151',
+                                  backgroundColor: statusConfig.bg,
+                                  color: statusConfig.color,
                                   padding: '4px 8px',
                                   borderRadius: '4px',
                                   fontSize: '12px',
-                                  fontWeight: '500',
-                                  textTransform: 'capitalize'
+                                  fontWeight: '500'
                                 }}>
-                                  {event.status}
+                                  {statusConfig.icon} {statusConfig.label}
                                 </span>
                               ) : (
                                 <span className={styles.naText}>-</span>
@@ -972,7 +988,7 @@ function AdminInvestmentDetailsContent() {
                             </td>
                             <td className={styles.dateCell}>{date}</td>
                             <td className={styles.eventIdCell}>
-                              {(event.type === 'investment' || event.type === 'distribution' || event.type === 'contribution') && event.id ? (
+                              {(event.type === 'investment' || event.type === 'distribution' || event.type === 'contribution' || event.type === 'monthly_distribution' || event.type === 'monthly_compounded') && event.id ? (
                                 <button
                                   className={styles.eventIdButton}
                                   onClick={() => router.push(`/admin/transactions/${event.id}`)}
@@ -1286,6 +1302,10 @@ function getEventMeta(eventType) {
   switch (eventType) {
     case 'investment':
       return { icon: '✅', title: 'Investment Confirmed', color: '#16a34a' }
+    case 'investment_created':
+      return { icon: '📝', title: 'Investment Created', color: '#6b7280' }
+    case 'investment_confirmed':
+      return { icon: '✅', title: 'Investment Confirmed', color: '#16a34a' }
     case 'distribution':
       return { icon: '💸', title: 'Distribution', color: '#5b21b6' }
     case 'monthly_distribution':
@@ -1298,6 +1318,34 @@ function getEventMeta(eventType) {
       return { icon: '🏦', title: 'Redemption', color: '#ca8a04' }
     default:
       return { icon: '•', title: eventType || 'Unknown Event', color: '#6b7280' }
+  }
+}
+
+// Transaction status configuration
+// API TransactionStatus: pending, submitted, approved, rejected, received
+const STATUS_CONFIG = {
+  // Transaction states from API
+  pending: { label: 'Pending', bg: '#fef3c7', color: '#92400e', icon: '⏳' },
+  submitted: { label: 'Submitted', bg: '#dbeafe', color: '#1e40af', icon: '📤' },
+  approved: { label: 'Approved', bg: '#dcfce7', color: '#166534', icon: '✓' },
+  rejected: { label: 'Rejected', bg: '#fee2e2', color: '#991b1b', icon: '✕' },
+  received: { label: 'Received', bg: '#dcfce7', color: '#166534', icon: '✅' },
+  // Legacy/alias states for backwards compatibility
+  completed: { label: 'Completed', bg: '#dcfce7', color: '#166534', icon: '✅' },
+  failed: { label: 'Failed', bg: '#fee2e2', color: '#991b1b', icon: '❌' },
+  active: { label: 'Active', bg: '#dcfce7', color: '#166534', icon: '✓' },
+  draft: { label: 'Draft', bg: '#f3f4f6', color: '#374151', icon: '📝' }
+}
+
+// Get status configuration with fallback
+function getStatusConfig(status) {
+  if (!status) return null
+  const normalizedStatus = status.toString().toLowerCase()
+  return STATUS_CONFIG[normalizedStatus] || { 
+    label: status, 
+    bg: '#f3f4f6', 
+    color: '#374151', 
+    icon: '•' 
   }
 }
 
