@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../../lib/apiClient'
 import { fetchWithCsrf } from '../../../lib/csrfClient'
@@ -343,6 +343,46 @@ export function useAdminData() {
   }
 
   /**
+   * Enrich pending payouts with user data (name, email)
+   * Joins payouts with users based on userId
+   */
+  const enrichedPendingPayouts = useMemo(() => {
+    if (!pendingPayouts || pendingPayouts.length === 0) return []
+    if (!users || users.length === 0) return pendingPayouts
+    
+    // Create a lookup map for users by both numeric and string IDs
+    const userMap = new Map()
+    users.forEach(user => {
+      const userIdStr = user.id.toString()
+      userMap.set(userIdStr, user)
+      // Also map by numeric part (e.g., "USR-1025" -> "1025")
+      const numericMatch = userIdStr.match(/\d+$/)
+      if (numericMatch) {
+        userMap.set(numericMatch[0], user)
+      }
+    })
+    
+    return pendingPayouts.map(payout => {
+      const payoutUserId = payout.userId?.toString() || ''
+      // Try to find user by exact match or numeric part
+      let user = userMap.get(payoutUserId)
+      if (!user) {
+        const numericMatch = payoutUserId.match(/\d+$/)
+        if (numericMatch) {
+          user = userMap.get(numericMatch[0])
+        }
+      }
+      
+      return {
+        ...payout,
+        userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || `User #${payoutUserId}` : `User #${payoutUserId}`,
+        userEmail: user?.email || null,
+        bankConnected: user?.onboardingStatus?.bankConnected || false
+      }
+    })
+  }, [pendingPayouts, users])
+
+  /**
    * Process ACHQ payment for a pending payout transaction
    * @param {number} transactionId - The transaction ID to process
    * @returns {Promise<{success: boolean, error?: string}>}
@@ -376,7 +416,7 @@ export function useAdminData() {
     isLoading,
     withdrawals,
     isLoadingWithdrawals,
-    pendingPayouts,
+    pendingPayouts: enrichedPendingPayouts,
     isLoadingPayouts,
     processingPayoutId,
     activityEvents,
