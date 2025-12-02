@@ -54,35 +54,105 @@ function AdminPageContent() {
 
   // State for specific tab operations
   const [savingId, setSavingId] = useState(null)
-  const [accountsSearch, setAccountsSearch] = useState('')
   const [isDeletingAccounts, setIsDeletingAccounts] = useState(false)
   const [isSeedingAccounts, setIsSeedingAccounts] = useState(false)
   
+  // Initialize account filters from URL search params for persistence across navigation
+  const initialAccountsSearch = useMemo(() => searchParams?.get('search') || '', [searchParams])
+  const initialAccountFilters = useMemo(() => ({
+    hasInvestments: searchParams?.get('hasInvestments') || 'all',
+    investmentAmountMin: searchParams?.get('investmentAmountMin') || '',
+    investmentAmountMax: searchParams?.get('investmentAmountMax') || '',
+    investmentValueMin: searchParams?.get('investmentValueMin') || '',
+    investmentValueMax: searchParams?.get('investmentValueMax') || '',
+    createdDateStart: searchParams?.get('createdDateStart') || '',
+    createdDateEnd: searchParams?.get('createdDateEnd') || '',
+    numInvestmentsMin: searchParams?.get('numInvestmentsMin') || '',
+    numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
+    isVerified: searchParams?.get('isVerified') || 'all',
+    passwordSet: searchParams?.get('passwordSet') || 'all',
+    bankConnected: searchParams?.get('bankConnected') || 'all'
+  }), [searchParams])
+  const initialAccountsPage = useMemo(() => Number(searchParams?.get('page')) || 1, [searchParams])
+  
   // State for account filters
   const [showFilters, setShowFilters] = useState(false)
-  const [accountFilters, setAccountFilters] = useState({
-    hasInvestments: 'all', // 'all', 'with', 'without'
-    investmentAmountMin: '',
-    investmentAmountMax: '',
-    investmentValueMin: '',
-    investmentValueMax: '',
-    createdDateStart: '',
-    createdDateEnd: '',
-    numInvestmentsMin: '',
-    numInvestmentsMax: '',
-    isVerified: 'all',
-    passwordSet: 'all',
-    bankConnected: 'all'
-  })
+  const [accountsSearch, setAccountsSearch] = useState(initialAccountsSearch)
+  const [accountFilters, setAccountFilters] = useState(initialAccountFilters)
   
   // PERFORMANCE: Pagination for accounts view
-  const [accountsPage, setAccountsPage] = useState(1)
+  const [accountsPage, setAccountsPage] = useState(initialAccountsPage)
   const accountsPerPage = 20
 
   // Keep tab in sync with URL
   useEffect(() => {
     setActiveTab(initialTab)
   }, [initialTab])
+
+  // Sync account filters to URL when they change (for persistence across navigation)
+  useEffect(() => {
+    if (activeTab !== 'accounts') return
+    
+    const params = new URLSearchParams()
+    params.set('tab', 'accounts')
+    
+    // Only include non-default values to keep URL clean
+    if (accountsSearch) params.set('search', accountsSearch)
+    if (accountFilters.hasInvestments !== 'all') params.set('hasInvestments', accountFilters.hasInvestments)
+    if (accountFilters.investmentAmountMin) params.set('investmentAmountMin', accountFilters.investmentAmountMin)
+    if (accountFilters.investmentAmountMax) params.set('investmentAmountMax', accountFilters.investmentAmountMax)
+    if (accountFilters.investmentValueMin) params.set('investmentValueMin', accountFilters.investmentValueMin)
+    if (accountFilters.investmentValueMax) params.set('investmentValueMax', accountFilters.investmentValueMax)
+    if (accountFilters.createdDateStart) params.set('createdDateStart', accountFilters.createdDateStart)
+    if (accountFilters.createdDateEnd) params.set('createdDateEnd', accountFilters.createdDateEnd)
+    if (accountFilters.numInvestmentsMin) params.set('numInvestmentsMin', accountFilters.numInvestmentsMin)
+    if (accountFilters.numInvestmentsMax) params.set('numInvestmentsMax', accountFilters.numInvestmentsMax)
+    if (accountFilters.isVerified !== 'all') params.set('isVerified', accountFilters.isVerified)
+    if (accountFilters.passwordSet !== 'all') params.set('passwordSet', accountFilters.passwordSet)
+    if (accountFilters.bankConnected !== 'all') params.set('bankConnected', accountFilters.bankConnected)
+    if (accountsPage > 1) params.set('page', String(accountsPage))
+    
+    // Use replace to avoid polluting browser history with every filter change
+    router.replace(`/admin?${params.toString()}`, { scroll: false })
+  }, [activeTab, accountsSearch, accountFilters, accountsPage, router])
+
+  // Restore account filters from URL when searchParams change (handles browser back/forward)
+  useEffect(() => {
+    if (activeTab !== 'accounts') return
+    
+    // Get values from URL
+    const urlSearch = searchParams?.get('search') || ''
+    const urlPage = Number(searchParams?.get('page')) || 1
+    const urlFilters = {
+      hasInvestments: searchParams?.get('hasInvestments') || 'all',
+      investmentAmountMin: searchParams?.get('investmentAmountMin') || '',
+      investmentAmountMax: searchParams?.get('investmentAmountMax') || '',
+      investmentValueMin: searchParams?.get('investmentValueMin') || '',
+      investmentValueMax: searchParams?.get('investmentValueMax') || '',
+      createdDateStart: searchParams?.get('createdDateStart') || '',
+      createdDateEnd: searchParams?.get('createdDateEnd') || '',
+      numInvestmentsMin: searchParams?.get('numInvestmentsMin') || '',
+      numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
+      isVerified: searchParams?.get('isVerified') || 'all',
+      passwordSet: searchParams?.get('passwordSet') || 'all',
+      bankConnected: searchParams?.get('bankConnected') || 'all'
+    }
+    
+    // Only update state if URL values differ from current state (avoid infinite loops)
+    if (urlSearch !== accountsSearch) {
+      setAccountsSearch(urlSearch)
+    }
+    if (urlPage !== accountsPage) {
+      setAccountsPage(urlPage)
+    }
+    // Compare filters object
+    const filtersChanged = Object.keys(urlFilters).some(
+      key => urlFilters[key] !== accountFilters[key]
+    )
+    if (filtersChanged) {
+      setAccountFilters(urlFilters)
+    }
+  }, [searchParams, activeTab]) // Note: intentionally not including state in deps to avoid loops
 
   // Filter functions
   const nonAdminUsers = useMemo(() => 

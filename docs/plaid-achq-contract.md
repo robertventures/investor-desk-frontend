@@ -29,10 +29,8 @@ sequenceDiagram
     BE-->>FE: payment_method {status: ready}
 
     alt No Plaid or unsupported bank
-        FE->>BE: POST /api/payment-methods/manual {routing_number, account_number, account_type, ...}
-        BE->>ACHQ: Tokenize + start micro-deposits
-        BE-->>FE: payment_method {status: verification_pending}
-        FE->>BE: POST /api/payment-methods/:id/verify {amounts}
+        FE->>BE: POST /api/payment-methods/manual {routing_number, account_number, account_type, account_holder_type, verification_method}
+        BE->>ACHQ: Tokenize + real-time verification
         BE-->>FE: payment_method {status: ready}
     end
 
@@ -50,7 +48,7 @@ sequenceDiagram
 ### Diagram Notes (Backend Requirements)
 - Implement the endpoints exactly as named in this doc; return shapes as shown.
 - On `/api/plaid/link-success`: exchange `public_token`, create Plaid `processor_token` (achq), attach/create ACHQ bank, and enforce one-bank policy.
-- On `/api/payment-methods/manual`: validate ABA, tokenize with ACHQ, initiate micro-deposits, return `status: verification_pending`; verify via `/verify` to become `ready`.
+- On `/api/payment-methods/manual`: validate ABA, tokenize with ACHQ, perform real-time verification via ACHQ, return `status: ready` on success or error with `error_type` on failure.
 - On `/api/investments/:id/fund`: create an idempotent ACH debit at ACHQ and return a `funding` handle; FE will poll status until webhook-driven settlement.
 - Webhooks: verify ACHQ signature and map events to canonical statuses; only mark investment `active` on `settled`.
 - Idempotency: FE supplies `idempotency_key`; store and dedupe per user/action.
@@ -100,31 +98,52 @@ sequenceDiagram
      }
      ```
 
-### Fallback: Manual Entry → ACHQ Tokenization + Micro-Deposits
-1) FE allows entering routing/account numbers when a bank isn’t on Plaid
+### Fallback: Manual Entry → ACHQ Real-Time Verification
+1) FE allows entering routing/account numbers when a bank isn't on Plaid
    - POST `/api/payment-methods/manual`
    - Req:
      ```json
      {
-       "account_holder_name": "John Doe",
        "routing_number": "021000021",
        "account_number": "1234567890",
        "account_type": "checking",
-       "save_for_reuse": true,
+       "account_holder_type": "Personal",
+       "verification_method": "real_time",
        "idempotency_key": "uuid-v4"
      }
      ```
    - Backend actions:
-     - Validate routing number (ABA)
+     - Validate routing number (ABA checksum)
+     - Validate account number (4-17 digits)
      - Create ACHQ customer if needed
-     - Tokenize bank account at ACHQ and initiate micro-deposits
-     - Persist single active bank with `status: "verification_pending"` (replace previous)
-   - Res: `payment_method` with `status: "verification_pending"`
-
-2) Micro-deposit verification
-   - POST `/api/payment-methods/:id/verify`
-   - Req: `{ "amounts": [32, 45] }` (values in cents)
-   - Res: `payment_method` now `status: "ready"` on success
+     - Tokenize bank account at ACHQ with real-time verification
+     - Persist single active bank with `status: "ready"` (replace previous)
+   - Success Res (HTTP 200):
+     ```json
+     {
+       "payment_method": {
+         "id": "pm_abc123",
+         "status": "ready",
+         "type": "bank_ach",
+         "last4": "7890",
+         "account_type": "checking",
+         "verification_method": "real_time",
+         "verified_at": "2024-01-15T10:30:00Z"
+       }
+     }
+     ```
+   - Error Res (HTTP 400): Verification failed
+     ```json
+     {
+       "error_type": "invalid_account|ownership_failed|account_flagged|unsupported_account",
+       "message": "Human-readable error message"
+     }
+     ```
+   - Error Types:
+     - `invalid_account`: Routing or account number is incorrect
+     - `ownership_failed`: Name/SSN doesn't match bank records
+     - `account_flagged`: Account has negative history (fraud, etc.)
+     - `unsupported_account`: Account type can't be used for ACH
 
 ### Funding an Investment via ACH (≤ $100,000)
 1) FE submits investment then initiates funding

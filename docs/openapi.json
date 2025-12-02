@@ -2609,67 +2609,6 @@
         ]
       }
     },
-    "/api/payment-methods/{payment_method_id}/verify": {
-      "post": {
-        "tags": [
-          "payment-methods",
-          "payment-methods"
-        ],
-        "summary": "Payment-Methods:Verify-Micro-Deposits",
-        "operationId": "payment_methods_verify_micro_deposits_api_payment_methods__payment_method_id__verify_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "payment_method_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Payment method ID",
-              "title": "Payment Method Id"
-            },
-            "description": "Payment method ID"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyMicroDepositsRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VerifyMicroDepositsResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/payment-methods": {
       "get": {
         "tags": [
@@ -2731,57 +2670,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/payment-methods/{payment_method_id}/sandbox/micro-deposit-amount": {
-      "get": {
-        "tags": [
-          "payment-methods",
-          "payment-methods"
-        ],
-        "summary": "Payment-Methods:Sandbox-Get-Micro-Deposit-Amount",
-        "operationId": "payment_methods_sandbox_get_micro_deposit_amount_api_payment_methods__payment_method_id__sandbox_micro_deposit_amount_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "payment_method_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Payment method ID",
-              "title": "Payment Method Id"
-            },
-            "description": "Payment method ID"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MicroDepositAmountResponse"
                 }
               }
             }
@@ -4666,46 +4554,6 @@
         ],
         "title": "ManualEntryResponse"
       },
-      "MicroDepositAmountResponse": {
-        "properties": {
-          "amount_1": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Amount 1",
-            "description": "First micro-deposit amount in cents (only available in sandbox/test environments)",
-            "examples": [
-              32
-            ]
-          },
-          "amount_2": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Amount 2",
-            "description": "Second micro-deposit amount in cents (only available in sandbox/test environments)",
-            "examples": [
-              47
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "amount_1",
-          "amount_2"
-        ],
-        "title": "MicroDepositAmountResponse"
-      },
       "Page_AccreditationAttestationResponse_": {
         "properties": {
           "items": {
@@ -5175,7 +5023,6 @@
         "type": "string",
         "enum": [
           "ready",
-          "verification_pending",
           "verification_failed"
         ],
         "title": "PaymentMethodStatus"
@@ -6066,44 +5913,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "VerifyMicroDepositsRequest": {
-        "properties": {
-          "amount_1": {
-            "type": "integer",
-            "title": "Amount 1",
-            "description": "First micro-deposit amount in cents",
-            "examples": [
-              32
-            ]
-          },
-          "amount_2": {
-            "type": "integer",
-            "title": "Amount 2",
-            "description": "Second micro-deposit amount in cents",
-            "examples": [
-              47
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "amount_1",
-          "amount_2"
-        ],
-        "title": "VerifyMicroDepositsRequest"
-      },
-      "VerifyMicroDepositsResponse": {
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodResponse"
-          }
-        },
-        "type": "object",
-        "required": [
-          "payment_method"
-        ],
-        "title": "VerifyMicroDepositsResponse"
       },
       "WithdrawalDetailResponse": {
         "properties": {
