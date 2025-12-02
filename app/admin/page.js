@@ -71,7 +71,8 @@ function AdminPageContent() {
     numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
     isVerified: searchParams?.get('isVerified') || 'all',
     passwordSet: searchParams?.get('passwordSet') || 'all',
-    bankConnected: searchParams?.get('bankConnected') || 'all'
+    bankConnected: searchParams?.get('bankConnected') || 'all',
+    investmentType: searchParams?.get('investmentType') || 'all'
   }), [searchParams])
   const initialAccountsPage = useMemo(() => Number(searchParams?.get('page')) || 1, [searchParams])
   
@@ -110,6 +111,7 @@ function AdminPageContent() {
     if (accountFilters.isVerified !== 'all') params.set('isVerified', accountFilters.isVerified)
     if (accountFilters.passwordSet !== 'all') params.set('passwordSet', accountFilters.passwordSet)
     if (accountFilters.bankConnected !== 'all') params.set('bankConnected', accountFilters.bankConnected)
+    if (accountFilters.investmentType !== 'all') params.set('investmentType', accountFilters.investmentType)
     if (accountsPage > 1) params.set('page', String(accountsPage))
     
     // Use replace to avoid polluting browser history with every filter change
@@ -135,7 +137,8 @@ function AdminPageContent() {
       numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
       isVerified: searchParams?.get('isVerified') || 'all',
       passwordSet: searchParams?.get('passwordSet') || 'all',
-      bankConnected: searchParams?.get('bankConnected') || 'all'
+      bankConnected: searchParams?.get('bankConnected') || 'all',
+      investmentType: searchParams?.get('investmentType') || 'all'
     }
     
     // Only update state if URL values differ from current state (avoid infinite loops)
@@ -272,6 +275,16 @@ function AdminPageContent() {
       const isBankConnected = user.onboardingStatus?.bankConnected
       if (accountFilters.bankConnected === 'yes' && !isBankConnected) return false
       if (accountFilters.bankConnected === 'no' && isBankConnected) return false
+
+      // Filter by investment type (paymentFrequency)
+      if (accountFilters.investmentType !== 'all') {
+        const hasCompounding = activeInvestments.some(inv => inv.paymentFrequency === 'compounding')
+        const hasMonthly = activeInvestments.some(inv => inv.paymentFrequency === 'monthly')
+        
+        if (accountFilters.investmentType === 'compounding' && (!hasCompounding || hasMonthly)) return false
+        if (accountFilters.investmentType === 'monthly' && (!hasMonthly || hasCompounding)) return false
+        if (accountFilters.investmentType === 'both' && (!hasCompounding || !hasMonthly)) return false
+      }
       
       // Filter by created date (prefer displayCreatedAt, fallback to createdAt)
       const createdRaw = user.displayCreatedAt || user.createdAt || user.created_at
@@ -696,7 +709,8 @@ function AdminPageContent() {
                       accountFilters.createdDateStart || 
                       accountFilters.createdDateEnd || 
                       accountFilters.numInvestmentsMin || 
-                      accountFilters.numInvestmentsMax) && 
+                      accountFilters.numInvestmentsMax ||
+                      accountFilters.investmentType !== 'all') && 
                       <span className={styles.activeFilterBadge}>●</span>
                     }
                   </button>
@@ -725,7 +739,8 @@ function AdminPageContent() {
                                 numInvestmentsMax: '',
                                 isVerified: 'all',
                                 passwordSet: 'all',
-                                bankConnected: 'all'
+                                bankConnected: 'all',
+                                investmentType: 'all'
                               })
                             }}
                           >
@@ -782,6 +797,20 @@ function AdminPageContent() {
                             <option value="all">All Users</option>
                             <option value="yes">Bank Connected</option>
                             <option value="no">No Bank Connected</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.filterSection}>
+                          <label className={styles.filterLabel}>Investment Type</label>
+                          <select
+                            className={styles.filterSelect}
+                            value={accountFilters.investmentType}
+                            onChange={(e) => setAccountFilters({...accountFilters, investmentType: e.target.value})}
+                          >
+                            <option value="all">All Users</option>
+                            <option value="compounding">Compounding Only</option>
+                            <option value="monthly">Monthly Only</option>
+                            <option value="both">Both Types</option>
                           </select>
                         </div>
 
