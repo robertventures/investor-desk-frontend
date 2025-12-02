@@ -461,7 +461,11 @@ function AdminInvestmentDetailsContent() {
         headers['Authorization'] = `Bearer ${apiClient.accessToken}`
       }
       
-      const response = await fetch(`/api/admin/investments/${investment.id}/agreement`, {
+      // Extract numeric IDs (strip prefixes like "USR-" or "INV-")
+      const numericUserId = user.id.toString().replace(/\D/g, '')
+      const numericInvestmentId = investment.id.toString().replace(/\D/g, '')
+      
+      const response = await fetch(`/api/admin/users/${numericUserId}/view/investments/${numericInvestmentId}/agreement`, {
         method: 'GET',
         headers,
         credentials: 'include'
