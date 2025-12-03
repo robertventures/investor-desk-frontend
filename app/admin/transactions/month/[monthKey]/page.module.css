@@ -63,86 +63,98 @@
   margin: 0;
 }
 
-/* Tab Navigation */
-.tabNavigation {
-  display: flex;
-  gap: var(--space-2);
-  background: var(--color-surface);
-  padding: var(--space-2);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  overflow-x: auto;
+/* Filter Cards - Unified navigation and summary */
+.filterCards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
 }
 
-.tab {
+.filterCard {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-5);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-muted);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
-  position: relative;
+  text-align: center;
 }
 
-.tab:hover {
-  background: var(--color-muted-bg);
-  color: var(--color-text);
-  border-color: #9ca3af;
+.filterCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.tab.activeTab {
-  background: var(--color-primary, #0369a1);
-  color: white;
+.filterCardActive {
   border-color: var(--color-primary, #0369a1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.1);
 }
 
-/* Tab type-specific active states - removed colored backgrounds for consistency */
-.tab.tabInvestment.activeTab {
-  background: var(--color-primary, #0369a1);
-  color: white;
-  border-color: var(--color-primary, #0369a1);
+/* Type-specific filter card styles */
+.filterCardAll {
+  border-top: 3px solid #6b7280;
 }
 
-.tab.tabDistribution.activeTab {
-  background: var(--color-primary, #0369a1);
-  color: white;
-  border-color: var(--color-primary, #0369a1);
+.filterCardAll.filterCardActive {
+  border-color: #6b7280;
+  background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.15);
 }
 
-.tab.tabContribution.activeTab {
-  background: var(--color-primary, #0369a1);
-  color: white;
-  border-color: var(--color-primary, #0369a1);
+.filterCardInvestment {
+  border-top: 3px solid #059669;
 }
 
-.tabIcon {
-  font-size: var(--text-base);
+.filterCardInvestment.filterCardActive {
+  border-color: #059669;
+  background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
-.tabLabel {
-  font-weight: 600;
+.filterCardDistribution {
+  border-top: 3px solid #7c3aed;
 }
 
-.tabCount {
-  background: var(--color-muted-bg);
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: var(--text-xs);
+.filterCardDistribution.filterCardActive {
+  border-color: #7c3aed;
+  background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.filterCardContribution {
+  border-top: 3px solid #0369a1;
+}
+
+.filterCardContribution.filterCardActive {
+  border-color: #0369a1;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.15);
+}
+
+.filterCardIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.filterCardLabel {
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-muted);
 }
 
-.tab.activeTab .tabCount {
-  background: rgba(0, 0, 0, 0.1);
-  color: inherit;
+.filterCardAmount {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.filterCardCount {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
 }
 
 /* Tab Panel */
@@ -607,32 +619,20 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .tabNavigation {
-    gap: var(--space-1);
-    padding: var(--space-1);
+  .filterCards {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .tab {
-    padding: var(--space-2) var(--space-3);
-    font-size: var(--text-xs);
+  .filterCard {
+    padding: var(--space-4);
   }
 
-  .tabLabel {
-    display: none;
+  .filterCardIcon {
+    font-size: 1.5rem;
   }
 
-  .tabIcon {
-    font-size: var(--text-lg);
-  }
-
-  .summaryGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .tabSummaryCard {
-    flex-direction: column;
-    text-align: center;
-    gap: var(--space-3);
+  .filterCardAmount {
+    font-size: var(--text-xl);
   }
 
   .filtersContainer {
@@ -661,11 +661,11 @@
 }
 
 @media (max-width: 480px) {
-  .tab {
-    padding: var(--space-2);
+  .filterCards {
+    grid-template-columns: 1fr;
   }
 
-  .tabCount {
-    display: none;
+  .filterCardLabel {
+    font-size: var(--text-xs);
   }
 }

@@ -305,40 +305,6 @@ export default function MonthTransactionsPage() {
     }
   }
 
-  // Get tab-specific summary card content
-  const getTabSummary = () => {
-    switch (activeTab) {
-      case 'investment':
-        return {
-          icon: '💰',
-          label: 'Investments',
-          amount: summary.totalInvestments,
-          count: summary.investmentCount,
-          countLabel: 'investments'
-        }
-      case 'distribution':
-        return {
-          icon: '💸',
-          label: 'Distributions',
-          amount: summary.totalPayouts,
-          count: summary.payoutCount,
-          countLabel: 'distributions'
-        }
-      case 'contribution':
-        return {
-          icon: '📈',
-          label: 'Contributions',
-          amount: summary.totalCompounded,
-          count: summary.compoundedCount,
-          countLabel: 'contributions'
-        }
-      default:
-        return null
-    }
-  }
-
-  const tabSummary = getTabSummary()
-
   if (isLoading) {
     return (
       <div className={styles.main}>
@@ -369,83 +335,53 @@ export default function MonthTransactionsPage() {
 
           <div className={styles.titleRow}>
             <h1 className={styles.title}>{displayMonth}</h1>
-            <p className={styles.subtitle}>
-              {summary.totalCount} transaction{summary.totalCount !== 1 ? 's' : ''} • Total: {formatCurrency(summary.totalAll)}
-            </p>
           </div>
 
-          {/* Tab Navigation */}
-          <div className={styles.tabNavigation}>
+          {/* Filter Cards - Unified navigation and summary */}
+          <div className={styles.filterCards}>
             <button
-              className={`${styles.tab} ${activeTab === 'all' ? styles.activeTab : ''}`}
+              className={`${styles.filterCard} ${styles.filterCardAll} ${activeTab === 'all' ? styles.filterCardActive : ''}`}
               onClick={() => { setActiveTab('all'); setShowPendingOnly(false); }}
             >
-              <span className={styles.tabIcon}>📊</span>
-              <span className={styles.tabLabel}>All</span>
-              <span className={styles.tabCount}>{summary.totalCount}</span>
+              <div className={styles.filterCardIcon}>📊</div>
+              <div className={styles.filterCardLabel}>All</div>
+              <div className={styles.filterCardAmount}>{formatCurrency(summary.totalAll)}</div>
+              <div className={styles.filterCardCount}>{summary.totalCount} transactions</div>
             </button>
+
             <button
-              className={`${styles.tab} ${styles.tabInvestment} ${activeTab === 'investment' ? styles.activeTab : ''}`}
+              className={`${styles.filterCard} ${styles.filterCardInvestment} ${activeTab === 'investment' ? styles.filterCardActive : ''}`}
               onClick={() => { setActiveTab('investment'); setShowPendingOnly(false); }}
             >
-              <span className={styles.tabIcon}>💰</span>
-              <span className={styles.tabLabel}>Investments</span>
-              <span className={styles.tabCount}>{summary.investmentCount}</span>
+              <div className={styles.filterCardIcon}>💰</div>
+              <div className={styles.filterCardLabel}>Investments</div>
+              <div className={styles.filterCardAmount}>{formatCurrency(summary.totalInvestments)}</div>
+              <div className={styles.filterCardCount}>{summary.investmentCount} investments</div>
             </button>
+
             <button
-              className={`${styles.tab} ${styles.tabDistribution} ${activeTab === 'distribution' ? styles.activeTab : ''}`}
+              className={`${styles.filterCard} ${styles.filterCardDistribution} ${activeTab === 'distribution' ? styles.filterCardActive : ''}`}
               onClick={() => setActiveTab('distribution')}
             >
-              <span className={styles.tabIcon}>💸</span>
-              <span className={styles.tabLabel}>Distributions</span>
-              <span className={styles.tabCount}>{summary.payoutCount}</span>
+              <div className={styles.filterCardIcon}>💸</div>
+              <div className={styles.filterCardLabel}>Distributions</div>
+              <div className={styles.filterCardAmount}>{formatCurrency(summary.totalPayouts)}</div>
+              <div className={styles.filterCardCount}>{summary.payoutCount} distributions</div>
             </button>
+
             <button
-              className={`${styles.tab} ${styles.tabContribution} ${activeTab === 'contribution' ? styles.activeTab : ''}`}
+              className={`${styles.filterCard} ${styles.filterCardContribution} ${activeTab === 'contribution' ? styles.filterCardActive : ''}`}
               onClick={() => { setActiveTab('contribution'); setShowPendingOnly(false); }}
             >
-              <span className={styles.tabIcon}>📈</span>
-              <span className={styles.tabLabel}>Contributions</span>
-              <span className={styles.tabCount}>{summary.compoundedCount}</span>
+              <div className={styles.filterCardIcon}>📈</div>
+              <div className={styles.filterCardLabel}>Contributions</div>
+              <div className={styles.filterCardAmount}>{formatCurrency(summary.totalCompounded)}</div>
+              <div className={styles.filterCardCount}>{summary.compoundedCount} contributions</div>
             </button>
           </div>
 
           {/* Tab Panel */}
           <div className={styles.tabPanel}>
-            {/* Tab Summary Card - Only show for specific tabs */}
-            {tabSummary && (
-              <div className={`${styles.tabSummaryCard} ${styles[`tabSummary${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`]}`}>
-                <div className={styles.tabSummaryIcon}>{tabSummary.icon}</div>
-                <div className={styles.tabSummaryContent}>
-                  <div className={styles.tabSummaryLabel}>{tabSummary.label}</div>
-                  <div className={styles.tabSummaryAmount}>{formatCurrency(tabSummary.amount)}</div>
-                  <div className={styles.tabSummaryCount}>{tabSummary.count} {tabSummary.countLabel}</div>
-                </div>
-              </div>
-            )}
-
-            {/* All Tab - Summary Cards Grid */}
-            {activeTab === 'all' && (
-              <div className={styles.summaryGrid}>
-                <div className={`${styles.summaryCard} ${styles.summaryCardInvestment}`}>
-                  <div className={styles.summaryLabel}>💰 Investments</div>
-                  <div className={styles.summaryValue}>{formatCurrency(summary.totalInvestments)}</div>
-                  <div className={styles.summarySubtext}>{summary.investmentCount} investments</div>
-                </div>
-                
-                <div className={`${styles.summaryCard} ${styles.summaryCardDistribution}`}>
-                  <div className={styles.summaryLabel}>💸 Distributions</div>
-                  <div className={styles.summaryValue}>{formatCurrency(summary.totalPayouts)}</div>
-                  <div className={styles.summarySubtext}>{summary.payoutCount} distributions</div>
-                </div>
-                
-                <div className={`${styles.summaryCard} ${styles.summaryCardContribution}`}>
-                  <div className={styles.summaryLabel}>📈 Contributions</div>
-                  <div className={styles.summaryValue}>{formatCurrency(summary.totalCompounded)}</div>
-                  <div className={styles.summarySubtext}>{summary.compoundedCount} contributions</div>
-                </div>
-              </div>
-            )}
 
             {/* Search and Filters */}
             <div className={styles.filtersContainer}>
