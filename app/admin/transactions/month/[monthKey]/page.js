@@ -52,7 +52,20 @@ export default function MonthTransactionsPage() {
         
         // Process transactions
         if (transactionsData && transactionsData.success) {
-          setApiTransactions(transactionsData.transactions || [])
+          const txList = transactionsData.transactions || []
+          console.log('[MonthPage] Loaded transactions:', txList.length)
+          if (txList.length > 0) {
+            console.log('[MonthPage] Sample transaction:', JSON.stringify(txList[0]))
+            // Log transaction type distribution
+            const typeCounts = txList.reduce((acc, tx) => {
+              acc[tx.type || 'undefined'] = (acc[tx.type || 'undefined'] || 0) + 1
+              return acc
+            }, {})
+            console.log('[MonthPage] Transaction types:', typeCounts)
+          }
+          setApiTransactions(txList)
+        } else {
+          console.log('[MonthPage] Failed to load transactions:', transactionsData)
         }
         
         // Process users and investments
@@ -118,11 +131,13 @@ export default function MonthTransactionsPage() {
     const events = []
     
     // Add investments from users
+    let investmentCount = 0
     users.forEach(user => {
       const investments = Array.isArray(user.investments) ? user.investments : []
       investments.forEach(investment => {
         // Add investment as a transaction (only active investments)
         if (investment.status === 'active') {
+          investmentCount++
           const investmentDate = investment.confirmedAt || investment.createdAt
           events.push({
             id: `inv-${investment.id}`,
@@ -142,9 +157,13 @@ export default function MonthTransactionsPage() {
     })
     
     // Add distributions and contributions from API transactions
+    let distCount = 0, contribCount = 0, skippedCount = 0
     apiTransactions.forEach(tx => {
       const txType = tx.type
       if (txType === 'distribution' || txType === 'contribution') {
+        if (txType === 'distribution') distCount++
+        if (txType === 'contribution') contribCount++
+        
         // Find user info
         const userId = tx.userId?.toString() || ''
         let user = userMap.get(userId)
@@ -163,17 +182,24 @@ export default function MonthTransactionsPage() {
           userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : tx.userName || `User #${tx.userId}`,
           investmentId: tx.investmentId
         })
+      } else {
+        skippedCount++
       }
     })
+    
+    console.log(`[MonthPage] allTransactions: ${events.length} total (${investmentCount} investments, ${distCount} distributions, ${contribCount} contributions, ${skippedCount} skipped)`)
 
     return events
   }, [users, apiTransactions, userMap])
 
   // Filter transactions for the selected month
   const monthTransactions = useMemo(() => {
-    if (!monthKey) return []
+    if (!monthKey) {
+      console.log('[MonthPage] No monthKey provided')
+      return []
+    }
 
-    return allTransactions.filter(event => {
+    const filtered = allTransactions.filter(event => {
       if (!event.date) return false
       const date = new Date(event.date)
       // Use UTC methods to match how monthKey is generated in the main transactions page
@@ -182,6 +208,18 @@ export default function MonthTransactionsPage() {
       const eventMonthKey = `${year}-${month}`
       return eventMonthKey === monthKey
     })
+    
+    console.log(`[MonthPage] monthKey=${monthKey}, filtered ${filtered.length} from ${allTransactions.length} transactions`)
+    if (allTransactions.length > 0 && filtered.length === 0) {
+      // Log sample dates to debug
+      const sampleDates = allTransactions.slice(0, 5).map(e => {
+        const d = e.date ? new Date(e.date) : null
+        return d ? `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}` : 'no-date'
+      })
+      console.log('[MonthPage] Sample event monthKeys:', sampleDates)
+    }
+    
+    return filtered
   }, [allTransactions, monthKey])
 
   // Separate transactions by type
