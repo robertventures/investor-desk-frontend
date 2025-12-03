@@ -98,11 +98,6 @@ export default function MonthTransactionsPage() {
     fetchData()
   }, [])
 
-  // Get the current app time from time machine
-  const currentAppTime = timeMachineData?.appTime 
-    ? new Date(timeMachineData.appTime).getTime() 
-    : new Date().getTime()
-
   // Create user lookup map for enriching transactions
   const userMap = useMemo(() => {
     const map = new Map()
@@ -126,26 +121,22 @@ export default function MonthTransactionsPage() {
     users.forEach(user => {
       const investments = Array.isArray(user.investments) ? user.investments : []
       investments.forEach(investment => {
-        // Add investment as a transaction
+        // Add investment as a transaction (only active investments)
         if (investment.status === 'active') {
           const investmentDate = investment.confirmedAt || investment.createdAt
-          const investmentTime = investmentDate ? new Date(investmentDate).getTime() : 0
-          
-          if (investmentTime <= currentAppTime) {
-            events.push({
-              id: `inv-${investment.id}`,
-              type: 'investment',
-              amount: safeAmount(investment.amount),
-              date: investmentDate,
-              userId: user.id,
-              userEmail: user.email,
-              userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-              investmentId: investment.id,
-              lockupPeriod: investment.lockupPeriod,
-              paymentFrequency: investment.paymentFrequency,
-              status: investment.status
-            })
-          }
+          events.push({
+            id: `inv-${investment.id}`,
+            type: 'investment',
+            amount: safeAmount(investment.amount),
+            date: investmentDate,
+            userId: user.id,
+            userEmail: user.email,
+            userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+            investmentId: investment.id,
+            lockupPeriod: investment.lockupPeriod,
+            paymentFrequency: investment.paymentFrequency,
+            status: investment.status
+          })
         }
       })
     })
@@ -154,34 +145,29 @@ export default function MonthTransactionsPage() {
     apiTransactions.forEach(tx => {
       const txType = tx.type
       if (txType === 'distribution' || txType === 'contribution') {
-        const txDate = tx.date
-        const txTime = txDate ? new Date(txDate).getTime() : 0
-        
-        if (txTime <= currentAppTime) {
-          // Find user info
-          const userId = tx.userId?.toString() || ''
-          let user = userMap.get(userId)
-          if (!user) {
-            const numericMatch = userId.match(/\d+$/)
-            if (numericMatch) {
-              user = userMap.get(numericMatch[0])
-            }
+        // Find user info
+        const userId = tx.userId?.toString() || ''
+        let user = userMap.get(userId)
+        if (!user) {
+          const numericMatch = userId.match(/\d+$/)
+          if (numericMatch) {
+            user = userMap.get(numericMatch[0])
           }
-          
-          events.push({
-            ...tx,
-            amount: safeAmount(tx.amount),
-            userId: tx.userId,
-            userEmail: user?.email || tx.userEmail || null,
-            userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : tx.userName || `User #${tx.userId}`,
-            investmentId: tx.investmentId
-          })
         }
+        
+        events.push({
+          ...tx,
+          amount: safeAmount(tx.amount),
+          userId: tx.userId,
+          userEmail: user?.email || tx.userEmail || null,
+          userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : tx.userName || `User #${tx.userId}`,
+          investmentId: tx.investmentId
+        })
       }
     })
 
     return events
-  }, [users, apiTransactions, currentAppTime, userMap])
+  }, [users, apiTransactions, userMap])
 
   // Filter transactions for the selected month
   const monthTransactions = useMemo(() => {
