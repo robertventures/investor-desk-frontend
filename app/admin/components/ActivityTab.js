@@ -315,13 +315,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
                     <td className={styles.dateCell}>{date}</td>
                     <td className={styles.eventIdCell}>
                       {(event.type === 'investment' || event.type === 'distribution' || event.type === 'contribution' || event.type === 'monthly_distribution' || event.type === 'monthly_compounded') && event.id && !event.id.startsWith('inv-created') ? (
-                        <button
-                          className={styles.eventIdButton}
-                          onClick={() => router.push(`/admin/transactions/${event.id}`)}
-                          title="View transaction details"
-                        >
-                          <code>{event.id}</code>
-                        </button>
+                        <code>{event.id}</code>
                       ) : (
                         <span>{event.id.startsWith('inv-created') || event.id.startsWith('user-created') ? '-' : event.id}</span>
                       )}

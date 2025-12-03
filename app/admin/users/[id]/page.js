@@ -1883,21 +1883,7 @@ function AdminUserDetailsContent() {
                             <div>
                               <b>Event ID:</b>{' '}
                               {(event.type === 'investment' || event.type === 'distribution' || event.type === 'contribution') && event.id ? (
-                                <button
-                                  onClick={() => router.push(`/admin/transactions/${event.id}`)}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#0369a1',
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                    font: 'inherit'
-                                  }}
-                                  title="View transaction details"
-                                >
-                                  {event.id}
-                                </button>
+                                <span>{event.id}</span>
                               ) : (
                                 <span>{event.id}</span>
                               )}

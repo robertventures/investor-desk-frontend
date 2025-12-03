@@ -486,13 +486,7 @@ export default function MonthTransactionsPage() {
                           )}
                           <td className={styles.transactionIdCell}>
                             {event.id ? (
-                              <button
-                                className={styles.transactionIdButton}
-                                onClick={() => router.push(`/admin/transactions/${event.id}`)}
-                                title="View transaction details"
-                              >
-                                <code>{event.id}</code>
-                              </button>
+                              <code>{event.id}</code>
                             ) : (
                               <code>-</code>
                             )}
