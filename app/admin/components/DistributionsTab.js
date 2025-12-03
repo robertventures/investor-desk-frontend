@@ -132,11 +132,12 @@ export default function DistributionsTab({ users, timeMachineData }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allDistributions, searchTerm, filterType])
 
-  // Calculate summary statistics
+  // Calculate summary statistics from ALL distributions (not filtered)
+  // This ensures the summary cards always show accurate totals
   const summary = useMemo(() => {
-    const payouts = filteredDistributions.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
-    const compounded = filteredDistributions.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
-    const investments = filteredDistributions.filter(e => e.type === 'investment')
+    const payouts = allDistributions.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
+    const compounded = allDistributions.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
+    const investments = allDistributions.filter(e => e.type === 'investment')
     
     const totalPayouts = payouts.reduce((sum, e) => sum + safeAmount(e.amount), 0)
     const totalCompounded = compounded.reduce((sum, e) => sum + safeAmount(e.amount), 0)
@@ -151,9 +152,9 @@ export default function DistributionsTab({ users, timeMachineData }) {
       payoutCount: payouts.length,
       compoundedCount: compounded.length,
       investmentCount: investments.length,
-      totalCount: filteredDistributions.length
+      totalCount: allDistributions.length
     }
-  }, [filteredDistributions])
+  }, [allDistributions])
 
   // Group distributions by month
   const groupedByMonth = useMemo(() => {
@@ -238,41 +239,31 @@ export default function DistributionsTab({ users, timeMachineData }) {
 
   return (
     <div className={styles.distributionsTab}>
-      {/* Summary Cards */}
+      {/* Summary Cards - Always show all 4 cards */}
       <div className={styles.summaryGrid}>
-        {/* Total always shown */}
         <div className={styles.summaryCard}>
           <div className={styles.summaryLabel}>Total Transactions</div>
           <div className={styles.summaryValue}>{formatCurrency(summary.totalAll)}</div>
           <div className={styles.summarySubtext}>{summary.totalCount} transactions</div>
         </div>
         
-        {/* Show Investments card if filter is 'all' or 'investment' */}
-        {(filterType === 'all' || filterType === 'investment') && (
-          <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>💰 Investments</div>
-            <div className={styles.summaryValue}>{formatCurrency(summary.totalInvestments)}</div>
-            <div className={styles.summarySubtext}>{summary.investmentCount} investments</div>
-          </div>
-        )}
+        <div className={styles.summaryCard}>
+          <div className={styles.summaryLabel}>💰 Investments</div>
+          <div className={styles.summaryValue}>{formatCurrency(summary.totalInvestments)}</div>
+          <div className={styles.summarySubtext}>{summary.investmentCount} investments</div>
+        </div>
         
-        {/* Show Distributions card if filter is 'all' or 'distribution' */}
-        {(filterType === 'all' || filterType === 'distribution') && (
-          <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>💸 Distributions</div>
-            <div className={styles.summaryValue}>{formatCurrency(summary.totalPayouts)}</div>
-            <div className={styles.summarySubtext}>{summary.payoutCount} distributions</div>
-          </div>
-        )}
+        <div className={styles.summaryCard}>
+          <div className={styles.summaryLabel}>💸 Distributions</div>
+          <div className={styles.summaryValue}>{formatCurrency(summary.totalPayouts)}</div>
+          <div className={styles.summarySubtext}>{summary.payoutCount} distributions</div>
+        </div>
         
-        {/* Show Contributions card if filter is 'all' or 'contribution' */}
-        {(filterType === 'all' || filterType === 'contribution') && (
-          <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>📈 Contributions</div>
-            <div className={styles.summaryValue}>{formatCurrency(summary.totalCompounded)}</div>
-            <div className={styles.summarySubtext}>{summary.compoundedCount} contributions</div>
-          </div>
-        )}
+        <div className={styles.summaryCard}>
+          <div className={styles.summaryLabel}>📈 Contributions</div>
+          <div className={styles.summaryValue}>{formatCurrency(summary.totalCompounded)}</div>
+          <div className={styles.summarySubtext}>{summary.compoundedCount} contributions</div>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -350,22 +341,18 @@ export default function DistributionsTab({ users, timeMachineData }) {
                       <span className={styles.monthCount}>({monthGroup.events.length} transactions)</span>
                     </div>
                     <div className={styles.monthSummary}>
-                      <span className={styles.monthTotal}>Total: {formatCurrency(monthGroup.totalAmount)}</span>
-                      {monthGroup.investmentAmount > 0 && (
-                        <span className={styles.monthBreakdown}>
-                          💰 {formatCurrency(monthGroup.investmentAmount)}
-                        </span>
-                      )}
-                      {monthGroup.payoutAmount > 0 && (
-                        <span className={styles.monthBreakdown}>
-                          💸 {formatCurrency(monthGroup.payoutAmount)}
-                        </span>
-                      )}
-                      {monthGroup.compoundedAmount > 0 && (
-                        <span className={styles.monthBreakdown}>
-                          📈 {formatCurrency(monthGroup.compoundedAmount)}
-                        </span>
-                      )}
+                      <span className={styles.monthBreakdown}>
+                        <span className={styles.breakdownLabel}>Investments:</span>
+                        <span className={styles.breakdownValue}>{formatCurrency(monthGroup.investmentAmount)}</span>
+                      </span>
+                      <span className={styles.monthBreakdown}>
+                        <span className={styles.breakdownLabel}>Distributions:</span>
+                        <span className={styles.breakdownValue}>{formatCurrency(monthGroup.payoutAmount)}</span>
+                      </span>
+                      <span className={styles.monthBreakdown}>
+                        <span className={styles.breakdownLabel}>Contributions:</span>
+                        <span className={styles.breakdownValue}>{formatCurrency(monthGroup.compoundedAmount)}</span>
+                      </span>
                       <span className={styles.viewMonthIcon}>→</span>
                     </div>
                   </div>

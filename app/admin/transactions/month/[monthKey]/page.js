@@ -16,7 +16,7 @@ export default function MonthTransactionsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [timeMachineData, setTimeMachineData] = useState({ appTime: null, isActive: false })
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all')
+  const [activeTab, setActiveTab] = useState('all') // 'all', 'investment', 'distribution', 'contribution'
   const [showPendingOnly, setShowPendingOnly] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
@@ -157,26 +157,42 @@ export default function MonthTransactionsPage() {
     })
   }, [allTransactions, monthKey])
 
-  // Filter by search term and type
-  const filteredTransactions = useMemo(() => {
-    let filtered = monthTransactions
+  // Separate transactions by type
+  const investmentTransactions = useMemo(() => 
+    monthTransactions.filter(e => e.type === 'investment'),
+    [monthTransactions]
+  )
+  
+  const distributionTransactions = useMemo(() => 
+    monthTransactions.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution'),
+    [monthTransactions]
+  )
+  
+  const contributionTransactions = useMemo(() => 
+    monthTransactions.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded'),
+    [monthTransactions]
+  )
 
-    // Filter by type
-    if (filterType !== 'all') {
-      filtered = filtered.filter(event => {
-        // Group similar transaction types together
-        if (filterType === 'distribution') {
-          return event.type === 'distribution' || event.type === 'monthly_distribution'
-        }
-        if (filterType === 'contribution') {
-          return event.type === 'contribution' || event.type === 'monthly_compounded'
-        }
-        return event.type === filterType
-      })
+  // Get transactions for active tab
+  const getTabTransactions = () => {
+    switch (activeTab) {
+      case 'investment':
+        return investmentTransactions
+      case 'distribution':
+        return distributionTransactions
+      case 'contribution':
+        return contributionTransactions
+      default:
+        return monthTransactions
     }
+  }
 
-    // Filter by pending status
-    if (showPendingOnly) {
+  // Filter by search term and pending status
+  const filteredTransactions = useMemo(() => {
+    let filtered = getTabTransactions()
+
+    // Filter by pending status (only applicable for distributions)
+    if (showPendingOnly && activeTab === 'distribution') {
       filtered = filtered.filter(event => event.status === 'pending')
     }
 
@@ -187,9 +203,9 @@ export default function MonthTransactionsPage() {
         return (
           event.userName?.toLowerCase().includes(term) ||
           event.userEmail?.toLowerCase().includes(term) ||
-          event.userId?.toLowerCase().includes(term) ||
-          event.investmentId?.toLowerCase().includes(term) ||
-          event.id?.toLowerCase().includes(term)
+          event.userId?.toString().toLowerCase().includes(term) ||
+          event.investmentId?.toString().toLowerCase().includes(term) ||
+          event.id?.toString().toLowerCase().includes(term)
         )
       })
     }
@@ -202,27 +218,28 @@ export default function MonthTransactionsPage() {
     })
 
     return filtered
-  }, [monthTransactions, searchTerm, filterType, showPendingOnly])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthTransactions, searchTerm, activeTab, showPendingOnly, investmentTransactions, distributionTransactions, contributionTransactions])
 
-  // Calculate summary
+  // Calculate summary for each tab
   const summary = useMemo(() => {
-    const payouts = filteredTransactions.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
-    const compounded = filteredTransactions.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
-    const investments = filteredTransactions.filter(e => e.type === 'investment')
-    const pending = filteredTransactions.filter(e => e.status === 'pending')
+    const investments = investmentTransactions
+    const payouts = distributionTransactions
+    const compounded = contributionTransactions
+    const pending = payouts.filter(e => e.status === 'pending')
     
     return {
-      totalAll: filteredTransactions.reduce((sum, e) => sum + (e.amount || 0), 0),
+      totalAll: monthTransactions.reduce((sum, e) => sum + (e.amount || 0), 0),
       totalPayouts: payouts.reduce((sum, e) => sum + (e.amount || 0), 0),
       totalCompounded: compounded.reduce((sum, e) => sum + (e.amount || 0), 0),
       totalInvestments: investments.reduce((sum, e) => sum + (e.amount || 0), 0),
       payoutCount: payouts.length,
       compoundedCount: compounded.length,
       investmentCount: investments.length,
-      totalCount: filteredTransactions.length,
+      totalCount: monthTransactions.length,
       pendingCount: pending.length
     }
-  }, [filteredTransactions])
+  }, [monthTransactions, investmentTransactions, distributionTransactions, contributionTransactions])
 
   // Get display month name
   const displayMonth = useMemo(() => {
@@ -259,7 +276,7 @@ export default function MonthTransactionsPage() {
 
   // Process all pending payouts
   const handleApproveAllPending = async () => {
-    const pendingTransactions = filteredTransactions.filter(tx => tx.status === 'pending')
+    const pendingTransactions = distributionTransactions.filter(tx => tx.status === 'pending')
     
     if (pendingTransactions.length === 0) {
       alert('No pending transactions to process')
@@ -310,6 +327,40 @@ export default function MonthTransactionsPage() {
     }
   }
 
+  // Get tab-specific summary card content
+  const getTabSummary = () => {
+    switch (activeTab) {
+      case 'investment':
+        return {
+          icon: '💰',
+          label: 'Investments',
+          amount: summary.totalInvestments,
+          count: summary.investmentCount,
+          countLabel: 'investments'
+        }
+      case 'distribution':
+        return {
+          icon: '💸',
+          label: 'Distributions',
+          amount: summary.totalPayouts,
+          count: summary.payoutCount,
+          countLabel: 'distributions'
+        }
+      case 'contribution':
+        return {
+          icon: '📈',
+          label: 'Contributions',
+          amount: summary.totalCompounded,
+          count: summary.compoundedCount,
+          countLabel: 'contributions'
+        }
+      default:
+        return null
+    }
+  }
+
+  const tabSummary = getTabSummary()
+
   if (isLoading) {
     return (
       <div className={styles.main}>
@@ -345,204 +396,233 @@ export default function MonthTransactionsPage() {
             </p>
           </div>
 
-          {/* Summary Cards */}
-          <div className={styles.summaryGrid}>
-            {(filterType === 'all' || filterType === 'investment') && (
-              <div className={styles.summaryCard}>
-                <div className={styles.summaryLabel}>💰 Investments</div>
-                <div className={styles.summaryValue}>{formatCurrency(summary.totalInvestments)}</div>
-                <div className={styles.summarySubtext}>{summary.investmentCount} investments</div>
-              </div>
-            )}
-            
-            {(filterType === 'all' || filterType === 'distribution') && (
-              <div className={styles.summaryCard}>
-                <div className={styles.summaryLabel}>💸 Distributions</div>
-                <div className={styles.summaryValue}>{formatCurrency(summary.totalPayouts)}</div>
-                <div className={styles.summarySubtext}>{summary.payoutCount} distributions</div>
-              </div>
-            )}
-            
-            {(filterType === 'all' || filterType === 'contribution') && (
-              <div className={styles.summaryCard}>
-                <div className={styles.summaryLabel}>📈 Contributions</div>
-                <div className={styles.summaryValue}>{formatCurrency(summary.totalCompounded)}</div>
-                <div className={styles.summarySubtext}>{summary.compoundedCount} contributions</div>
-              </div>
-            )}
+          {/* Tab Navigation */}
+          <div className={styles.tabNavigation}>
+            <button
+              className={`${styles.tab} ${activeTab === 'all' ? styles.activeTab : ''}`}
+              onClick={() => { setActiveTab('all'); setShowPendingOnly(false); }}
+            >
+              <span className={styles.tabIcon}>📊</span>
+              <span className={styles.tabLabel}>All</span>
+              <span className={styles.tabCount}>{summary.totalCount}</span>
+            </button>
+            <button
+              className={`${styles.tab} ${styles.tabInvestment} ${activeTab === 'investment' ? styles.activeTab : ''}`}
+              onClick={() => { setActiveTab('investment'); setShowPendingOnly(false); }}
+            >
+              <span className={styles.tabIcon}>💰</span>
+              <span className={styles.tabLabel}>Investments</span>
+              <span className={styles.tabCount}>{summary.investmentCount}</span>
+            </button>
+            <button
+              className={`${styles.tab} ${styles.tabDistribution} ${activeTab === 'distribution' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('distribution')}
+            >
+              <span className={styles.tabIcon}>💸</span>
+              <span className={styles.tabLabel}>Distributions</span>
+              <span className={styles.tabCount}>{summary.payoutCount}</span>
+            </button>
+            <button
+              className={`${styles.tab} ${styles.tabContribution} ${activeTab === 'contribution' ? styles.activeTab : ''}`}
+              onClick={() => { setActiveTab('contribution'); setShowPendingOnly(false); }}
+            >
+              <span className={styles.tabIcon}>📈</span>
+              <span className={styles.tabLabel}>Contributions</span>
+              <span className={styles.tabCount}>{summary.compoundedCount}</span>
+            </button>
           </div>
 
-          {/* Filters and Search */}
-          <div className={styles.filtersContainer}>
-            <div className={styles.filterButtons}>
-              <button
-                className={`${styles.filterButton} ${filterType === 'all' ? styles.active : ''}`}
-                onClick={() => setFilterType('all')}
-              >
-                All Transactions
-              </button>
-              <button
-                className={`${styles.filterButton} ${filterType === 'investment' ? styles.active : ''}`}
-                onClick={() => setFilterType('investment')}
-              >
-                💰 Investments
-              </button>
-              <button
-                className={`${styles.filterButton} ${filterType === 'distribution' ? styles.active : ''}`}
-                onClick={() => setFilterType('distribution')}
-              >
-                💸 Distributions
-              </button>
-              <button
-                className={`${styles.filterButton} ${filterType === 'contribution' ? styles.active : ''}`}
-                onClick={() => setFilterType('contribution')}
-              >
-                📈 Contributions
-              </button>
-              <button
-                className={`${styles.filterButton} ${showPendingOnly ? styles.active : ''}`}
-                onClick={() => setShowPendingOnly(!showPendingOnly)}
-              >
-                ⏳ Pending Only
-              </button>
-            </div>
+          {/* Tab Panel */}
+          <div className={styles.tabPanel}>
+            {/* Tab Summary Card - Only show for specific tabs */}
+            {tabSummary && (
+              <div className={`${styles.tabSummaryCard} ${styles[`tabSummary${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`]}`}>
+                <div className={styles.tabSummaryIcon}>{tabSummary.icon}</div>
+                <div className={styles.tabSummaryContent}>
+                  <div className={styles.tabSummaryLabel}>{tabSummary.label}</div>
+                  <div className={styles.tabSummaryAmount}>{formatCurrency(tabSummary.amount)}</div>
+                  <div className={styles.tabSummaryCount}>{tabSummary.count} {tabSummary.countLabel}</div>
+                </div>
+              </div>
+            )}
 
-            <div className={styles.searchContainer}>
-              <input
-                type="text"
-                placeholder="Search by user, email, transaction ID, investment ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={styles.searchInput}
-              />
-              {searchTerm && (
-                <button 
-                  className={styles.clearButton} 
-                  onClick={() => setSearchTerm('')}
-                  aria-label="Clear search"
+            {/* All Tab - Summary Cards Grid */}
+            {activeTab === 'all' && (
+              <div className={styles.summaryGrid}>
+                <div className={`${styles.summaryCard} ${styles.summaryCardInvestment}`}>
+                  <div className={styles.summaryLabel}>💰 Investments</div>
+                  <div className={styles.summaryValue}>{formatCurrency(summary.totalInvestments)}</div>
+                  <div className={styles.summarySubtext}>{summary.investmentCount} investments</div>
+                </div>
+                
+                <div className={`${styles.summaryCard} ${styles.summaryCardDistribution}`}>
+                  <div className={styles.summaryLabel}>💸 Distributions</div>
+                  <div className={styles.summaryValue}>{formatCurrency(summary.totalPayouts)}</div>
+                  <div className={styles.summarySubtext}>{summary.payoutCount} distributions</div>
+                </div>
+                
+                <div className={`${styles.summaryCard} ${styles.summaryCardContribution}`}>
+                  <div className={styles.summaryLabel}>📈 Contributions</div>
+                  <div className={styles.summaryValue}>{formatCurrency(summary.totalCompounded)}</div>
+                  <div className={styles.summarySubtext}>{summary.compoundedCount} contributions</div>
+                </div>
+              </div>
+            )}
+
+            {/* Search and Filters */}
+            <div className={styles.filtersContainer}>
+              <div className={styles.searchContainer}>
+                <input
+                  type="text"
+                  placeholder="Search by user, email, transaction ID, investment ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={styles.searchInput}
+                />
+                {searchTerm && (
+                  <button 
+                    className={styles.clearButton} 
+                    onClick={() => setSearchTerm('')}
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Pending Only filter - Only for distributions tab */}
+              {activeTab === 'distribution' && summary.pendingCount > 0 && (
+                <button
+                  className={`${styles.pendingFilter} ${showPendingOnly ? styles.active : ''}`}
+                  onClick={() => setShowPendingOnly(!showPendingOnly)}
                 >
-                  ✕
+                  ⏳ Pending Only ({summary.pendingCount})
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Approve All Button */}
-          {showPendingOnly && summary.pendingCount > 0 && (
-            <div className={styles.approveAllContainer}>
-              <button
-                className={styles.approveAllButton}
-                onClick={handleApproveAllPending}
-                disabled={isProcessing}
-              >
-                {isProcessing 
-                  ? 'Processing...' 
-                  : `✓ Approve & Process ${summary.pendingCount} Pending Payout${summary.pendingCount !== 1 ? 's' : ''}`
-                }
-              </button>
-            </div>
-          )}
-
-          {/* Transactions Table */}
-          {filteredTransactions.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>📊</div>
-              <div className={styles.emptyTitle}>No transactions found</div>
-              <div className={styles.emptyText}>
-                {searchTerm ? `No transactions found matching "${searchTerm}"` : 'No transactions for this month'}
+            {/* Approve All Button - Only for distributions with pending */}
+            {activeTab === 'distribution' && showPendingOnly && summary.pendingCount > 0 && (
+              <div className={styles.approveAllContainer}>
+                <button
+                  className={styles.approveAllButton}
+                  onClick={handleApproveAllPending}
+                  disabled={isProcessing}
+                >
+                  {isProcessing 
+                    ? 'Processing...' 
+                    : `✓ Approve & Process ${summary.pendingCount} Pending Payout${summary.pendingCount !== 1 ? 's' : ''}`
+                  }
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className={styles.tableContainer}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Transaction ID</th>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Investment ID</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTransactions.map(event => {
-                    const dateValue = event.displayDate || event.date
-                    const date = dateValue ? new Date(dateValue).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      timeZone: 'America/New_York'
-                    }) : '-'
-                    
-                    return (
-                      <tr key={event.id} className={styles.eventRow}>
-                        <td>
-                          <div className={styles.eventTypeCell}>
-                            <span 
-                              className={styles.eventIcon} 
-                              style={{ color: getEventColor(event.type) }}
-                            >
-                              {getEventIcon(event.type)}
-                            </span>
-                            <span className={styles.eventLabel}>{getEventTitle(event.type)}</span>
-                          </div>
-                        </td>
-                        <td className={styles.transactionIdCell}>
-                          {event.id ? (
-                            <button
-                              className={styles.transactionIdButton}
-                              onClick={() => router.push(`/admin/transactions/${event.id}`)}
-                              title="View transaction details"
-                            >
-                              <code>{event.id}</code>
-                            </button>
-                          ) : (
-                            <code>-</code>
+            )}
+
+            {/* Transactions Table */}
+            {filteredTransactions.length === 0 ? (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>
+                  {activeTab === 'investment' ? '💰' : activeTab === 'distribution' ? '💸' : activeTab === 'contribution' ? '📈' : '📊'}
+                </div>
+                <div className={styles.emptyTitle}>No {activeTab === 'all' ? 'transactions' : `${activeTab}s`} found</div>
+                <div className={styles.emptyText}>
+                  {searchTerm 
+                    ? `No ${activeTab === 'all' ? 'transactions' : `${activeTab}s`} found matching "${searchTerm}"` 
+                    : `No ${activeTab === 'all' ? 'transactions' : `${activeTab}s`} for this month`}
+                </div>
+              </div>
+            ) : (
+              <div className={styles.tableContainer}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      {activeTab === 'all' && <th>Type</th>}
+                      <th>Transaction ID</th>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Investment ID</th>
+                      <th>Amount</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.map(event => {
+                      const dateValue = event.displayDate || event.date
+                      const date = dateValue ? new Date(dateValue).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        timeZone: 'America/New_York'
+                      }) : '-'
+                      
+                      return (
+                        <tr key={event.id} className={styles.eventRow}>
+                          {activeTab === 'all' && (
+                            <td>
+                              <div className={styles.eventTypeCell}>
+                                <span 
+                                  className={styles.eventIcon} 
+                                  style={{ color: getEventColor(event.type) }}
+                                >
+                                  {getEventIcon(event.type)}
+                                </span>
+                                <span className={styles.eventLabel}>{getEventTitle(event.type)}</span>
+                              </div>
+                            </td>
                           )}
-                        </td>
-                        <td>
-                          <button
-                            className={styles.linkButton}
-                            onClick={() => router.push(`/admin/users/${event.userId}`)}
-                          >
-                            {event.userName}
-                          </button>
-                        </td>
-                        <td className={styles.emailCell}>{event.userEmail}</td>
-                        <td>
-                          {event.investmentId ? (
+                          <td className={styles.transactionIdCell}>
+                            {event.id ? (
+                              <button
+                                className={styles.transactionIdButton}
+                                onClick={() => router.push(`/admin/transactions/${event.id}`)}
+                                title="View transaction details"
+                              >
+                                <code>{event.id}</code>
+                              </button>
+                            ) : (
+                              <code>-</code>
+                            )}
+                          </td>
+                          <td>
                             <button
                               className={styles.linkButton}
-                              onClick={() => router.push(`/admin/investments/${event.investmentId}`)}
+                              onClick={() => router.push(`/admin/users/${event.userId}`)}
                             >
-                              {event.investmentId}
+                              {event.userName}
                             </button>
-                          ) : (
-                            <span className={styles.naText}>-</span>
-                          )}
-                        </td>
-                        <td>
-                          <strong className={styles.amount}>{formatCurrency(event.amount)}</strong>
-                        </td>
-                        <td className={styles.dateCell}>{date}</td>
-                        <td>
-                          <span className={styles.statusBadge} data-status={event.status || 'received'}>
-                            {event.status || 'Received'}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                          </td>
+                          <td className={styles.emailCell}>{event.userEmail}</td>
+                          <td>
+                            {event.investmentId ? (
+                              <button
+                                className={styles.linkButton}
+                                onClick={() => router.push(`/admin/investments/${event.investmentId}`)}
+                              >
+                                {event.investmentId}
+                              </button>
+                            ) : (
+                              <span className={styles.naText}>-</span>
+                            )}
+                          </td>
+                          <td>
+                            <strong className={styles.amount}>{formatCurrency(event.amount)}</strong>
+                          </td>
+                          <td className={styles.dateCell}>{date}</td>
+                          <td>
+                            <span className={styles.statusBadge} data-status={event.status || 'received'}>
+                              {event.status || 'Received'}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   )
 }
-
