@@ -160,9 +160,9 @@ export default function MonthTransactionsPage() {
     let distCount = 0, contribCount = 0, skippedCount = 0
     apiTransactions.forEach(tx => {
       const txType = tx.type
-      if (txType === 'distribution' || txType === 'contribution') {
-        if (txType === 'distribution') distCount++
-        if (txType === 'contribution') contribCount++
+      if (txType === 'distribution' || txType === 'contribution' || txType === 'monthly_distribution' || txType === 'monthly_compounded') {
+        if (txType === 'distribution' || txType === 'monthly_distribution') distCount++
+        if (txType === 'contribution' || txType === 'monthly_compounded') contribCount++
         
         // Find user info
         const userId = tx.userId?.toString() || ''

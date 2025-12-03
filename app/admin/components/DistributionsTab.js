@@ -71,7 +71,7 @@ export default function DistributionsTab({ users, timeMachineData, allTransactio
     // Add distributions and contributions from API transactions
     allTransactions.forEach(tx => {
       const txType = tx.type
-      if (txType === 'distribution' || txType === 'contribution') {
+      if (txType === 'distribution' || txType === 'contribution' || txType === 'monthly_distribution' || txType === 'monthly_compounded') {
         // Find user info
         const userId = tx.userId?.toString() || ''
         let user = userMap.get(userId)
