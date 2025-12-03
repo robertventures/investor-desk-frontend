@@ -232,6 +232,7 @@ function AdminInvestmentDetailsContent() {
                 id: event.id,
                 type: event.activity_type || event.type || event.activityType,
                 amount: amount,
+                eventDate: event.event_date || event.eventDate,  // Business date for sorting
                 date: event.created_at || event.createdAt || event.date,
                 displayDate: event.display_date || event.displayDate || event.transaction?.transaction_date,
                 status: status,
@@ -923,9 +924,9 @@ function AdminInvestmentDetailsContent() {
                   <tbody>
                     {investment.transactions
                       .sort((a, b) => {
-                        // Sort by actual date to maintain chronological order (distribution before contribution)
-                        const dateA = a.date ? new Date(a.date).getTime() : 0
-                        const dateB = b.date ? new Date(b.date).getTime() : 0
+                        // Sort by event/business date (most recent first)
+                        const dateA = new Date(a.eventDate || a.displayDate || a.date || 0).getTime()
+                        const dateB = new Date(b.eventDate || b.displayDate || b.date || 0).getTime()
                         return dateB - dateA
                       })
                       .map(event => {
