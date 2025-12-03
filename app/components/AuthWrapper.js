@@ -1,10 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { initCsrfToken } from '../../lib/csrfClient'
 import { apiClient } from '../../lib/apiClient'
 import logger from '../../lib/logger'
 import { UserProvider } from '../contexts/UserContext'
+import { useTokenRefresh } from '../../lib/hooks/useTokenRefresh'
 
 export default function AuthWrapper({ children }) {
   const router = useRouter()
@@ -21,6 +22,19 @@ export default function AuthWrapper({ children }) {
   // Check if current route is public
   const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/password-change')
   const isOnboardingRoute = noOnboardingCheckRoutes.includes(pathname)
+
+  // Handle token refresh failure by logging out and redirecting to sign-in
+  const handleRefreshFailure = useCallback(() => {
+    logger.warn('[AuthWrapper] Token refresh failed, logging out')
+    apiClient.clearTokens()
+    localStorage.removeItem('currentUserId')
+    localStorage.removeItem('signupEmail')
+    setIsAuthenticated(false)
+    router.push('/sign-in')
+  }, [router])
+
+  // Activity-based token refresh (only active when authenticated)
+  useTokenRefresh(isAuthenticated, handleRefreshFailure)
 
   useEffect(() => {
     // Initialize CSRF token on app load
