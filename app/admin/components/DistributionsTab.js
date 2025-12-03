@@ -17,7 +17,7 @@ function safeAmount(amount) {
 /**
  * Transactions tab showing all transactions: investments, monthly payments and compounding calculations
  */
-export default function DistributionsTab({ users, timeMachineData }) {
+export default function DistributionsTab({ users, timeMachineData, allTransactions = [] }) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all') // 'all', 'distribution', 'contribution', 'investment'
@@ -30,10 +30,26 @@ export default function DistributionsTab({ users, timeMachineData }) {
     ? new Date(timeMachineData.appTime).getTime() 
     : new Date().getTime()
 
-  // Collect all transaction events from all users (investments + distributions + contributions)
+  // Create user lookup map for enriching transactions
+  const userMap = useMemo(() => {
+    const map = new Map()
+    users.forEach(user => {
+      const userIdStr = user.id.toString()
+      map.set(userIdStr, user)
+      // Also map by numeric part (e.g., "USR-1025" -> "1025")
+      const numericMatch = userIdStr.match(/\d+$/)
+      if (numericMatch) {
+        map.set(numericMatch[0], user)
+      }
+    })
+    return map
+  }, [users])
+
+  // Collect all transaction events (investments from users + distributions/contributions from API)
   const allDistributions = useMemo(() => {
     const events = []
     
+    // Add investments from users
     users.forEach(user => {
       const investments = Array.isArray(user.investments) ? user.investments : []
       investments.forEach(investment => {
@@ -47,7 +63,7 @@ export default function DistributionsTab({ users, timeMachineData }) {
             events.push({
               id: `inv-${investment.id}`,
               type: 'investment',
-              amount: investment.amount,
+              amount: safeAmount(investment.amount),
               date: investmentDate,
               userId: user.id,
               userEmail: user.email,
@@ -59,31 +75,38 @@ export default function DistributionsTab({ users, timeMachineData }) {
             })
           }
         }
+      })
+    })
+    
+    // Add distributions and contributions from API transactions
+    allTransactions.forEach(tx => {
+      const txType = tx.type
+      if (txType === 'distribution' || txType === 'contribution') {
+        const txDate = tx.date
+        const txTime = txDate ? new Date(txDate).getTime() : 0
         
-        // Add distribution and contribution transactions
-        const transactions = Array.isArray(investment.transactions) ? investment.transactions : []
-        transactions.forEach(tx => {
-          if (tx.type === 'distribution' || tx.type === 'contribution' || tx.type === 'monthly_distribution' || tx.type === 'monthly_compounded') {
-            const txDate = tx.date
-            const txTime = txDate ? new Date(txDate).getTime() : 0
-            
-            // Only include if transaction date is at or before current app time
-            if (txTime <= currentAppTime) {
-              events.push({
-                ...tx,
-                // Extract metadata fields if they exist in JSONB
-                monthIndex: tx.monthIndex || tx.metadata?.monthIndex,
-                lockupPeriod: tx.lockupPeriod || tx.metadata?.lockupPeriod || investment.lockupPeriod,
-                paymentFrequency: tx.paymentFrequency || tx.metadata?.paymentFrequency || investment.paymentFrequency,
-                userId: user.id,
-                userEmail: user.email,
-                userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-                investmentId: investment.id
-              })
+        // Only include if transaction date is at or before current app time
+        if (txTime <= currentAppTime) {
+          // Find user info
+          const userId = tx.userId?.toString() || ''
+          let user = userMap.get(userId)
+          if (!user) {
+            const numericMatch = userId.match(/\d+$/)
+            if (numericMatch) {
+              user = userMap.get(numericMatch[0])
             }
           }
-        })
-      })
+          
+          events.push({
+            ...tx,
+            amount: safeAmount(tx.amount),
+            userId: tx.userId,
+            userEmail: user?.email || tx.userEmail || null,
+            userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : tx.userName || `User #${tx.userId}`,
+            investmentId: tx.investmentId
+          })
+        }
+      }
     })
 
     // Sort by date (most recent first)
@@ -94,7 +117,7 @@ export default function DistributionsTab({ users, timeMachineData }) {
     })
 
     return events
-  }, [users, currentAppTime])
+  }, [users, allTransactions, currentAppTime, userMap])
 
   // Filter distributions based on search term and filter type
   const filteredDistributions = useMemo(() => {

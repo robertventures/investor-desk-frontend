@@ -10,6 +10,7 @@ const CACHE_KEY_USERS = 'admin_users_cache'
 const CACHE_KEY_WITHDRAWALS = 'admin_withdrawals_cache'
 const CACHE_KEY_PAYOUTS = 'admin_payouts_cache'
 const CACHE_KEY_ACTIVITY = 'admin_activity_cache'
+const CACHE_KEY_TRANSACTIONS = 'admin_transactions_cache'
 
 /**
  * Custom hook to manage all admin data fetching and state with intelligent caching
@@ -27,6 +28,8 @@ export function useAdminData() {
   const [processingPayoutId, setProcessingPayoutId] = useState(null)
   const [activityEvents, setActivityEvents] = useState([])
   const [isLoadingActivity, setIsLoadingActivity] = useState(false)
+  const [allTransactions, setAllTransactions] = useState([])
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false)
   const [timeMachineData, setTimeMachineData] = useState({ 
     appTime: null, 
     isActive: false,
@@ -129,6 +132,7 @@ export function useAdminData() {
           loadWithdrawals(),
           loadPendingPayouts(),
           loadActivityEvents(),
+          loadAllTransactions(),
           loadTimeMachine()
         ])
       } catch (e) {
@@ -318,6 +322,37 @@ export function useAdminData() {
     }
   }
 
+  const loadAllTransactions = async (forceRefresh = false) => {
+    try {
+      // Check cache first unless forcing refresh
+      if (!forceRefresh) {
+        const cached = getCachedData(CACHE_KEY_TRANSACTIONS)
+        if (cached) {
+          logger.log('📦 Using cached transactions data')
+          setAllTransactions(cached)
+          return
+        }
+      }
+      
+      if (forceRefresh) {
+        clearCache(CACHE_KEY_TRANSACTIONS)
+      }
+      
+      setIsLoadingTransactions(true)
+      const data = await apiClient.getAllTransactions()
+      if (data && data.success) {
+        const transactions = data.transactions || []
+        logger.log(`✓ Loaded ${transactions.length} transactions`)
+        setAllTransactions(transactions)
+        setCachedData(CACHE_KEY_TRANSACTIONS, transactions)
+      }
+    } catch (e) {
+      logger.error('Failed to load transactions', e)
+    } finally {
+      setIsLoadingTransactions(false)
+    }
+  }
+
   const loadTimeMachine = async () => {
     try {
       const timeData = await apiClient.getAppTime()
@@ -340,6 +375,7 @@ export function useAdminData() {
     clearCache(CACHE_KEY_WITHDRAWALS)
     clearCache(CACHE_KEY_PAYOUTS)
     clearCache(CACHE_KEY_ACTIVITY)
+    clearCache(CACHE_KEY_TRANSACTIONS)
   }
 
   /**
@@ -421,12 +457,15 @@ export function useAdminData() {
     processingPayoutId,
     activityEvents,
     isLoadingActivity,
+    allTransactions,
+    isLoadingTransactions,
     timeMachineData,
     setTimeMachineData,
     refreshUsers: loadUsers,
     refreshWithdrawals: loadWithdrawals,
     refreshPayouts: loadPendingPayouts,
     refreshActivity: loadActivityEvents,
+    refreshTransactions: loadAllTransactions,
     refreshTimeMachine: loadTimeMachine,
     processAchqPayment
   }

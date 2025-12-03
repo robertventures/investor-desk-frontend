@@ -7,12 +7,22 @@ import AdminHeader from '../../../../components/AdminHeader'
 import styles from './page.module.css'
 import { formatCurrency } from '../../../../../lib/formatters.js'
 
+/**
+ * Helper function to safely convert amount to number
+ */
+function safeAmount(amount) {
+  if (amount === null || amount === undefined) return 0
+  const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount)
+  return isNaN(num) ? 0 : num
+}
+
 export default function MonthTransactionsPage() {
   const router = useRouter()
   const params = useParams()
   const monthKey = params?.monthKey
   
   const [users, setUsers] = useState([])
+  const [apiTransactions, setApiTransactions] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [timeMachineData, setTimeMachineData] = useState({ appTime: null, isActive: false })
   const [searchTerm, setSearchTerm] = useState('')
@@ -20,14 +30,15 @@ export default function MonthTransactionsPage() {
   const [showPendingOnly, setShowPendingOnly] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // Fetch users and investments
+  // Fetch users, investments, and transactions
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Load users, investments, and time machine data in parallel
-        const [usersData, investmentsData, timeData] = await Promise.all([
+        // Load users, investments, transactions, and time machine data in parallel
+        const [usersData, investmentsData, transactionsData, timeData] = await Promise.all([
           apiClient.getAllUsers(),
           apiClient.getAdminInvestments(),
+          apiClient.getAllTransactions(),
           apiClient.getAppTime()
         ])
         
@@ -37,6 +48,11 @@ export default function MonthTransactionsPage() {
             appTime: timeData.appTime,
             isActive: !!timeData.isOverridden
           })
+        }
+        
+        // Process transactions
+        if (transactionsData && transactionsData.success) {
+          setApiTransactions(transactionsData.transactions || [])
         }
         
         // Process users and investments
@@ -87,10 +103,26 @@ export default function MonthTransactionsPage() {
     ? new Date(timeMachineData.appTime).getTime() 
     : new Date().getTime()
 
-  // Collect all transactions
+  // Create user lookup map for enriching transactions
+  const userMap = useMemo(() => {
+    const map = new Map()
+    users.forEach(user => {
+      const userIdStr = user.id.toString()
+      map.set(userIdStr, user)
+      // Also map by numeric part (e.g., "USR-1025" -> "1025")
+      const numericMatch = userIdStr.match(/\d+$/)
+      if (numericMatch) {
+        map.set(numericMatch[0], user)
+      }
+    })
+    return map
+  }, [users])
+
+  // Collect all transactions (investments from users + distributions/contributions from API)
   const allTransactions = useMemo(() => {
     const events = []
     
+    // Add investments from users
     users.forEach(user => {
       const investments = Array.isArray(user.investments) ? user.investments : []
       investments.forEach(investment => {
@@ -103,7 +135,7 @@ export default function MonthTransactionsPage() {
             events.push({
               id: `inv-${investment.id}`,
               type: 'investment',
-              amount: investment.amount,
+              amount: safeAmount(investment.amount),
               date: investmentDate,
               userId: user.id,
               userEmail: user.email,
@@ -115,32 +147,41 @@ export default function MonthTransactionsPage() {
             })
           }
         }
+      })
+    })
+    
+    // Add distributions and contributions from API transactions
+    apiTransactions.forEach(tx => {
+      const txType = tx.type
+      if (txType === 'distribution' || txType === 'contribution') {
+        const txDate = tx.date
+        const txTime = txDate ? new Date(txDate).getTime() : 0
         
-        // Add distribution and contribution transactions
-        const transactions = Array.isArray(investment.transactions) ? investment.transactions : []
-        transactions.forEach(tx => {
-          if (tx.type === 'distribution' || tx.type === 'contribution' || tx.type === 'monthly_distribution' || tx.type === 'monthly_compounded') {
-            const txDate = tx.date
-            const txTime = txDate ? new Date(txDate).getTime() : 0
-            
-            if (txTime <= currentAppTime) {
-              events.push({
-                ...tx,
-                userId: user.id,
-                userEmail: user.email,
-                userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-                investmentId: investment.id,
-                lockupPeriod: investment.lockupPeriod || tx.lockupPeriod,
-                paymentFrequency: investment.paymentFrequency || tx.paymentFrequency
-              })
+        if (txTime <= currentAppTime) {
+          // Find user info
+          const userId = tx.userId?.toString() || ''
+          let user = userMap.get(userId)
+          if (!user) {
+            const numericMatch = userId.match(/\d+$/)
+            if (numericMatch) {
+              user = userMap.get(numericMatch[0])
             }
           }
-        })
-      })
+          
+          events.push({
+            ...tx,
+            amount: safeAmount(tx.amount),
+            userId: tx.userId,
+            userEmail: user?.email || tx.userEmail || null,
+            userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : tx.userName || `User #${tx.userId}`,
+            investmentId: tx.investmentId
+          })
+        }
+      }
     })
 
     return events
-  }, [users, currentAppTime])
+  }, [users, apiTransactions, currentAppTime, userMap])
 
   // Filter transactions for the selected month
   const monthTransactions = useMemo(() => {

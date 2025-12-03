@@ -42,12 +42,15 @@ function AdminPageContent() {
     processingPayoutId,
     activityEvents,
     isLoadingActivity,
+    allTransactions,
+    isLoadingTransactions,
     timeMachineData,
     setTimeMachineData,
     refreshUsers,
     refreshWithdrawals,
     refreshPayouts,
     refreshActivity,
+    refreshTransactions,
     processAchqPayment
   } = useAdminData()
 
@@ -684,7 +687,11 @@ function AdminPageContent() {
 
           {/* Transactions Tab */}
           {activeTab === 'distributions' && (
-            <DistributionsTab users={users || []} timeMachineData={timeMachineData} />
+            <DistributionsTab 
+              users={users || []} 
+              timeMachineData={timeMachineData} 
+              allTransactions={allTransactions || []}
+            />
           )}
 
           {/* Accounts Tab */}
