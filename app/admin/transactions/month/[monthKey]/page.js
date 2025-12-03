@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { fetchWithCsrf } from '../../../../../lib/csrfClient'
 import AdminHeader from '../../../../components/AdminHeader'
-import { useAdminData } from '../../../../hooks/useAdminData'
+import { useAdminData } from '../../../hooks/useAdminData'
 import styles from './page.module.css'
 import { formatCurrency } from '../../../../../lib/formatters.js'
 
