@@ -91,6 +91,16 @@ export function useAdminData() {
     
     const init = async () => {
       try {
+        // Check for force refresh query param
+        const urlParams = new URLSearchParams(window.location.search)
+        if (urlParams.get('forceRefresh') === '1') {
+          logger.log('🔄 Force refresh requested - clearing all caches')
+          clearCache(CACHE_KEY_USERS)
+          clearCache(CACHE_KEY_WITHDRAWALS)
+          clearCache(CACHE_KEY_PAYOUTS)
+          clearCache(CACHE_KEY_ACTIVITY)
+          clearCache(CACHE_KEY_TRANSACTIONS)
+        }
         // Ensure tokens are loaded before checking authentication
         apiClient.ensureTokensLoaded()
         
