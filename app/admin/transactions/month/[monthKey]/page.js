@@ -1,9 +1,9 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { apiClient } from '../../../../../lib/apiClient'
 import { fetchWithCsrf } from '../../../../../lib/csrfClient'
 import AdminHeader from '../../../../components/AdminHeader'
+import { useAdminData } from '../../../../hooks/useAdminData'
 import styles from './page.module.css'
 import { formatCurrency } from '../../../../../lib/formatters.js'
 
@@ -21,95 +21,19 @@ export default function MonthTransactionsPage() {
   const params = useParams()
   const monthKey = params?.monthKey
   
-  const [users, setUsers] = useState([])
-  const [apiTransactions, setApiTransactions] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [timeMachineData, setTimeMachineData] = useState({ appTime: null, isActive: false })
+  // Use centralized data hook - this ensures we use the exact same data as the main list
+  // and handles authentication/tokens automatically
+  const { 
+    users, 
+    allTransactions: apiTransactions, 
+    isLoading, 
+    refreshUsers 
+  } = useAdminData()
+
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState('all') // 'all', 'investment', 'distribution', 'contribution'
   const [showPendingOnly, setShowPendingOnly] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-
-  // Fetch users, investments, and transactions
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Load users, investments, transactions, and time machine data in parallel
-        const [usersData, investmentsData, transactionsData, timeData] = await Promise.all([
-          apiClient.getAllUsers(),
-          apiClient.getAdminInvestments(),
-          apiClient.getAllTransactions(),
-          apiClient.getAppTime()
-        ])
-        
-        // Process time machine data
-        if (timeData && (timeData.appTime || timeData.systemTime)) {
-          setTimeMachineData({
-            appTime: timeData.appTime,
-            isActive: !!timeData.isOverridden
-          })
-        }
-        
-        // Process transactions
-        if (transactionsData && transactionsData.success) {
-          const txList = transactionsData.transactions || []
-          console.log('[MonthPage] Loaded transactions:', txList.length)
-          if (txList.length > 0) {
-            console.log('[MonthPage] Sample transaction:', JSON.stringify(txList[0]))
-            // Log transaction type distribution
-            const typeCounts = txList.reduce((acc, tx) => {
-              acc[tx.type || 'undefined'] = (acc[tx.type || 'undefined'] || 0) + 1
-              return acc
-            }, {})
-            console.log('[MonthPage] Transaction types:', typeCounts)
-          }
-          setApiTransactions(txList)
-        } else {
-          console.log('[MonthPage] Failed to load transactions:', transactionsData)
-        }
-        
-        // Process users and investments
-        if (usersData && usersData.success) {
-          const usersList = usersData.users || []
-          const investmentsList = investmentsData && investmentsData.success 
-            ? (investmentsData.investments || []) 
-            : []
-          
-          // Group investments by userId
-          const investmentsByUser = {}
-          investmentsList.forEach(inv => {
-            const userId = inv.userId.toString()
-            if (!investmentsByUser[userId]) {
-              investmentsByUser[userId] = []
-            }
-            investmentsByUser[userId].push(inv)
-          })
-          
-          // Attach investments to users (handle both numeric and prefixed IDs)
-          const usersWithInvestments = usersList.map(user => {
-            let userIdStr = user.id.toString()
-            // Extract numeric part if user ID has a prefix (e.g., "USR-1025" -> "1025")
-            const numericMatch = userIdStr.match(/\d+$/)
-            const numericId = numericMatch ? numericMatch[0] : userIdStr
-            
-            const userInvestments = investmentsByUser[numericId] || investmentsByUser[userIdStr] || []
-            
-            return {
-              ...user,
-              investments: userInvestments
-            }
-          })
-          
-          setUsers(usersWithInvestments)
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
 
   // Create user lookup map for enriching transactions
   const userMap = useMemo(() => {
@@ -210,14 +134,6 @@ export default function MonthTransactionsPage() {
     })
     
     console.log(`[MonthPage] monthKey=${monthKey}, filtered ${filtered.length} from ${allTransactions.length} transactions`)
-    if (allTransactions.length > 0 && filtered.length === 0) {
-      // Log sample dates to debug
-      const sampleDates = allTransactions.slice(0, 5).map(e => {
-        const d = e.date ? new Date(e.date) : null
-        return d ? `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}` : 'no-date'
-      })
-      console.log('[MonthPage] Sample event monthKeys:', sampleDates)
-    }
     
     return filtered
   }, [allTransactions, monthKey])
@@ -378,12 +294,9 @@ export default function MonthTransactionsPage() {
       
       alert(`Processed ${successCount} payout(s) successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`)
       
-      // Refresh users data
-      const data = await apiClient.getAllUsers()
-      if (data && data.success) {
-        setUsers(data.users || [])
-        setTimeMachineData(data.timeMachine || { appTime: null, isActive: false })
-      }
+      // Refresh data using the hook
+      await refreshUsers(true)
+      
     } catch (error) {
       console.error('Error processing payouts:', error)
       alert('An error occurred while processing payouts')
