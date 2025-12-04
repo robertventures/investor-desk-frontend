@@ -250,6 +250,7 @@
   padding: var(--space-6) !important;
 }
 
+/* Status Badges - Using global CSS variables */
 .badge {
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-sm);
@@ -258,19 +259,19 @@
 }
 
 .badge.pending {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-color);
 }
 
 .badge.failed {
-  background-color: #fecaca;
-  color: #991b1b;
+  background-color: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .badge.approved,
 .badge.received {
-  background-color: #dbeafe;
-  color: #1d4ed8;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .withdrawalMeta {
@@ -300,8 +301,8 @@
 }
 
 .retryButton {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--status-info-bg);
+  color: var(--status-info-color);
 }
 
 .retryButton:hover {
@@ -309,8 +310,8 @@
 }
 
 .completeButton {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .completeButton:hover {
@@ -318,8 +319,8 @@
 }
 
 .failButton {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .failButton:hover {
@@ -327,8 +328,8 @@
 }
 
 .approveButton {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .approveButton:hover:not(:disabled) {
@@ -341,8 +342,8 @@
 }
 
 .rejectButton {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .rejectButton:hover:not(:disabled) {
@@ -354,24 +355,25 @@
   cursor: not-allowed;
 }
 
+/* Transaction Type Badges - Using global CSS variables */
 .badge.investment {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--type-investment-bg);
+  color: var(--type-investment-color);
 }
 
 .badge.distribution {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: var(--type-distribution-bg);
+  color: var(--type-distribution-color);
 }
 
 .badge.contribution {
-  background-color: #e0e7ff;
-  color: #3730a3;
+  background-color: var(--type-contribution-bg);
+  color: var(--type-contribution-color);
 }
 
 .badge.redemption {
-  background-color: #fce7f3;
-  color: #831843;
+  background-color: var(--type-redemption-bg);
+  color: var(--type-redemption-color);
 }
 
 /* Master Password Section */

@@ -351,7 +351,7 @@
   color: var(--color-text);
 }
 
-/* Pending Filter */
+/* Pending Filter - Using global CSS variables */
 .pendingFilter {
   padding: var(--space-2) var(--space-4);
   background: var(--color-surface);
@@ -366,13 +366,13 @@
 }
 
 .pendingFilter:hover {
-  background: #fef3c7;
+  background: var(--status-warning-bg);
   border-color: #fcd34d;
 }
 
 .pendingFilter.active {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-color);
   border-color: #fcd34d;
 }
 
@@ -549,6 +549,7 @@
   font-style: italic;
 }
 
+/* Status Badges - Using global CSS variables */
 .statusBadge {
   display: inline-block;
   padding: 4px 12px;
@@ -561,32 +562,32 @@
 
 .statusBadge[data-status="received"],
 .statusBadge[data-status="Received"] {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .statusBadge[data-status="pending"],
 .statusBadge[data-status="Pending"] {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-color);
 }
 
 .statusBadge[data-status="rejected"],
 .statusBadge[data-status="Rejected"] {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .statusBadge[data-status="approved"],
 .statusBadge[data-status="Approved"] {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .statusBadge[data-status="active"],
 .statusBadge[data-status="Active"] {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 /* Empty State */

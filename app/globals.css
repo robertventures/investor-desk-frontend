@@ -59,6 +59,180 @@ body {
   --container-max-width: 1400px;
   --container-padding-x: var(--space-5);
   --container-padding-x-mobile: var(--space-3);
+
+  /* Status Colors - Success (Green) */
+  --status-success-bg: #dcfce7;
+  --status-success-color: #166534;
+
+  /* Status Colors - Warning (Yellow) */
+  --status-warning-bg: #fef3c7;
+  --status-warning-color: #92400e;
+
+  /* Status Colors - Error (Red) */
+  --status-error-bg: #fee2e2;
+  --status-error-color: #991b1b;
+
+  /* Status Colors - Info (Blue) */
+  --status-info-bg: #dbeafe;
+  --status-info-color: #1e40af;
+
+  /* Status Colors - Neutral (Gray) */
+  --status-neutral-bg: #f3f4f6;
+  --status-neutral-color: #374151;
+
+  /* Transaction Type Colors - Distribution (Purple) */
+  --type-distribution-bg: #ede9fe;
+  --type-distribution-color: #5b21b6;
+
+  /* Transaction Type Colors - Contribution (Indigo) */
+  --type-contribution-bg: #e0e7ff;
+  --type-contribution-color: #3730a3;
+
+  /* Transaction Type Colors - Investment (Blue) */
+  --type-investment-bg: #dbeafe;
+  --type-investment-color: #1e40af;
+
+  /* Transaction Type Colors - Redemption (Pink) */
+  --type-redemption-bg: #fce7f3;
+  --type-redemption-color: #831843;
+
+  /* Transaction Type Colors - Withdrawal (Red) */
+  --type-withdrawal-bg: #fee2e2;
+  --type-withdrawal-color: #991b1b;
+}
+
+/* ===================== */
+/* Badge Utility Classes */
+/* ===================== */
+
+/* Base badge style */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+/* Status Badges */
+.badge-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-color);
+}
+
+.badge-warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-color);
+}
+
+.badge-error {
+  background: var(--status-error-bg);
+  color: var(--status-error-color);
+}
+
+.badge-info {
+  background: var(--status-info-bg);
+  color: var(--status-info-color);
+}
+
+.badge-neutral {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-color);
+}
+
+/* Transaction Type Badges */
+.badge-distribution {
+  background: var(--type-distribution-bg);
+  color: var(--type-distribution-color);
+}
+
+.badge-contribution {
+  background: var(--type-contribution-bg);
+  color: var(--type-contribution-color);
+}
+
+.badge-investment {
+  background: var(--type-investment-bg);
+  color: var(--type-investment-color);
+}
+
+.badge-redemption {
+  background: var(--type-redemption-bg);
+  color: var(--type-redemption-color);
+}
+
+.badge-withdrawal {
+  background: var(--type-withdrawal-bg);
+  color: var(--type-withdrawal-color);
+}
+
+/* ===================== */
+/* Icon Utility Classes  */
+/* ===================== */
+
+/* Base icon style (for circular icons in feeds) */
+.icon-badge {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+}
+
+/* Status Icon Variants */
+.icon-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-color);
+}
+
+.icon-warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-color);
+}
+
+.icon-error {
+  background: var(--status-error-bg);
+  color: var(--status-error-color);
+}
+
+.icon-info {
+  background: var(--status-info-bg);
+  color: var(--status-info-color);
+}
+
+.icon-neutral {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-color);
+}
+
+/* Transaction Type Icon Variants */
+.icon-distribution {
+  background: var(--type-distribution-bg);
+  color: var(--type-distribution-color);
+}
+
+.icon-contribution {
+  background: var(--type-contribution-bg);
+  color: var(--type-contribution-color);
+}
+
+.icon-investment {
+  background: var(--type-investment-bg);
+  color: var(--type-investment-color);
+}
+
+.icon-redemption {
+  background: var(--type-redemption-bg);
+  color: var(--type-redemption-color);
+}
+
+.icon-withdrawal {
+  background: var(--type-withdrawal-bg);
+  color: var(--type-withdrawal-color);
 }
 
 /* Wireframe utilities */

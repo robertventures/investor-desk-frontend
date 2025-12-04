@@ -110,20 +110,20 @@ export default function AdminTransactionDetailsPage() {
     init()
   }, [router, transactionId])
 
-  // Transaction status configuration
+  // Transaction status configuration - using CSS variables for consistency
   // API TransactionStatus: pending, submitted, approved, rejected, received
   const STATUS_CONFIG = {
-    // Transaction states from API
-    pending: { label: 'Pending', bg: '#fef3c7', color: '#92400e', icon: '⏳' },
-    submitted: { label: 'Submitted', bg: '#dbeafe', color: '#1e40af', icon: '📤' },
-    approved: { label: 'Approved', bg: '#dcfce7', color: '#166534', icon: '✓' },
-    rejected: { label: 'Rejected', bg: '#fee2e2', color: '#991b1b', icon: '✕' },
-    received: { label: 'Received', bg: '#dcfce7', color: '#166534', icon: '✅' },
+    // Transaction states from API - using CSS variable values
+    pending: { label: 'Pending', bg: 'var(--status-warning-bg)', color: 'var(--status-warning-color)', icon: '⏳' },
+    submitted: { label: 'Submitted', bg: 'var(--status-info-bg)', color: 'var(--status-info-color)', icon: '📤' },
+    approved: { label: 'Approved', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✓' },
+    rejected: { label: 'Rejected', bg: 'var(--status-error-bg)', color: 'var(--status-error-color)', icon: '✕' },
+    received: { label: 'Received', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✅' },
     // Legacy/alias states for backwards compatibility
-    completed: { label: 'Completed', bg: '#dcfce7', color: '#166534', icon: '✅' },
-    failed: { label: 'Failed', bg: '#fee2e2', color: '#991b1b', icon: '❌' },
-    active: { label: 'Active', bg: '#dcfce7', color: '#166534', icon: '✓' },
-    draft: { label: 'Draft', bg: '#f3f4f6', color: '#374151', icon: '📝' }
+    completed: { label: 'Completed', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✅' },
+    failed: { label: 'Failed', bg: 'var(--status-error-bg)', color: 'var(--status-error-color)', icon: '❌' },
+    active: { label: 'Active', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✓' },
+    draft: { label: 'Draft', bg: 'var(--status-neutral-bg)', color: 'var(--status-neutral-color)', icon: '📝' }
   }
 
   const getStatusConfig = (status) => {

@@ -9,14 +9,15 @@
 .event { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: stretch; padding: 12px 8px; border-radius: 8px; border: 1px solid #f3f4f6; background: #ffffff; }
 .event:hover { background: #f9fafb; }
 
+/* Icon styles - Using global CSS variables */
 .icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; }
-.icon.created { background: #e0f2fe; color: #0369a1; }
-.icon.pending { background: #fef3c7; color: #92400e; }
-.icon.confirmed { background: #dcfce7; color: #065f46; }
-.icon.rejected { background: #fee2e2; color: #991b1b; }
-.icon.distribution { background: #ede9fe; color: #5b21b6; }
-.icon.withdrawal { background: #fee2e2; color: #991b1b; }
-.icon.draft { background: #e5e7eb; color: #374151; }
+.icon.created { background: var(--status-info-bg); color: var(--status-info-color); }
+.icon.pending { background: var(--status-warning-bg); color: var(--status-warning-color); }
+.icon.confirmed { background: var(--status-success-bg); color: var(--status-success-color); }
+.icon.rejected { background: var(--status-error-bg); color: var(--status-error-color); }
+.icon.distribution { background: var(--type-distribution-bg); color: var(--type-distribution-color); }
+.icon.withdrawal { background: var(--type-withdrawal-bg); color: var(--type-withdrawal-color); }
+.icon.draft { background: var(--status-neutral-bg); color: var(--status-neutral-color); }
 
 .content { display: flex; flex-direction: column; gap: 4px; }
 .primary { font-weight: 600; color: #111827; font-size: 14px; }

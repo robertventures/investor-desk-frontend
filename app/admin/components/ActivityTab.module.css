@@ -197,7 +197,7 @@
   border-color: #d1d5db;
 }
 
-/* Status Badges */
+/* Status Badges - Using global CSS variables */
 .badge {
   padding: 4px 8px;
   border-radius: 4px;
@@ -209,33 +209,28 @@
 }
 
 .pending {
-  background-color: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde047;
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-color);
 }
 
 .approved, .processing {
-  background-color: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #93c5fd;
+  background-color: var(--status-info-bg);
+  color: var(--status-info-color);
 }
 
 .failed, .rejected {
-  background-color: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
+  background-color: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .received, .settled, .completed {
-  background-color: #dcfce7;
-  color: #166534;
-  border: 1px solid #86efac;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .defaultBadge {
-  background-color: #f3f4f6;
-  color: #374151;
-  border: 1px solid #e5e7eb;
+  background-color: var(--status-neutral-bg);
+  color: var(--status-neutral-color);
 }
 
 /* Amount */

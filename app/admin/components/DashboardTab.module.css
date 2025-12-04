@@ -98,37 +98,33 @@
   color: var(--color-accent);
 }
 
+/* Activity Status Badges - Using global CSS variables */
 .activityStatus {
   padding: 3px 10px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   text-transform: capitalize;
-  border: 1px solid;
 }
 
 .status-pending {
-  background: #fefce8;
-  color: #a16207;
-  border-color: #fde047;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-color);
 }
 
 .status-active {
-  background: #f0fdf4;
-  color: #15803d;
-  border-color: #86efac;
+  background: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .status-approved {
-  background: #eff6ff;
-  color: #1e40af;
-  border-color: #93c5fd;
+  background: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .status-rejected {
-  background: #fef2f2;
-  color: #b91c1c;
-  border-color: #fca5a5;
+  background: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .activityItemDetails {
@@ -408,6 +404,7 @@
   cursor: not-allowed;
 }
 
+/* Badges - Using global CSS variables */
 .badge {
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
@@ -416,13 +413,13 @@
 }
 
 .badge.pending {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-color);
 }
 
 .badge.failed {
-  background-color: #fecaca;
-  color: #991b1b;
+  background-color: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .actionButtonGroup {
@@ -444,8 +441,8 @@
 }
 
 .retryButton {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--status-info-bg);
+  color: var(--status-info-color);
   padding: 8px 14px;
   border: none;
   border-radius: 6px;
@@ -488,8 +485,8 @@
 }
 
 .completeButton {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-color);
 }
 
 .completeButton:hover {
@@ -497,8 +494,8 @@
 }
 
 .failButton {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--status-error-bg);
+  color: var(--status-error-color);
 }
 
 .failButton:hover {
