@@ -622,12 +622,6 @@ function AdminInvestmentDetailsContent() {
                 {formatDateForDisplay(investment.createdAt)}
               </div>
             </div>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Submitted</div>
-              <div className={styles.metricValue}>
-                {formatDateForDisplay(investment.submittedAt)}
-              </div>
-            </div>
             {investment.confirmedAt && (
               <div className={styles.metricCard}>
                 <div className={styles.metricLabel}>Confirmed</div>
