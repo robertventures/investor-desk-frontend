@@ -527,8 +527,8 @@ export default function MonthTransactionsPage() {
                 <div className={styles.emptyTitle}>No {activeTab === 'all' ? 'transactions' : `${activeTab}s`} found</div>
                 <div className={styles.emptyText}>
                   {searchTerm 
-                    ? `No {activeTab === 'all' ? 'transactions' : `${activeTab}s`} found matching "${searchTerm}"` 
-                    : `No {activeTab === 'all' ? 'transactions' : `${activeTab}s`} for this month`}
+                    ? `No ${activeTab === 'all' ? 'transactions' : `${activeTab}s`} found matching "${searchTerm}"` 
+                    : `No ${activeTab === 'all' ? 'transactions' : `${activeTab}s`} for this month`}
                 </div>
               </div>
             ) : (
