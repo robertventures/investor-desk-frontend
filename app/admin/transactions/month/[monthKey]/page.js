@@ -228,8 +228,8 @@ export default function MonthTransactionsPage() {
           ? nameA.localeCompare(nameB) 
           : nameB.localeCompare(nameA)
       } else if (sortConfig.key === 'id') {
-        const idA = a.id || ''
-        const idB = b.id || ''
+        const idA = String(a.id || '')
+        const idB = String(b.id || '')
         return sortConfig.direction === 'asc' 
           ? idA.localeCompare(idB) 
           : idB.localeCompare(idA)
@@ -239,6 +239,28 @@ export default function MonthTransactionsPage() {
         return sortConfig.direction === 'asc' 
           ? statusA.localeCompare(statusB) 
           : statusB.localeCompare(statusA)
+      } else if (sortConfig.key === 'type') {
+        const typeA = a.type || ''
+        const typeB = b.type || ''
+        return sortConfig.direction === 'asc' 
+          ? typeA.localeCompare(typeB) 
+          : typeB.localeCompare(typeA)
+      } else if (sortConfig.key === 'email') {
+        const emailA = a.userEmail || ''
+        const emailB = b.userEmail || ''
+        return sortConfig.direction === 'asc' 
+          ? emailA.localeCompare(emailB) 
+          : emailB.localeCompare(emailA)
+      } else if (sortConfig.key === 'investmentId') {
+        const invIdA = String(a.investmentId || '')
+        const invIdB = String(b.investmentId || '')
+        return sortConfig.direction === 'asc' 
+          ? invIdA.localeCompare(invIdB) 
+          : invIdB.localeCompare(invIdA)
+      } else if (sortConfig.key === 'date') {
+        const dateA = a.date ? new Date(a.date).getTime() : 0
+        const dateB = b.date ? new Date(b.date).getTime() : 0
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA
       }
       
       // Default to date sort if key is unknown or as secondary sort logic implicitly via return 0 if equal
@@ -248,7 +270,7 @@ export default function MonthTransactionsPage() {
     // Secondary sort: Always sort by date (most recent first) within the primary sort groups
     // If primary sort values are equal, this ensures stable and logical ordering
     // Note: Javascript sort is stable in modern browsers
-    if (sortConfig.key !== 'date') { // Only if we aren't explicitly sorting by date (which isn't in the requirements but good for completeness)
+    if (sortConfig.key !== 'date') { // Only if we aren't explicitly sorting by date
        // We do a custom sort here to preserve the primary sort order
        // Since we just sorted by primary key, we only need to fix the order for equal elements.
        // However, Array.prototype.sort is stable. So if we sort by Date first, then by Primary Key, it should work.
@@ -263,9 +285,15 @@ export default function MonthTransactionsPage() {
           } else if (sortConfig.key === 'userName') {
              comparison = (a.userName || '').localeCompare(b.userName || '')
           } else if (sortConfig.key === 'id') {
-             comparison = (a.id || '').localeCompare(b.id || '')
+             comparison = String(a.id || '').localeCompare(String(b.id || ''))
           } else if (sortConfig.key === 'status') {
              comparison = (a.status || '').localeCompare(b.status || '')
+          } else if (sortConfig.key === 'type') {
+             comparison = (a.type || '').localeCompare(b.type || '')
+          } else if (sortConfig.key === 'email') {
+             comparison = (a.userEmail || '').localeCompare(b.userEmail || '')
+          } else if (sortConfig.key === 'investmentId') {
+             comparison = String(a.investmentId || '').localeCompare(String(b.investmentId || ''))
           }
 
           if (comparison !== 0) {
@@ -388,8 +416,12 @@ export default function MonthTransactionsPage() {
   
   // Helper for sort indicator
   const getSortIndicator = (key) => {
-    if (sortConfig.key !== key) return null
-    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
+    if (sortConfig.key !== key) {
+      return <span className={styles.sortIcon}>↕</span>
+    }
+    return <span className={`${styles.sortIcon} ${styles.sortIconActive}`}>
+      {sortConfig.direction === 'asc' ? '↑' : '↓'}
+    </span>
   }
 
   if (isLoading) {
@@ -536,7 +568,14 @@ export default function MonthTransactionsPage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      {activeTab === 'all' && <th>Type</th>}
+                      {activeTab === 'all' && (
+                        <th 
+                          className={styles.sortableHeader}
+                          onClick={() => requestSort('type')}
+                        >
+                          Type {getSortIndicator('type')}
+                        </th>
+                      )}
                       <th 
                         className={styles.sortableHeader} 
                         onClick={() => requestSort('id')}
@@ -549,15 +588,30 @@ export default function MonthTransactionsPage() {
                       >
                         User {getSortIndicator('userName')}
                       </th>
-                      <th>Email</th>
-                      <th>Investment ID</th>
+                      <th
+                        className={styles.sortableHeader}
+                        onClick={() => requestSort('email')}
+                      >
+                        Email {getSortIndicator('email')}
+                      </th>
+                      <th
+                        className={styles.sortableHeader}
+                        onClick={() => requestSort('investmentId')}
+                      >
+                        Investment ID {getSortIndicator('investmentId')}
+                      </th>
                       <th 
                         className={styles.sortableHeader} 
                         onClick={() => requestSort('amount')}
                       >
                         Amount {getSortIndicator('amount')}
                       </th>
-                      <th>Date</th>
+                      <th
+                        className={styles.sortableHeader}
+                        onClick={() => requestSort('date')}
+                      >
+                        Date {getSortIndicator('date')}
+                      </th>
                       <th 
                         className={styles.sortableHeader} 
                         onClick={() => requestSort('status')}
