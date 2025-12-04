@@ -166,9 +166,28 @@ export default function DistributionsTab({ users, timeMachineData, allTransactio
   // Group distributions by month
   const groupedByMonth = useMemo(() => {
     const groups = {}
+    const seenIds = new Set()
+    let duplicates = 0
     
+    // Debug: Track monthly contributions for discrepancies
+    const debugMonths = ['2025-10', '2025-11', '2025-12']
+    const debugData = {
+      '2025-10': { count: 0, amount: 0, events: [] },
+      '2025-11': { count: 0, amount: 0, events: [] },
+      '2025-12': { count: 0, amount: 0, events: [] }
+    }
+
     filteredDistributions.forEach(event => {
       if (!event.date) return
+      
+      // Check for duplicates
+      if (event.id) {
+        if (seenIds.has(event.id)) {
+          duplicates++
+          // console.warn(`[DistributionsTab] Duplicate transaction found: ${event.id}`, event)
+        }
+        seenIds.add(event.id)
+      }
       
       const date = new Date(event.date)
       // Use YYYY-MM format for proper sorting (using UTC to avoid timezone issues)
@@ -200,10 +219,33 @@ export default function DistributionsTab({ users, timeMachineData, allTransactio
         groups[monthKey].payoutAmount += amount
       } else if (event.type === 'contribution' || event.type === 'monthly_compounded') {
         groups[monthKey].compoundedAmount += amount
+        
+        // Debug logging for contributions in target months
+        if (debugMonths.includes(monthKey)) {
+          debugData[monthKey].count++
+          debugData[monthKey].amount += amount
+          // Keep first 5 and any large ones for inspection
+          if (debugData[monthKey].events.length < 5 || amount > 1000) {
+            debugData[monthKey].events.push({
+              id: event.id,
+              date: event.date,
+              amount: amount,
+              rawDate: event.date, // Log the raw date string
+              type: event.type
+            })
+          }
+        }
       } else if (event.type === 'investment') {
         groups[monthKey].investmentAmount += amount
       }
     })
+
+    if (duplicates > 0) {
+      console.warn(`[DistributionsTab] Found ${duplicates} duplicate transactions in list`)
+    }
+    
+    // Log the debug data
+    console.log('[DistributionsTab] Monthly Contribution Breakdown:', debugData)
 
     // Sort by monthKey in descending order (most recent first)
     return Object.values(groups).sort((a, b) => b.monthKey.localeCompare(a.monthKey))

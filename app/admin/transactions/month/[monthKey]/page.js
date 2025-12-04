@@ -133,7 +133,19 @@ export default function MonthTransactionsPage() {
       return eventMonthKey === monthKey
     })
     
+    // Debug: Log contribution breakdown for this month page
+    const contributions = filtered.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
+    const contributionTotal = contributions.reduce((sum, e) => sum + safeAmount(e.amount), 0)
+    
     console.log(`[MonthPage] monthKey=${monthKey}, filtered ${filtered.length} from ${allTransactions.length} transactions`)
+    console.log(`[MonthPage] Contributions for ${monthKey}: ${contributions.length} items, Total: ${formatCurrency(contributionTotal)}`)
+    
+    if (contributions.length > 0) {
+      // Log raw dates for first few items to check boundaries
+      console.log(`[MonthPage] Sample contribution dates for ${monthKey}:`, 
+        contributions.slice(0, 5).map(c => ({ id: c.id, date: c.date, amount: c.amount }))
+      )
+    }
     
     return filtered
   }, [allTransactions, monthKey])
