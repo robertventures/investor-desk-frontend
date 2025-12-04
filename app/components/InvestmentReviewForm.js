@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
+import { formatCurrency } from '../../lib/formatters.js'
 import styles from './InvestmentReviewForm.module.css'
 
 export default function InvestmentReviewForm() {
@@ -96,7 +97,7 @@ export default function InvestmentReviewForm() {
             <div className={styles.infoGrid}>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Investment Amount:</span>
-                <span className={styles.value}>${investmentData.amount?.toLocaleString() || 'N/A'}</span>
+                <span className={styles.value}>{investmentData.amount ? formatCurrency(investmentData.amount) : 'N/A'}</span>
               </div>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Number of Bonds:</span>
@@ -116,18 +117,18 @@ export default function InvestmentReviewForm() {
               </div>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Estimated annual earnings:</span>
-                <span className={styles.value}>${(() => {
+                <span className={styles.value}>{(() => {
                   const amount = investmentData.amount || 0
                   const apy = investmentData.lockupPeriod === '1-year' ? 0.08 : 0.10
                   const years = investmentData.lockupPeriod === '1-year' ? 1 : 3
 
                   if (investmentData.paymentFrequency === 'monthly') {
-                    return (amount * apy * years).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    return formatCurrency(amount * apy * years)
                   } else {
                     const monthlyRate = apy / 12
                     const totalMonths = years * 12
                     const compoundAmount = amount * Math.pow(1 + monthlyRate, totalMonths)
-                    return (compoundAmount - amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    return formatCurrency(compoundAmount - amount)
                   }
                 })()}</span>
               </div>

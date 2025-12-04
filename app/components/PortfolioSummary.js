@@ -417,11 +417,11 @@ export default function PortfolioSummary() {
                   dy={10}
                 />
                 <YAxis 
-                  tickFormatter={(value) => `$${value.toLocaleString()}`}
+                  tickFormatter={(value) => formatCurrency(value, true)}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#6b7280', fontSize: 12 }}
-                  width={60}
+                  width={80}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Area 

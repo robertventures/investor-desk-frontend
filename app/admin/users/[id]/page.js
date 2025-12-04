@@ -7,7 +7,7 @@ import { adminService } from '../../../../lib/services/admin'
 import AdminHeader from '../../../components/AdminHeader'
 import { calculateInvestmentValue } from '../../../../lib/investmentCalculations.js'
 import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
-import { maskSSN } from '../../../../lib/formatters.js'
+import { maskSSN, formatCurrency } from '../../../../lib/formatters.js'
 import styles from './page.module.css'
 import { useUser } from '@/app/contexts/UserContext'
 
@@ -950,7 +950,7 @@ function AdminUserDetailsContent() {
                               )}
               </div>
                             <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937' }}>
-                              ${(Number(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatCurrency(inv.amount)}
             </div>
                             <div style={{ fontSize: '12px', color: isWireTransfer ? '#9a3412' : '#0369a1' }}>
                               Created: {inv.createdAt ? formatDateForDisplay(inv.createdAt) : '-'} • {isWireTransfer ? 'Wire Transfer' : 'ACH'}
@@ -1010,7 +1010,7 @@ function AdminUserDetailsContent() {
                           <span style={{ background: '#c2410c', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', fontWeight: 'bold' }}>ACTION REQUIRED</span>
                 </div>
                         <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-                          ${pendingPayouts.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatCurrency(pendingPayouts)}
               </div>
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
                           Awaiting approval
@@ -1408,7 +1408,7 @@ function AdminUserDetailsContent() {
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: '18px', fontWeight: '700', color: '#111827' }}>
-                            ${(Number(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(inv.amount)}
                           </div>
                         </div>
                       </div>
@@ -1614,7 +1614,7 @@ function AdminUserDetailsContent() {
                     <option value="all">All Investments</option>
                     {(user.investments || []).map(inv => (
                       <option key={inv.id} value={String(inv.id)}>
-                        Inv #{inv.id} - ${(Number(inv.amount) || 0).toLocaleString()}
+                        Inv #{inv.id} - {formatCurrency(inv.amount)}
                       </option>
                     ))}
                   </select>
@@ -1759,14 +1759,14 @@ function AdminUserDetailsContent() {
                     <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>💸 Distributions</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#7c3aed' }}>
-                        ${totalDistributionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(totalDistributionAmount)}
                       </div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{distributions.length} distributions</div>
                     </div>
                     <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>📈 Contributions</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0369a1' }}>
-                        ${totalContributionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(totalContributionAmount)}
                       </div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{contributions.length} contributions</div>
                     </div>
@@ -1848,7 +1848,7 @@ function AdminUserDetailsContent() {
                             </div>
                             {meta.showAmount && event.amount != null && (
                               <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                                ${(Number(event.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {formatCurrency(event.amount)}
                               </div>
                             )}
                           </div>
@@ -2034,7 +2034,7 @@ function AdminUserDetailsContent() {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                             <div style={{ fontWeight: '700', fontSize: '18px', color: '#111827' }}>
-                              ${Number(inv.amount).toLocaleString()}
+                              {formatCurrency(inv.amount)}
                             </div>
                             <span style={{ 
                               fontSize: '12px', 
@@ -2283,7 +2283,7 @@ function AdminUserDetailsContent() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <div style={{ fontWeight: '600', color: '#111827' }}>
                                     {showBalance 
-                                      ? (pm.current_balance ? `$${Number(pm.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available')
+                                      ? (pm.current_balance ? formatCurrency(pm.current_balance) : 'Not available')
                                       : '$•••••••'}
                                   </div>
                                 </div>
@@ -2293,7 +2293,7 @@ function AdminUserDetailsContent() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <div style={{ fontWeight: '600', color: '#111827' }}>
                                     {showBalance 
-                                      ? (pm.available_balance ? `$${Number(pm.available_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'Not available')
+                                      ? (pm.available_balance ? formatCurrency(pm.available_balance) : 'Not available')
                                       : '$•••••••'}
                                   </div>
                                 </div>

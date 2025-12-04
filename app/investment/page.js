@@ -7,6 +7,7 @@ import { INVESTMENTS_PAUSED } from '@/lib/featureFlags'
 import logger from '@/lib/logger'
 import { getInvestmentTypeLockInfo } from '@/lib/investmentAccess'
 import Header from '../components/Header'
+import { formatCurrency, formatNumber } from '@/lib/formatters.js'
 import styles from './page.module.css'
 import stepStyles from '../components/TabbedSignup.module.css'
 import TabbedInvestmentType from '../components/TabbedInvestmentType'
@@ -68,8 +69,8 @@ function InvestmentPageContent() {
     }
     const lines = []
     lines.push({ label: 'Account Type', value: ACCOUNT_TYPE_LABELS[investmentSummary.accountType] || '—' })
-    lines.push({ label: 'Investment Amount', value: typeof investmentSummary.amount === 'number' ? `$${Number(investmentSummary.amount).toLocaleString()}` : '—' })
-    lines.push({ label: 'Total Bonds', value: typeof investmentSummary.bonds === 'number' ? investmentSummary.bonds.toLocaleString() : '—' })
+    lines.push({ label: 'Investment Amount', value: typeof investmentSummary.amount === 'number' ? formatCurrency(investmentSummary.amount) : '—' })
+    lines.push({ label: 'Total Bonds', value: typeof investmentSummary.bonds === 'number' ? formatNumber(investmentSummary.bonds) : '—' })
     lines.push({ label: 'Payment Frequency', value: investmentSummary.paymentFrequency === 'monthly' ? 'Interest Paid Monthly' : 'Compounded Monthly' })
     lines.push({ label: 'Lockup Period', value: lockupLabels[investmentSummary.lockupPeriod] || '—' })
     return lines

@@ -451,7 +451,7 @@ function AdminInvestmentDetailsContent() {
         return
       }
 
-      alert(`Investment terminated successfully!\n\nFinal Payout: $${data.finalPayout.finalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nPrincipal: $${data.finalPayout.principalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\nEarnings: $${data.finalPayout.totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+      alert(`Investment terminated successfully!\n\nFinal Payout: ${formatCurrency(data.finalPayout.finalValue)}\nPrincipal: ${formatCurrency(data.finalPayout.principalAmount)}\nEarnings: ${formatCurrency(data.finalPayout.totalEarnings)}`)
       
       // Reload the page to show updated data
       window.location.reload()
@@ -614,7 +614,7 @@ function AdminInvestmentDetailsContent() {
           <div className={styles.metricsGrid}>
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Amount</div>
-              <div className={styles.metricValue}>${(investment.amount || 0).toLocaleString()}</div>
+              <div className={styles.metricValue}>{formatCurrency(investment.amount)}</div>
             </div>
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Created</div>
@@ -966,7 +966,7 @@ function AdminInvestmentDetailsContent() {
                             <td>
                               {event.amount != null ? (
                                 <strong className={styles.amount}>
-                                  ${event.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  {formatCurrency(event.amount)}
                                 </strong>
                               ) : (
                                 <span className={styles.naText}>-</span>
@@ -1030,19 +1030,19 @@ function AdminInvestmentDetailsContent() {
                         <div>
                           <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Principal</div>
                           <div style={{ fontSize: '18px', fontWeight: '700', color: '#1f2937' }}>
-                            ${(investment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(investment.amount)}
                           </div>
                         </div>
                         <div>
                           <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Earnings</div>
                           <div style={{ fontSize: '18px', fontWeight: '700', color: '#059669' }}>
-                            ${currentValue.totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(currentValue.totalEarnings)}
                           </div>
                         </div>
                         <div>
                           <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Total Value</div>
                           <div style={{ fontSize: '18px', fontWeight: '700', color: '#0369a1' }}>
-                            ${currentValue.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(currentValue.currentValue)}
                           </div>
                         </div>
                       </div>
@@ -1151,13 +1151,13 @@ function AdminInvestmentDetailsContent() {
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: '#64748b' }}>Principal:</span>
                             <span style={{ fontWeight: '600' }}>
-                              ${(investment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatCurrency(investment.amount)}
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: '#64748b' }}>Earnings:</span>
                             <span style={{ fontWeight: '600', color: '#059669' }}>
-                              ${currentValue.totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatCurrency(currentValue.totalEarnings)}
                             </span>
                           </div>
                           <div style={{ 
@@ -1169,7 +1169,7 @@ function AdminInvestmentDetailsContent() {
                           }}>
                             <span style={{ fontWeight: '600', color: '#64748b' }}>Total Payout:</span>
                             <span style={{ fontSize: '18px', fontWeight: '700', color: '#0369a1' }}>
-                              ${currentValue.currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatCurrency(currentValue.currentValue)}
                             </span>
                           </div>
                         </div>

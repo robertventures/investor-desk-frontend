@@ -6,6 +6,7 @@ import { fetchWithCsrf } from '../../lib/csrfClient'
 import { apiClient } from '../../lib/apiClient'
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
+import { formatCurrency } from '../../lib/formatters.js'
 import styles from './page.module.css'
 
 const ONBOARDING_STEPS = {
@@ -487,7 +488,7 @@ function OnboardingContent() {
                         investment.accountType === 'entity' ? 'Entity' : 
                         (investment.accountType === 'sdira' ? 'SDIRA' : 'Investment')} Account
                     </span>
-                    <span>${investment.amount?.toLocaleString()}</span>
+                    <span>{formatCurrency(investment.amount)}</span>
                   </div>
                 ))}
               </div>

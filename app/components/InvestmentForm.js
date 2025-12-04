@@ -332,7 +332,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
                       type="text"
                       inputMode="numeric"
                       name="investmentAmount"
-                      value={isAmountFocused ? displayAmount : (formData.investmentAmount > 0 ? formData.investmentAmount.toLocaleString() : '')}
+                      value={isAmountFocused ? displayAmount : (formData.investmentAmount > 0 ? formData.investmentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '')}
                       onChange={handleInputChange}
                       className={styles.amountInput}
                       onFocus={() => setIsAmountFocused(true)}
