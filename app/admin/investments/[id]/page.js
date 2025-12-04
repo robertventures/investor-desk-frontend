@@ -28,6 +28,7 @@ function AdminInvestmentDetailsContent() {
   const [overrideLockupConfirmed, setOverrideLockupConfirmed] = useState(false)
   const [appTime, setAppTime] = useState(null)
   const [isDownloadingAgreement, setIsDownloadingAgreement] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
   const [form, setForm] = useState({
     amount: '',
     status: '',
@@ -237,7 +238,8 @@ function AdminInvestmentDetailsContent() {
                 displayDate: event.display_date || event.displayDate || event.transaction?.transaction_date,
                 status: status,
                 humanId: humanId,
-                description: description
+                description: description,
+                rawData: event  // Store full raw event data for inspection
               }
             })
           } else {
@@ -948,7 +950,12 @@ function AdminInvestmentDetailsContent() {
                         const statusConfig = getStatusConfig(event.status)
                         
                         return (
-                          <tr key={event.id} className={styles.activityRow}>
+                          <tr 
+                            key={event.id} 
+                            className={styles.activityRow}
+                            onClick={() => setSelectedEvent(event)}
+                            title="Click to view raw event data"
+                          >
                             <td>
                               <div className={styles.eventCell}>
                                 <span className={styles.eventIcon} style={{ color: meta.color }}>
@@ -1278,6 +1285,31 @@ function AdminInvestmentDetailsContent() {
                       {isTerminating ? 'Processing...' : 'Confirm Termination'}
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Raw Event Data Modal */}
+          {selectedEvent && (
+            <div className={styles.modalOverlay} onClick={() => setSelectedEvent(null)}>
+              <div className={styles.eventDetailModal} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.eventDetailHeader}>
+                  <h2 className={styles.eventDetailTitle}>
+                    Event Details: {selectedEvent.id}
+                  </h2>
+                  <button 
+                    className={styles.closeButton}
+                    onClick={() => setSelectedEvent(null)}
+                    aria-label="Close modal"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className={styles.eventDetailBody}>
+                  <pre className={styles.jsonPre}>
+                    {JSON.stringify(selectedEvent.rawData || selectedEvent, null, 2)}
+                  </pre>
                 </div>
               </div>
             </div>
