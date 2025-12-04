@@ -1392,16 +1392,22 @@ function AdminUserDetailsContent() {
                             fontWeight: '600',
                             textTransform: 'uppercase',
                             letterSpacing: '0.025em',
-                            background: inv.status === 'active' ? '#dcfce7' :
-                                      inv.status === 'pending' ? '#fef3c7' :
-                                      inv.status === 'withdrawal_notice' ? '#e0f2fe' :
-                                      inv.status === 'withdrawn' ? '#f1f5f9' :
-                                      '#fee2e2',
-                            color: inv.status === 'active' ? '#166534' :
-                                  inv.status === 'pending' ? '#92400e' :
-                                  inv.status === 'withdrawal_notice' ? '#2563eb' :
-                                  inv.status === 'withdrawn' ? '#1f2937' :
-                                  '#991b1b'
+                            background: inv.status === 'active' ? 'var(--status-success-bg)' :
+                                      inv.status === 'pending' ? 'var(--status-warning-bg)' :
+                                      inv.status === 'submitted' ? 'var(--status-info-bg)' :
+                                      inv.status === 'approved' ? 'var(--status-success-bg)' :
+                                      inv.status === 'withdrawal_notice' ? 'var(--status-info-bg)' :
+                                      inv.status === 'withdrawn' ? 'var(--status-neutral-bg)' :
+                                      inv.status === 'draft' ? 'var(--status-neutral-bg)' :
+                                      'var(--status-error-bg)',
+                            color: inv.status === 'active' ? 'var(--status-success-color)' :
+                                  inv.status === 'pending' ? 'var(--status-warning-color)' :
+                                  inv.status === 'submitted' ? 'var(--status-info-color)' :
+                                  inv.status === 'approved' ? 'var(--status-success-color)' :
+                                  inv.status === 'withdrawal_notice' ? 'var(--status-info-color)' :
+                                  inv.status === 'withdrawn' ? 'var(--status-neutral-color)' :
+                                  inv.status === 'draft' ? 'var(--status-neutral-color)' :
+                                  'var(--status-error-color)'
                           }}>
                             {inv.status}
                           </span>
@@ -1771,10 +1777,10 @@ function AdminUserDetailsContent() {
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{contributions.length} contributions</div>
                     </div>
                     {pendingCount > 0 && (
-                      <div style={{ padding: '16px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #f59e0b' }}>
-                        <div style={{ fontSize: '14px', color: '#92400e', marginBottom: '4px' }}>⏳ Pending Approval</div>
-                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#92400e' }}>{pendingCount}</div>
-                        <div style={{ fontSize: '12px', color: '#92400e' }}>events</div>
+                      <div style={{ padding: '16px', background: 'var(--status-warning-bg)', borderRadius: '8px', border: '1px solid #f59e0b' }}>
+                        <div style={{ fontSize: '14px', color: 'var(--status-warning-color)', marginBottom: '4px' }}>⏳ Pending Approval</div>
+                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--status-warning-color)' }}>{pendingCount}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--status-warning-color)' }}>events</div>
                       </div>
                     )}
                   </div>
@@ -1827,20 +1833,30 @@ function AdminUserDetailsContent() {
                                   borderRadius: '12px',
                                   fontSize: '12px',
                                   fontWeight: 'bold',
-                                  background: displayStatus === 'completed' ? '#dcfce7' :
-                                            displayStatus === 'pending' ? '#fef3c7' :
-                                            displayStatus === 'active' ? '#dbeafe' :
-                                            displayStatus === 'draft' ? '#dbeafe' :
-                                            displayStatus === 'withdrawal_notice' ? '#e0f2fe' :
-                                            displayStatus === 'withdrawn' ? '#f1f5f9' :
-                                            '#fee2e2',
-                                  color: displayStatus === 'completed' ? '#166534' :
-                                        displayStatus === 'pending' ? '#92400e' :
-                                        displayStatus === 'active' ? '#1e40af' :
-                                        displayStatus === 'draft' ? '#1e40af' :
-                                        displayStatus === 'withdrawal_notice' ? '#2563eb' :
-                                        displayStatus === 'withdrawn' ? '#1f2937' :
-                                        '#991b1b'
+                                  background: displayStatus === 'completed' ? 'var(--status-success-bg)' :
+                                            displayStatus === 'received' ? 'var(--status-success-bg)' :
+                                            displayStatus === 'approved' ? 'var(--status-success-bg)' :
+                                            displayStatus === 'pending' ? 'var(--status-warning-bg)' :
+                                            displayStatus === 'submitted' ? 'var(--status-info-bg)' :
+                                            displayStatus === 'active' ? 'var(--status-info-bg)' :
+                                            displayStatus === 'draft' ? 'var(--status-neutral-bg)' :
+                                            displayStatus === 'withdrawal_notice' ? 'var(--status-info-bg)' :
+                                            displayStatus === 'withdrawn' ? 'var(--status-neutral-bg)' :
+                                            displayStatus === 'rejected' ? 'var(--status-error-bg)' :
+                                            displayStatus === 'failed' ? 'var(--status-error-bg)' :
+                                            'var(--status-neutral-bg)',
+                                  color: displayStatus === 'completed' ? 'var(--status-success-color)' :
+                                        displayStatus === 'received' ? 'var(--status-success-color)' :
+                                        displayStatus === 'approved' ? 'var(--status-success-color)' :
+                                        displayStatus === 'pending' ? 'var(--status-warning-color)' :
+                                        displayStatus === 'submitted' ? 'var(--status-info-color)' :
+                                        displayStatus === 'active' ? 'var(--status-info-color)' :
+                                        displayStatus === 'draft' ? 'var(--status-neutral-color)' :
+                                        displayStatus === 'withdrawal_notice' ? 'var(--status-info-color)' :
+                                        displayStatus === 'withdrawn' ? 'var(--status-neutral-color)' :
+                                        displayStatus === 'rejected' ? 'var(--status-error-color)' :
+                                        displayStatus === 'failed' ? 'var(--status-error-color)' :
+                                        'var(--status-neutral-color)'
                                 }}>
                                   {displayStatus}
                                 </span>
@@ -2269,8 +2285,8 @@ function AdminUserDetailsContent() {
                               fontSize: '10px',
                               fontWeight: '600',
                               textTransform: 'uppercase',
-                              background: pm.status === 'verified' ? '#dcfce7' : '#fee2e2',
-                              color: pm.status === 'verified' ? '#166534' : '#991b1b'
+                              background: pm.status === 'verified' ? 'var(--status-success-bg)' : 'var(--status-error-bg)',
+                              color: pm.status === 'verified' ? 'var(--status-success-color)' : 'var(--status-error-color)'
                             }}>
                               {pm.status}
                             </span>
