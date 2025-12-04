@@ -37,6 +37,7 @@ function AdminUserDetailsContent() {
   const [showAuthRepSSN, setShowAuthRepSSN] = useState(false)
   const [showBalance, setShowBalance] = useState(false)
   const [activityFilterInvestmentId, setActivityFilterInvestmentId] = useState('all')
+  const [selectedActivityEvent, setSelectedActivityEvent] = useState(null)
 
   // Memoize processed activity events
   const allActivity = useMemo(() => {
@@ -69,7 +70,8 @@ function AdminUserDetailsContent() {
         // Prefer transaction status over activity status
         status: event.transaction?.status || event.status,
         metadata: metadata,
-        monthIndex: metadata.monthIndex
+        monthIndex: metadata.monthIndex,
+        rawData: event  // Store full raw event data for inspection
       }
     })
 
@@ -1804,13 +1806,12 @@ function AdminUserDetailsContent() {
                         : event.status
                         
                       return (
-                        <div key={event.id} style={{
-                          padding: '16px',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                          marginBottom: '12px',
-                          background: 'white'
-                        }}>
+                        <div 
+                          key={event.id} 
+                          className={styles.activityCard}
+                          onClick={() => setSelectedActivityEvent(event)}
+                          title="Click to view raw event data"
+                        >
                           <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -2366,6 +2367,31 @@ function AdminUserDetailsContent() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Raw Event Data Modal */}
+          {selectedActivityEvent && (
+            <div className={styles.modalOverlay} onClick={() => setSelectedActivityEvent(null)}>
+              <div className={styles.eventDetailModal} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.eventDetailHeader}>
+                  <h2 className={styles.eventDetailTitle}>
+                    Event Details: {selectedActivityEvent.id}
+                  </h2>
+                  <button 
+                    className={styles.closeButton}
+                    onClick={() => setSelectedActivityEvent(null)}
+                    aria-label="Close modal"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className={styles.eventDetailBody}>
+                  <pre className={styles.jsonPre}>
+                    {JSON.stringify(selectedActivityEvent.rawData || selectedActivityEvent, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
