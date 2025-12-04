@@ -34,6 +34,9 @@ export default function MonthTransactionsPage() {
   const [activeTab, setActiveTab] = useState('all') // 'all', 'investment', 'distribution', 'contribution'
   const [showPendingOnly, setShowPendingOnly] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState({ key: 'userName', direction: 'asc' })
 
   // Create user lookup map for enriching transactions
   const userMap = useMemo(() => {
@@ -180,7 +183,16 @@ export default function MonthTransactionsPage() {
     }
   }
 
-  // Filter by search term and pending status
+  // Handle sort request
+  const requestSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
+
+  // Filter by search term and pending status, then sort
   const filteredTransactions = useMemo(() => {
     let filtered = getTabTransactions()
 
@@ -203,16 +215,73 @@ export default function MonthTransactionsPage() {
       })
     }
 
-    // Sort by date (most recent first)
+    // Sort transactions
     filtered.sort((a, b) => {
-      const dateA = a.date ? new Date(a.date).getTime() : 0
-      const dateB = b.date ? new Date(b.date).getTime() : 0
-      return dateB - dateA
+      if (sortConfig.key === 'amount') {
+        const amountA = safeAmount(a.amount)
+        const amountB = safeAmount(b.amount)
+        return sortConfig.direction === 'asc' ? amountA - amountB : amountB - amountA
+      } else if (sortConfig.key === 'userName') {
+        const nameA = a.userName || ''
+        const nameB = b.userName || ''
+        return sortConfig.direction === 'asc' 
+          ? nameA.localeCompare(nameB) 
+          : nameB.localeCompare(nameA)
+      } else if (sortConfig.key === 'id') {
+        const idA = a.id || ''
+        const idB = b.id || ''
+        return sortConfig.direction === 'asc' 
+          ? idA.localeCompare(idB) 
+          : idB.localeCompare(idA)
+      } else if (sortConfig.key === 'status') {
+        const statusA = a.status || ''
+        const statusB = b.status || ''
+        return sortConfig.direction === 'asc' 
+          ? statusA.localeCompare(statusB) 
+          : statusB.localeCompare(statusA)
+      }
+      
+      // Default to date sort if key is unknown or as secondary sort logic implicitly via return 0 if equal
+      return 0
     })
+
+    // Secondary sort: Always sort by date (most recent first) within the primary sort groups
+    // If primary sort values are equal, this ensures stable and logical ordering
+    // Note: Javascript sort is stable in modern browsers
+    if (sortConfig.key !== 'date') { // Only if we aren't explicitly sorting by date (which isn't in the requirements but good for completeness)
+       // We do a custom sort here to preserve the primary sort order
+       // Since we just sorted by primary key, we only need to fix the order for equal elements.
+       // However, Array.prototype.sort is stable. So if we sort by Date first, then by Primary Key, it should work.
+       // BUT, the original code sorted by date.
+       
+       // Let's try a combined comparator instead for robustness
+       filtered.sort((a, b) => {
+          // Primary Sort
+          let comparison = 0
+          if (sortConfig.key === 'amount') {
+             comparison = safeAmount(a.amount) - safeAmount(b.amount)
+          } else if (sortConfig.key === 'userName') {
+             comparison = (a.userName || '').localeCompare(b.userName || '')
+          } else if (sortConfig.key === 'id') {
+             comparison = (a.id || '').localeCompare(b.id || '')
+          } else if (sortConfig.key === 'status') {
+             comparison = (a.status || '').localeCompare(b.status || '')
+          }
+
+          if (comparison !== 0) {
+             return sortConfig.direction === 'asc' ? comparison : -comparison
+          }
+
+          // Secondary Sort: Date Descending
+          const dateA = a.date ? new Date(a.date).getTime() : 0
+          const dateB = b.date ? new Date(b.date).getTime() : 0
+          return dateB - dateA
+       })
+    }
 
     return filtered
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthTransactions, searchTerm, activeTab, showPendingOnly, investmentTransactions, distributionTransactions, contributionTransactions])
+  }, [monthTransactions, searchTerm, activeTab, showPendingOnly, investmentTransactions, distributionTransactions, contributionTransactions, sortConfig])
 
   // Calculate summary for each tab
   const summary = useMemo(() => {
@@ -315,6 +384,12 @@ export default function MonthTransactionsPage() {
     } finally {
       setIsProcessing(false)
     }
+  }
+  
+  // Helper for sort indicator
+  const getSortIndicator = (key) => {
+    if (sortConfig.key !== key) return null
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
   }
 
   if (isLoading) {
@@ -452,8 +527,8 @@ export default function MonthTransactionsPage() {
                 <div className={styles.emptyTitle}>No {activeTab === 'all' ? 'transactions' : `${activeTab}s`} found</div>
                 <div className={styles.emptyText}>
                   {searchTerm 
-                    ? `No ${activeTab === 'all' ? 'transactions' : `${activeTab}s`} found matching "${searchTerm}"` 
-                    : `No ${activeTab === 'all' ? 'transactions' : `${activeTab}s`} for this month`}
+                    ? `No {activeTab === 'all' ? 'transactions' : `${activeTab}s`} found matching "${searchTerm}"` 
+                    : `No {activeTab === 'all' ? 'transactions' : `${activeTab}s`} for this month`}
                 </div>
               </div>
             ) : (
@@ -462,13 +537,33 @@ export default function MonthTransactionsPage() {
                   <thead>
                     <tr>
                       {activeTab === 'all' && <th>Type</th>}
-                      <th>Transaction ID</th>
-                      <th>User</th>
+                      <th 
+                        className={styles.sortableHeader} 
+                        onClick={() => requestSort('id')}
+                      >
+                        Transaction ID {getSortIndicator('id')}
+                      </th>
+                      <th 
+                        className={styles.sortableHeader} 
+                        onClick={() => requestSort('userName')}
+                      >
+                        User {getSortIndicator('userName')}
+                      </th>
                       <th>Email</th>
                       <th>Investment ID</th>
-                      <th>Amount</th>
+                      <th 
+                        className={styles.sortableHeader} 
+                        onClick={() => requestSort('amount')}
+                      >
+                        Amount {getSortIndicator('amount')}
+                      </th>
                       <th>Date</th>
-                      <th>Status</th>
+                      <th 
+                        className={styles.sortableHeader} 
+                        onClick={() => requestSort('status')}
+                      >
+                        Status {getSortIndicator('status')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
