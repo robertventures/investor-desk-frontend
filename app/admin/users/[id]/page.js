@@ -1716,7 +1716,7 @@ function AdminUserDetailsContent() {
               const getInvestmentById = (id) => investmentsById[String(id)] || null
 
               const distributions = filteredActivity.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
-              const contributions = filteredActivity.filter(e => e.type === 'contribution' || e.type === 'monthly_compounded')
+              const contributions = filteredActivity.filter(e => e.type === 'contribution' || e.type === 'monthly_contribution' || e.type === 'monthly_compounded')
               const accountEvents = filteredActivity.filter(e => 
                 e.type?.includes('account') || 
                 e.type?.includes('investment_created') || 
