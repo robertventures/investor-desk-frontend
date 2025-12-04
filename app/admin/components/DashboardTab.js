@@ -185,6 +185,14 @@ const DashboardTab = memo(function DashboardTab({
   const allSelected = pendingPayouts && pendingPayouts.length > 0 && selectedPayouts.size === pendingPayouts.length
   const someSelected = selectedPayouts.size > 0
 
+  // Calculate total amount of selected payouts
+  const selectedTotalAmount = useMemo(() => {
+    if (!pendingPayouts || selectedPayouts.size === 0) return 0
+    return pendingPayouts
+      .filter(p => selectedPayouts.has(p.id))
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  }, [pendingPayouts, selectedPayouts])
+
   return (
     <div className={styles.dashboardTab}>
       {/* Primary Metrics */}
@@ -318,37 +326,30 @@ const DashboardTab = memo(function DashboardTab({
           </div>
         </div>
 
+        {/* Selection & Summary Panel */}
         {pendingPayouts && pendingPayouts.length > 0 && (
-          <div className={styles.alertBox}>
-            <strong>💰 {pendingPayouts.length} Payout{pendingPayouts.length !== 1 ? 's' : ''} Ready for {groupedPayouts.length} Investor{groupedPayouts.length !== 1 ? 's' : ''}</strong>
-            <p>
-              These monthly interest payments are ready to be processed.
-              Click on an investor to expand their payouts, then click &quot;Process Payment&quot; to initiate the bank transfer.
-            </p>
-          </div>
-        )}
-
-        {/* Bulk Actions Bar */}
-        {someSelected && (
-          <div className={styles.bulkActionsBar}>
-            <div className={styles.bulkActionsLeft}>
-              <span className={styles.selectionCount}>
-                {selectedPayouts.size} selected
+          <div className={styles.selectionPanel}>
+            <div className={styles.selectionControls}>
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className={styles.checkbox}
+              />
+              <label onClick={toggleSelectAll} className={styles.selectAllLabel}>
+                Select All ({pendingPayouts.length})
+              </label>
+            </div>
+            <div className={styles.selectionStats}>
+              <span className={styles.totalAmount}>
+                Total Amount: {formatCurrency(selectedTotalAmount)}
               </span>
               <button
-                className={styles.clearSelectionButton}
-                onClick={() => setSelectedPayouts(new Set())}
-              >
-                Clear
-              </button>
-            </div>
-            <div className={styles.bulkActionsRight}>
-              <button
-                className={styles.bulkProcessButton}
+                className={styles.processSelectedButton}
                 onClick={handleBulkProcess}
-                disabled={isProcessingBulk}
+                disabled={!someSelected || isProcessingBulk}
               >
-                {isProcessingBulk ? 'Processing...' : `💳 Process ${selectedPayouts.size} Payment${selectedPayouts.size !== 1 ? 's' : ''}`}
+                {isProcessingBulk ? 'Processing...' : 'Process Payments'}
               </button>
             </div>
           </div>
