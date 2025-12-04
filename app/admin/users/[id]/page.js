@@ -37,6 +37,7 @@ function AdminUserDetailsContent() {
   const [showAuthRepSSN, setShowAuthRepSSN] = useState(false)
   const [showBalance, setShowBalance] = useState(false)
   const [activityFilterInvestmentId, setActivityFilterInvestmentId] = useState('all')
+  const [activityTypeFilter, setActivityTypeFilter] = useState('all') // 'all', 'distributions', 'contributions'
   const [selectedActivityEvent, setSelectedActivityEvent] = useState(null)
 
   // Memoize processed activity events
@@ -100,9 +101,19 @@ function AdminUserDetailsContent() {
   }, [activityEvents])
 
   // Simple filter - just compare as strings (computed on each render for freshness)
-  const filteredActivity = activityFilterInvestmentId === 'all' 
+  // First filter by investment ID
+  const investmentFiltered = activityFilterInvestmentId === 'all' 
     ? allActivity 
     : allActivity.filter(e => String(e.investmentId) === String(activityFilterInvestmentId))
+  
+  // Then filter by activity type
+  const filteredActivity = activityTypeFilter === 'all'
+    ? investmentFiltered
+    : activityTypeFilter === 'distributions'
+      ? investmentFiltered.filter(e => e.type === 'distribution' || e.type === 'monthly_distribution')
+      : activityTypeFilter === 'contributions'
+        ? investmentFiltered.filter(e => e.type === 'contribution' || e.type === 'monthly_contribution' || e.type === 'monthly_compounded')
+        : investmentFiltered
 
   const MIN_DOB = '1900-01-01'
   const ACTIVITY_ITEMS_PER_PAGE = 20
@@ -1607,6 +1618,7 @@ function AdminUserDetailsContent() {
                     value={activityFilterInvestmentId}
                     onChange={(e) => {
                       setActivityFilterInvestmentId(e.target.value)
+                      setActivityTypeFilter('all')
                       setActivityPage(1)
                     }}
                     style={{
@@ -1757,21 +1769,54 @@ function AdminUserDetailsContent() {
                 <>
                   {/* Activity Summary */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                    <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div 
+                      onClick={() => { setActivityTypeFilter('all'); setActivityPage(1); }}
+                      style={{ 
+                        padding: '16px', 
+                        background: activityTypeFilter === 'all' ? '#e0f2fe' : '#f8fafc', 
+                        borderRadius: '8px', 
+                        border: activityTypeFilter === 'all' ? '2px solid #0369a1' : '1px solid #e2e8f0',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Click to show all activity"
+                    >
                       <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>Total Activity</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1f2937' }}>
-                        {filteredActivity.length}
+                        {investmentFiltered.length}
                       </div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{accountEvents.length} account events</div>
                     </div>
-                    <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div 
+                      onClick={() => { setActivityTypeFilter('distributions'); setActivityPage(1); }}
+                      style={{ 
+                        padding: '16px', 
+                        background: activityTypeFilter === 'distributions' ? '#ede9fe' : '#f8fafc', 
+                        borderRadius: '8px', 
+                        border: activityTypeFilter === 'distributions' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Click to filter by distributions"
+                    >
                       <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>💸 Distributions</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#7c3aed' }}>
                         {formatCurrency(totalDistributionAmount)}
                       </div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{distributions.length} distributions</div>
                     </div>
-                    <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div 
+                      onClick={() => { setActivityTypeFilter('contributions'); setActivityPage(1); }}
+                      style={{ 
+                        padding: '16px', 
+                        background: activityTypeFilter === 'contributions' ? '#e0f2fe' : '#f8fafc', 
+                        borderRadius: '8px', 
+                        border: activityTypeFilter === 'contributions' ? '2px solid #0369a1' : '1px solid #e2e8f0',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Click to filter by contributions"
+                    >
                       <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>📈 Contributions</div>
                       <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0369a1' }}>
                         {formatCurrency(totalContributionAmount)}
