@@ -1423,7 +1423,17 @@ function AdminUserDetailsContent() {
                         <div style={{ fontSize: '13px' }}>
                           <span style={{ color: '#6b7280', fontWeight: '500' }}>Type:</span>
                           <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                            {inv.accountType || '-'}
+                            {(() => {
+                              // Derive investment type from user profile data
+                              // Investment objects don't have accountType - it's stored on the user
+                              const type = inv.accountType || 
+                                (inv.entity || user.entity ? 'entity' : null) ||
+                                (inv.jointHoldingType || user.jointHoldingType ? 'joint' : null) ||
+                                user.accountType ||
+                                'individual';
+                              // Capitalize first letter for display
+                              return type.charAt(0).toUpperCase() + type.slice(1);
+                            })()}
                           </span>
                         </div>
                         <div style={{ fontSize: '13px' }}>
