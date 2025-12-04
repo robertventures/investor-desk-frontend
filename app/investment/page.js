@@ -51,6 +51,7 @@ function InvestmentPageContent() {
   const [investmentSummary, setInvestmentSummary] = useState(null)
   const [identitySummary, setIdentitySummary] = useState(null)
   const [isLoadingDraft, setIsLoadingDraft] = useState(true)
+  const [hasPendingInvestment, setHasPendingInvestment] = useState(false)
   const lockedTypeLabel = useMemo(() => {
     if (!lockedAccountType) return null
     // Map "ira" from backend to "sdira" for display
@@ -264,14 +265,48 @@ function InvestmentPageContent() {
           return
         }
         
-        // Load existing draft investment data first if it exists, then set account type constraints
-        const investmentId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
+        // STEP 1: Fetch user's investments first (before draft loading)
+        let userInvestments = Array.isArray(data.user?.investments) ? data.user.investments : []
+        if ((!userInvestments || userInvestments.length === 0) && data.success) {
+          try {
+            const investmentsResponse = await apiClient.getInvestments()
+            if (Array.isArray(investmentsResponse?.investments)) {
+              userInvestments = investmentsResponse.investments
+            }
+          } catch (err) {
+            logger.warn('Failed to fetch investments for lock enforcement:', err)
+          }
+        }
+
+        // STEP 2: Check for pending investment - block if found
+        const pendingInvestment = userInvestments.find(inv => inv.status === 'pending')
+        if (pendingInvestment) {
+          logger.log('⚠️ User has pending investment, blocking new investment creation:', pendingInvestment.id)
+          setHasPendingInvestment(true)
+          setIsLoadingDraft(false)
+          return
+        }
+
+        // STEP 3: Check for draft investment and sync localStorage
+        const existingDraft = userInvestments.find(inv => inv.status === 'draft')
+        let targetInvestmentId = typeof window !== 'undefined' ? localStorage.getItem('currentInvestmentId') : null
+        
+        // If a draft exists, force localStorage to use it (auto-resume behavior)
+        if (existingDraft) {
+          if (targetInvestmentId !== existingDraft.id) {
+            logger.log('🔄 Syncing localStorage with existing draft investment:', existingDraft.id)
+            localStorage.setItem('currentInvestmentId', existingDraft.id)
+          }
+          targetInvestmentId = existingDraft.id
+        }
+        
+        // STEP 4: Load draft investment details if we have a target ID
         let draftAccountType = null
         
-        if (data.success && investmentId) {
+        if (data.success && targetInvestmentId) {
           try {
             // Fetch the specific investment from the investments endpoint
-            const investmentResponse = await apiClient.getInvestment(investmentId)
+            const investmentResponse = await apiClient.getInvestment(targetInvestmentId)
             if (investmentResponse.success && investmentResponse.investment) {
               const existingInvestment = investmentResponse.investment
               // Only load if it's a draft
@@ -310,21 +345,8 @@ function InvestmentPageContent() {
             localStorage.removeItem('currentInvestmentId')
           }
         }
-        
-        // Load user's investments (ensure we fetch them if not already present)
-        let userInvestments = Array.isArray(data.user?.investments) ? data.user.investments : []
-        if ((!userInvestments || userInvestments.length === 0) && data.success) {
-          try {
-            const investmentsResponse = await apiClient.getInvestments()
-            if (Array.isArray(investmentsResponse?.investments)) {
-              userInvestments = investmentsResponse.investments
-            }
-          } catch (err) {
-            logger.warn('Failed to fetch investments for lock enforcement:', err)
-          }
-        }
 
-        // Load user's account type and set as locked ONLY if user has pending/active investments
+        // STEP 5: Load user's account type and set as locked ONLY if user has pending/active investments
         if (data.success && data.user) {
           const lockInfo = getInvestmentTypeLockInfo({ investments: userInvestments, accountType: data.user.accountType })
           if (lockInfo.lockedAccountType) {
@@ -386,6 +408,35 @@ function InvestmentPageContent() {
   const showStep2Edit = (!isStep2Completed) || (activeStep === 2 && !shouldShowSummaryStep2)
   const isStep2Collapsed = !step2Unlocked || (step2Confirmed && !showStep2Edit)
   const canFinalize = step1Confirmed && step2Confirmed
+
+  // Block UI when user has a pending investment
+  if (hasPendingInvestment) {
+    return (
+      <main className={styles.main}>
+        <Header showBackButton={true} />
+        <div className={styles.container}>
+          <div className={styles.pendingBlockCard}>
+            <div className={styles.pendingBlockIcon}>⏳</div>
+            <h2 className={styles.pendingBlockTitle}>You Have a Pending Investment</h2>
+            <p className={styles.pendingBlockDescription}>
+              You already have a pending investment. 
+              You can only have one pending investment at a time.
+            </p>
+            <p className={styles.pendingBlockSubtext}>
+              Once your current investment is processed, you&apos;ll be able to create a new one.
+            </p>
+            <button
+              type="button"
+              className={styles.pendingBlockButton}
+              onClick={() => router.push('/dashboard')}
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className={styles.main}>

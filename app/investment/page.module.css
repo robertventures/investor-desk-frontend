@@ -126,3 +126,66 @@
   font-family: 'Inter', sans-serif;
 }
 
+/* Pending Investment Block UI */
+.pendingBlockCard {
+  max-width: 480px;
+  margin: 60px auto;
+  padding: 48px 40px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.pendingBlockIcon {
+  font-size: 56px;
+  margin-bottom: 24px;
+  line-height: 1;
+}
+
+.pendingBlockTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.pendingBlockDescription {
+  font-size: 16px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.pendingBlockSubtext {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 32px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.pendingBlockButton {
+  display: inline-block;
+  padding: 14px 32px;
+  background: #1e40af;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.pendingBlockButton:hover {
+  background: #1d4ed8;
+}
+
+.pendingBlockButton:active {
+  transform: scale(0.98);
+}
+

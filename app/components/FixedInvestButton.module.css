@@ -12,7 +12,68 @@
   transform: translateY(0);
 }
 
+.investButton.disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.investButton.disabled:hover {
+  background: #9ca3af;
+  transform: none;
+  box-shadow: none;
+}
+
+.disabledButtonWrapper {
+  position: relative;
+  width: 100%;
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+}
+
+.disabledButtonWrapper .investButton {
+  margin: 0;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1001;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1f2937;
+}
+
+.disabledButtonWrapper:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
 @media (max-width: 768px) {
   .fixedButtonContainer { padding: var(--space-2) var(--space-3); }
   .investButton { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); border-radius: var(--radius-sm); }
+  .tooltip {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
 }

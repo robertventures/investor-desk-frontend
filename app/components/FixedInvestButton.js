@@ -27,12 +27,27 @@ export default function FixedInvestButton() {
     [userData]
   )
 
+  // Check if user has a pending investment
+  const hasPendingInvestment = useMemo(() => {
+    const investments = Array.isArray(userData?.investments) ? userData.investments : []
+    return investments.some(inv => inv.status === 'pending')
+  }, [userData])
+
+  // Check if user has a draft investment (for auto-resume)
+  const draftInvestment = useMemo(() => {
+    const investments = Array.isArray(userData?.investments) ? userData.investments : []
+    return investments.find(inv => inv.status === 'draft')
+  }, [userData])
+
   const lockedTypeLabel = lockInfo.lockedAccountType ? (ACCOUNT_TYPE_LABELS[lockInfo.lockedAccountType] || lockInfo.lockedAccountType) : null
 
   const handleMakeInvestment = () => {
     if (typeof window !== 'undefined') {
       try {
-        if (lockInfo.lockingStatus === 'draft' && lockInfo.investmentId) {
+        // Auto-resume draft investment if exists
+        if (draftInvestment?.id) {
+          localStorage.setItem('currentInvestmentId', draftInvestment.id)
+        } else if (lockInfo.lockingStatus === 'draft' && lockInfo.investmentId) {
           localStorage.setItem('currentInvestmentId', lockInfo.investmentId)
         } else {
           localStorage.removeItem('currentInvestmentId')
@@ -50,10 +65,24 @@ export default function FixedInvestButton() {
   // Prevent hydration mismatch - don't render until mounted
   if (!mounted || shouldHide) return null
 
+  // If user has a pending investment, show disabled state with tooltip
+  if (hasPendingInvestment) {
+    return (
+      <div className={styles.fixedButtonContainer}>
+        <div className={styles.disabledButtonWrapper}>
+          <button disabled className={`${styles.investButton} ${styles.disabled}`}>
+            Make an Investment
+          </button>
+          <span className={styles.tooltip}>You have a pending investment</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.fixedButtonContainer}>
       <button onClick={handleMakeInvestment} className={styles.investButton}>
-        Make an Investment
+        {draftInvestment ? 'Continue Investment' : 'Make an Investment'}
       </button>
     </div>
   )
