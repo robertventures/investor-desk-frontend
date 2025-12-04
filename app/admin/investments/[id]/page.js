@@ -1314,46 +1314,46 @@ function AdminInvestmentDetailsContent() {
   )
 }
 
-// Get event metadata (icon, title, color)
+// Get event metadata (icon, title, color) - using CSS variables
 function getEventMeta(eventType) {
   switch (eventType) {
     case 'investment':
-      return { icon: '✅', title: 'Investment Confirmed', color: '#16a34a' }
+      return { icon: '✅', title: 'Investment Confirmed', color: 'var(--status-success-color)' }
     case 'investment_created':
-      return { icon: '📝', title: 'Investment Created', color: '#6b7280' }
+      return { icon: '📝', title: 'Investment Created', color: 'var(--status-neutral-color)' }
     case 'investment_confirmed':
-      return { icon: '✅', title: 'Investment Confirmed', color: '#16a34a' }
+      return { icon: '✅', title: 'Investment Confirmed', color: 'var(--status-success-color)' }
     case 'distribution':
-      return { icon: '💸', title: 'Distribution', color: '#5b21b6' }
+      return { icon: '💸', title: 'Distribution', color: 'var(--type-distribution-color)' }
     case 'monthly_distribution':
-      return { icon: '💸', title: 'Distribution', color: '#5b21b6' }
+      return { icon: '💸', title: 'Distribution', color: 'var(--type-distribution-color)' }
     case 'monthly_contribution':
-      return { icon: '📈', title: 'Contribution', color: '#5b21b6' }
+      return { icon: '📈', title: 'Contribution', color: 'var(--type-contribution-color)' }
     case 'contribution':
-      return { icon: '📈', title: 'Contribution', color: '#5b21b6' }
+      return { icon: '📈', title: 'Contribution', color: 'var(--type-contribution-color)' }
     case 'monthly_compounded':
-      return { icon: '📈', title: 'Monthly Compounded', color: '#5b21b6' }
+      return { icon: '📈', title: 'Monthly Compounded', color: 'var(--type-contribution-color)' }
     case 'redemption':
-      return { icon: '🏦', title: 'Redemption', color: '#ca8a04' }
+      return { icon: '🏦', title: 'Redemption', color: 'var(--status-warning-color)' }
     default:
-      return { icon: '•', title: eventType || 'Unknown Event', color: '#6b7280' }
+      return { icon: '•', title: eventType || 'Unknown Event', color: 'var(--status-neutral-color)' }
   }
 }
 
-// Transaction status configuration
+// Transaction status configuration - using CSS variables for consistency
 // API TransactionStatus: pending, submitted, approved, rejected, received
 const STATUS_CONFIG = {
-  // Transaction states from API
-  pending: { label: 'Pending', bg: '#fef3c7', color: '#92400e', icon: '⏳' },
-  submitted: { label: 'Submitted', bg: '#dbeafe', color: '#1e40af', icon: '📤' },
-  approved: { label: 'Approved', bg: '#dcfce7', color: '#166534', icon: '✓' },
-  rejected: { label: 'Rejected', bg: '#fee2e2', color: '#991b1b', icon: '✕' },
-  received: { label: 'Received', bg: '#dcfce7', color: '#166534', icon: '✅' },
+  // Transaction states from API - using CSS variable values
+  pending: { label: 'Pending', bg: 'var(--status-warning-bg)', color: 'var(--status-warning-color)', icon: '⏳' },
+  submitted: { label: 'Submitted', bg: 'var(--status-info-bg)', color: 'var(--status-info-color)', icon: '📤' },
+  approved: { label: 'Approved', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✓' },
+  rejected: { label: 'Rejected', bg: 'var(--status-error-bg)', color: 'var(--status-error-color)', icon: '✕' },
+  received: { label: 'Received', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✅' },
   // Legacy/alias states for backwards compatibility
-  completed: { label: 'Completed', bg: '#dcfce7', color: '#166534', icon: '✅' },
-  failed: { label: 'Failed', bg: '#fee2e2', color: '#991b1b', icon: '❌' },
-  active: { label: 'Active', bg: '#dcfce7', color: '#166534', icon: '✓' },
-  draft: { label: 'Draft', bg: '#f3f4f6', color: '#374151', icon: '📝' }
+  completed: { label: 'Completed', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✅' },
+  failed: { label: 'Failed', bg: 'var(--status-error-bg)', color: 'var(--status-error-color)', icon: '❌' },
+  active: { label: 'Active', bg: 'var(--status-success-bg)', color: 'var(--status-success-color)', icon: '✓' },
+  draft: { label: 'Draft', bg: 'var(--status-neutral-bg)', color: 'var(--status-neutral-color)', icon: '📝' }
 }
 
 // Get status configuration with fallback
@@ -1362,8 +1362,8 @@ function getStatusConfig(status) {
   const normalizedStatus = status.toString().toLowerCase()
   return STATUS_CONFIG[normalizedStatus] || { 
     label: status, 
-    bg: '#f3f4f6', 
-    color: '#374151', 
+    bg: 'var(--status-neutral-bg)', 
+    color: 'var(--status-neutral-color)', 
     icon: '•' 
   }
 }
