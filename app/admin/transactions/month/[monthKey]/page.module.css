@@ -584,6 +584,12 @@
   color: var(--status-success-color);
 }
 
+.statusBadge[data-status="submitted"],
+.statusBadge[data-status="Submitted"] {
+  background: var(--status-info-bg);
+  color: var(--status-info-color);
+}
+
 .statusBadge[data-status="active"],
 .statusBadge[data-status="Active"] {
   background: var(--status-success-bg);
