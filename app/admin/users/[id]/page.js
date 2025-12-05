@@ -653,10 +653,6 @@ function AdminUserDetailsContent() {
         if (form.lastName && form.lastName.trim()) {
           payload.lastName = form.lastName.trim()
         }
-        // Include SSN if provided
-        if (form.ssn) {
-          payload.ssn = form.ssn.replace(/\D/g, '') // Remove formatting
-        }
       }
 
       const result = await adminService.updateUser(id, payload)
@@ -1019,7 +1015,7 @@ function AdminUserDetailsContent() {
                 fontSize: '13px',
                 color: '#92400e'
               }}>
-                <strong>Note:</strong> Only First Name, Last Name, Email, and SSN can be updated via admin. Other fields (phone, address, DOB, entity info) are read-only and cannot be modified through this interface.
+                <strong>Note:</strong> Only First Name, Last Name, and Email can be updated via admin. Other fields (phone, address, DOB, SSN, entity info) are read-only and cannot be modified through this interface.
               </div>
             )}
             <div className={styles.grid}>
@@ -1059,7 +1055,7 @@ function AdminUserDetailsContent() {
                     {errors.dob && <div className={styles.muted}>{errors.dob}</div>}
                   </div>
                   <div>
-                    <label><b>SSN</b></label>
+                    <label><b>SSN</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
                     <div className={styles.ssnInputWrapper}>
                       <input 
                         className={styles.ssnInputWithToggle}
@@ -1067,8 +1063,9 @@ function AdminUserDetailsContent() {
                         value={showSSN ? form.ssn : maskSSN(form.ssn)} 
                         onChange={handleChange} 
                         placeholder="123-45-6789" 
-                        disabled={!isEditing || !showSSN}
-                        readOnly={!showSSN}
+                        disabled={true}
+                        readOnly={true}
+                        style={{ background: '#f3f4f6', cursor: 'not-allowed' }}
                       />
                       <button
                         type="button"
