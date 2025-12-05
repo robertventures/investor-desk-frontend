@@ -1469,7 +1469,7 @@ function AdminUserDetailsContent() {
                         gap: '8px',
                         marginBottom: '12px'
                       }}>
-                        {inv.compliance && (
+                        {inv.compliance && inv.compliance.status === 'accredited' && (
                           <span style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -1482,7 +1482,7 @@ function AdminUserDetailsContent() {
                             color: '#0369a1',
                             fontWeight: '500'
                           }}>
-                            ✓ {inv.compliance.accredited || 'Accredited'}
+                            ✓ Accredited
                           </span>
                         )}
 
@@ -2105,7 +2105,7 @@ function AdminUserDetailsContent() {
                               <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Payment Method</div>
                               <div style={{ color: '#111827', fontWeight: '500' }}>{inv.paymentMethod === 'wire' ? 'Wire Transfer' : 'ACH'}</div>
                             </div>
-                            {inv.compliance?.accredited && (
+                            {inv.compliance?.status === 'accredited' && (
                               <div>
                                 <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Status</div>
                                 <div style={{ color: '#0369a1', fontWeight: '600' }}>✓ Accredited</div>
