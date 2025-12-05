@@ -60,12 +60,12 @@ export default function DashboardHeader({ forceActiveView = null }) {
         logger.error('Logout API error (will still redirect):', error)
       })
       
-      // Redirect to sign-in page
-      router.push('/sign-in')
+      // Redirect to login page
+      router.push('/login')
     } catch (error) {
       logger.error('Logout error:', error)
       // Always redirect even if something goes wrong
-      router.push('/sign-in')
+      router.push('/login')
     }
   }
 

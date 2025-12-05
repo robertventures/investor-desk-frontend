@@ -63,10 +63,10 @@ export default function ForgotPasswordPage() {
               Please check your inbox and spam folder.
             </p>
             <button
-              onClick={() => router.push('/sign-in')}
+              onClick={() => router.push('/login')}
               className={styles.backButton}
             >
-              Back to Sign In
+              Back to Log In
             </button>
           </div>
         </div>
@@ -118,10 +118,10 @@ export default function ForgotPasswordPage() {
 
           <div className={styles.footer}>
             <button
-              onClick={() => router.push('/sign-in')}
+              onClick={() => router.push('/login')}
               className={styles.linkButton}
             >
-              Back to Sign In
+              Back to Log In
             </button>
           </div>
         </div>

@@ -122,8 +122,8 @@ function OnboardingContent() {
           // User is logged in - send to dashboard
           router.push('/dashboard')
         } else {
-          // User is not logged in - send to sign-in
-          router.push('/sign-in')
+          // User is not logged in - send to login
+          router.push('/login')
         }
       }
       return
@@ -190,12 +190,12 @@ function OnboardingContent() {
             await fetchInvestmentsAndProceed(userData.user)
           } else {
             console.error('Failed to fetch user data after password setup')
-            setError('Password set but failed to load user data. Please sign in.')
+            setError('Password set but failed to load user data. Please log in.')
             setCurrentStep(ONBOARDING_STEPS.COMPLETE)
           }
         } catch (err) {
           console.error('Error loading user data after password setup:', err)
-          setError('Password set but failed to load user data. Please sign in.')
+          setError('Password set but failed to load user data. Please log in.')
           setCurrentStep(ONBOARDING_STEPS.COMPLETE)
         }
       } else {
@@ -572,14 +572,14 @@ function OnboardingContent() {
               ) : (
                 <>
                   <p>Your password has been set successfully.</p>
-                  <p style={{ marginTop: '8px', color: '#666' }}>Please sign in to access your dashboard.</p>
+                  <p style={{ marginTop: '8px', color: '#666' }}>Please log in to access your dashboard.</p>
                   
                   <button
-                    onClick={() => router.push('/sign-in')}
+                    onClick={() => router.push('/login')}
                     className={styles.submitButton}
                     style={{ marginTop: '24px' }}
                   >
-                    Sign In
+                    Log In
                   </button>
                 </>
               )}

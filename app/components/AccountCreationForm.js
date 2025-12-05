@@ -59,8 +59,8 @@ export default function AccountCreationForm() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSignInRedirect = () => {
-    router.push('/sign-in')
+  const handleLoginRedirect = () => {
+    router.push('/login')
   }
 
   const handleSubmit = async (e) => {
@@ -86,7 +86,7 @@ export default function AccountCreationForm() {
       }
 
       if (data && (data.error === 'User with this email already exists' || data.error?.includes('already exists'))) {
-        setAccountExistsError('An account with this email already exists. Please sign in instead.')
+        setAccountExistsError('An account with this email already exists. Please log in instead.')
         return
       }
 
@@ -106,10 +106,10 @@ export default function AccountCreationForm() {
           <p className={styles.accountExistsText}>{accountExistsError}</p>
           <button 
             type="button"
-            className={styles.signInRedirectButton}
-            onClick={handleSignInRedirect}
+            className={styles.loginRedirectButton}
+            onClick={handleLoginRedirect}
           >
-            Sign In Instead
+            Log In Instead
           </button>
         </div>
       )}
@@ -228,10 +228,10 @@ export default function AccountCreationForm() {
           Already have an account?{' '}
           <button 
             type="button"
-            onClick={handleSignInRedirect}
+            onClick={handleLoginRedirect}
             className={styles.linkButton}
           >
-            Sign In
+            Log In
           </button>
         </p>
       </div>

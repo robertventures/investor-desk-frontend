@@ -57,12 +57,12 @@ export default function AdminHeader({ onTabChange, activeTab }) {
         console.error('Logout API error (will still redirect):', error)
       })
       
-      // Redirect to sign-in page
-      router.push('/sign-in')
+      // Redirect to login page
+      router.push('/login')
     } catch (error) {
       console.error('Logout error:', error)
       // Always redirect even if something goes wrong
-      router.push('/sign-in')
+      router.push('/login')
     }
   }
 

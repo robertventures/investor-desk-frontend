@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import { useUser } from '@/app/contexts/UserContext'
-import styles from './SignInForm.module.css'
+import styles from './LoginForm.module.css'
 
-export default function SignInForm() {
+export default function LoginForm() {
   const router = useRouter()
   const { refreshUser } = useUser()
   const [formData, setFormData] = useState({
@@ -75,8 +75,8 @@ export default function SignInForm() {
       // Login successful - user data is in data.user
       const user = data.user
       if (process.env.NODE_ENV === 'development') {
-        console.log('[SignInForm] User data:', JSON.stringify(user, null, 2))
-        console.log('[SignInForm] isAdmin:', user.isAdmin, 'isVerified:', user.isVerified, 'needsOnboarding:', user.needsOnboarding)
+        console.log('[LoginForm] User data:', JSON.stringify(user, null, 2))
+        console.log('[LoginForm] isAdmin:', user.isAdmin, 'isVerified:', user.isVerified, 'needsOnboarding:', user.needsOnboarding)
       }
 
       // Store minimal user info in localStorage for backward compatibility
@@ -87,11 +87,11 @@ export default function SignInForm() {
       if (refreshUser) {
         try {
           if (process.env.NODE_ENV === 'development') {
-            console.log('[SignInForm] Refreshing user context...')
+            console.log('[LoginForm] Refreshing user context...')
           }
           await refreshUser()
         } catch (refreshErr) {
-          console.warn('[SignInForm] Failed to refresh user context', refreshErr)
+          console.warn('[LoginForm] Failed to refresh user context', refreshErr)
         }
       }
 
@@ -99,17 +99,17 @@ export default function SignInForm() {
       // IMPORTANT: Admin users should ALWAYS go to admin dashboard, regardless of verification status
       if (user.isAdmin) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[SignInForm] Admin user detected, redirecting to /admin')
+          console.log('[LoginForm] Admin user detected, redirecting to /admin')
         }
         router.push('/admin')
       } else if (!user.isVerified) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[SignInForm] Unverified user, redirecting to /confirmation')
+          console.log('[LoginForm] Unverified user, redirecting to /confirmation')
         }
         router.push('/confirmation')
       } else {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[SignInForm] Verified user, redirecting to /dashboard')
+          console.log('[LoginForm] Verified user, redirecting to /dashboard')
         }
         router.push('/dashboard')
       }
@@ -132,7 +132,7 @@ export default function SignInForm() {
   }
 
   return (
-    <div className={styles.signInForm}>
+    <div className={styles.loginForm}>
       <form onSubmit={handleSubmit} className={styles.form}>
         {generalError && (
           <div className={styles.generalError}>
@@ -189,10 +189,10 @@ export default function SignInForm() {
         <div className={styles.actions}>
           <button 
             type="submit" 
-            className={styles.signInButton}
+            className={styles.loginButton}
             disabled={isLoading}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {isLoading ? 'Logging In...' : 'Log In'}
           </button>
         </div>
       </form>
@@ -218,3 +218,4 @@ export default function SignInForm() {
     </div>
   )
 }
+

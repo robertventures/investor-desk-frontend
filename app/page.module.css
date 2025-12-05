@@ -59,7 +59,7 @@
   line-height: 1.5;
 }
 
-.signInPrompt {
+.loginPrompt {
   text-align: center;
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -71,14 +71,14 @@
   box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.04);
 }
 
-.signInText {
+.loginText {
   font-size: 16px;
   color: #6b7280;
   margin-bottom: 20px;
   font-weight: 400;
 }
 
-.signInButton {
+.loginButton {
   background: #1a1a1a;
   color: #ffffff;
   border: none;
@@ -95,7 +95,7 @@
   text-align: center;
 }
 
-.signInButton:hover {
+.loginButton:hover {
   background: #374151;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -116,16 +116,16 @@
     border-radius: 6px;
   }
   
-  .signInPrompt {
+  .loginPrompt {
     padding: 24px 16px;
   }
   
-  .signInText {
+  .loginText {
     font-size: 15px;
     margin-bottom: 16px;
   }
   
-  .signInButton {
+  .loginButton {
     padding: 12px 24px;
     font-size: 13px;
   }

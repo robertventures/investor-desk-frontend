@@ -112,12 +112,12 @@ export function useAdminData() {
               await apiClient.refreshAccessToken()
             } catch (refreshError) {
               logger.error('Failed to refresh token:', refreshError)
-              router.push('/sign-in')
+              router.push('/login')
               return
             }
           } else {
-            // No tokens available, redirect to sign-in
-            router.push('/sign-in')
+            // No tokens available, redirect to login
+            router.push('/login')
             return
           }
         }
@@ -126,7 +126,7 @@ export function useAdminData() {
         const meData = await apiClient.getCurrentUser()
         if (!meData || !meData.success || !meData.user) {
           logger.error('Failed to get current user:', meData)
-          router.push('/sign-in')
+          router.push('/login')
           return
         }
         setCurrentUser(meData.user)
@@ -147,9 +147,9 @@ export function useAdminData() {
         ])
       } catch (e) {
         logger.error('Failed to load admin data', e)
-        // If it's an authentication error, redirect to sign-in
+        // If it's an authentication error, redirect to login
         if (e.message && (e.message.includes('401') || e.message.includes('Session expired') || e.message.includes('Unauthorized'))) {
-          router.push('/sign-in')
+          router.push('/login')
         }
       } finally {
         setIsLoading(false)

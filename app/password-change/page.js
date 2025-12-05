@@ -23,7 +23,7 @@ function PasswordChangeContent() {
   useEffect(() => {
     const tokenParam = searchParams.get('token')
     if (!tokenParam) {
-      router.push('/sign-in')
+      router.push('/login')
       return
     }
     setToken(tokenParam)
@@ -79,9 +79,9 @@ function PasswordChangeContent() {
 
       if (data && data.success) {
         setResetSuccess(true)
-        // Redirect to sign-in after 3 seconds
+        // Redirect to login after 3 seconds
         setTimeout(() => {
-          router.push('/sign-in')
+          router.push('/login')
         }, 3000)
       } else {
         setErrors({ general: data?.error || 'Failed to reset password' })
@@ -107,7 +107,7 @@ function PasswordChangeContent() {
               Your password has been updated and your account has been verified.
             </p>
             <p className={styles.hint}>
-              Redirecting you to sign in...
+              Redirecting you to log in...
             </p>
           </div>
         </div>
@@ -225,10 +225,10 @@ function PasswordChangeContent() {
 
           <div className={styles.footer}>
             <button
-              onClick={() => router.push('/sign-in')}
+              onClick={() => router.push('/login')}
               className={styles.linkButton}
             >
-              Back to Sign In
+              Back to Log In
             </button>
           </div>
         </div>

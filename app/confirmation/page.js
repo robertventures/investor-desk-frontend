@@ -29,8 +29,8 @@ export default function ConfirmationPage() {
     const pendingUserId = localStorage.getItem('pendingUserId')
     
     if (!signupEmail || !pendingUserId) {
-      // If no email or user ID found, redirect to sign-in
-      router.push('/sign-in')
+      // If no email or user ID found, redirect to login
+      router.push('/login')
       return
     }
     
@@ -157,15 +157,15 @@ export default function ConfirmationPage() {
         
         // If email already registered (this shouldn't happen, but handle it gracefully)
         if (errorMessage.includes('already registered')) {
-          errorMessage = 'This email is already registered. Redirecting to sign in...'
+          errorMessage = 'This email is already registered. Redirecting to log in...'
           // Clear localStorage
           if (typeof window !== 'undefined') {
             localStorage.removeItem('signupEmail')
             localStorage.removeItem('pendingRegistration')
             localStorage.removeItem('currentUserId')
           }
-          // Redirect to sign in after showing error
-          setTimeout(() => router.push('/sign-in'), 2000)
+          // Redirect to login after showing error
+          setTimeout(() => router.push('/login'), 2000)
         }
         
         setError(errorMessage)

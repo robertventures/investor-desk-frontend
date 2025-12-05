@@ -56,16 +56,16 @@ export default function DashboardShell({ children }) {
 
     const userId = localStorage.getItem('currentUserId')
     if (!userId) {
-      router.push('/sign-in')
+      router.push('/login')
       return
     }
 
     if (!userData) {
-      // Authentication failed - redirect to sign-in as fallback
+      // Authentication failed - redirect to login as fallback
       localStorage.removeItem('currentUserId')
       localStorage.removeItem('signupEmail')
       localStorage.removeItem('currentInvestmentId')
-      router.push('/sign-in')
+      router.push('/login')
       return
     }
 

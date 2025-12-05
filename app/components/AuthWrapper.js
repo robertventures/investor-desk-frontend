@@ -14,7 +14,7 @@ export default function AuthWrapper({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/sign-in', '/forgot-password', '/password-change', '/confirmation', '/onboarding']
+  const publicRoutes = ['/', '/login', '/forgot-password', '/password-change', '/confirmation', '/onboarding']
   
   // Routes that don't require onboarding check
   const noOnboardingCheckRoutes = ['/onboarding']
@@ -23,14 +23,14 @@ export default function AuthWrapper({ children }) {
   const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/password-change')
   const isOnboardingRoute = noOnboardingCheckRoutes.includes(pathname)
 
-  // Handle token refresh failure by logging out and redirecting to sign-in
+  // Handle token refresh failure by logging out and redirecting to login
   const handleRefreshFailure = useCallback(() => {
     logger.warn('[AuthWrapper] Token refresh failed, logging out')
     apiClient.clearTokens()
     localStorage.removeItem('currentUserId')
     localStorage.removeItem('signupEmail')
     setIsAuthenticated(false)
-    router.push('/sign-in')
+    router.push('/login')
   }, [router])
 
   // Activity-based token refresh (only active when authenticated)
@@ -70,7 +70,7 @@ export default function AuthWrapper({ children }) {
 
         // If user is not logged in and trying to access protected route
         if (!hasToken && !isPublicRoute) {
-          router.push('/sign-in')
+          router.push('/login')
           return
         }
       } catch (error) {
@@ -79,7 +79,7 @@ export default function AuthWrapper({ children }) {
         setIsLoading(false)
         
         if (!isPublicRoute) {
-          router.push('/sign-in')
+          router.push('/login')
         }
       }
     }
@@ -91,7 +91,7 @@ export default function AuthWrapper({ children }) {
       if (e.key === 'currentUserId' && !e.newValue) {
         setIsAuthenticated(false)
         if (!isPublicRoute) {
-          router.push('/sign-in')
+          router.push('/login')
         }
       }
     }

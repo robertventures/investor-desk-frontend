@@ -207,7 +207,7 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
       
       const userId = localStorage.getItem('currentUserId')
       if (!userId) {
-        alert('Please sign in to continue')
+        alert('Please log in to continue')
         router.push('/')
         return
       }

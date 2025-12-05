@@ -1,10 +1,10 @@
 'use client'
 
 import Header from '../components/Header'
-import SignInForm from '../components/SignInForm'
+import LoginForm from '../components/LoginForm'
 import styles from '../page.module.css'
 
-export default function SignInPage() {
+export default function LoginPage() {
   return (
     <main className={styles.main}>
       <Header />
@@ -12,11 +12,12 @@ export default function SignInPage() {
       <div className={styles.container}>
         <section className={styles.welcomeSection}>
           <h1 className={styles.welcomeTitle}>Welcome back</h1>
-          <p className={styles.welcomeSubtitle}>Sign in to your Robert Ventures account</p>
+          <p className={styles.welcomeSubtitle}>Log in to your Robert Ventures account</p>
         </section>
         
-        <SignInForm />
+        <LoginForm />
       </div>
     </main>
   )
 }
+
