@@ -839,7 +839,7 @@ function AdminUserDetailsContent() {
         <div className={styles.content}>
           {/* Breadcrumb Navigation */}
           <div className={styles.breadcrumb}>
-            <button className={styles.breadcrumbLink} onClick={() => router.back()}>
+            <button className={styles.breadcrumbLink} onClick={() => router.push('/admin?tab=accounts')}>
               ← Accounts
             </button>
             <span className={styles.breadcrumbSeparator}>/</span>
