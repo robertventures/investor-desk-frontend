@@ -636,85 +636,46 @@ function AdminUserDetailsContent() {
     if (!validate()) return
     setIsSaving(true)
     try {
-      const payload = {
-        email: form.email.trim(),
-        ...(form.accountType !== 'entity' ? { firstName: form.firstName.trim(), lastName: form.lastName.trim() } : {}),
-        phoneNumber: form.phone.trim(),
-        ...(form.accountType !== 'entity' ? {
-          dob: form.dob,
-          ssn: form.ssn,
-        } : {}),
-        address: {
-          street1: form.street1,
-          street2: form.street2,
-          city: form.city,
-          state: form.state,
-          zip: form.zip,
-          country: form.country
-        },
-        ...(form.accountType === 'entity' ? { entity: {
-          name: form.entityName,
-          registrationDate: form.entityRegistrationDate,
-          taxId: form.entityTaxId,
-          address: {
-            street1: form.street1,
-            street2: form.street2,
-            city: form.city,
-            state: form.state,
-            zip: form.zip,
-            country: form.country
-          }
-        } } : {}),
-        ...(form.accountType === 'entity' ? { authorizedRepresentative: {
-          firstName: form.authorizedRep.firstName.trim(),
-          lastName: form.authorizedRep.lastName.trim(),
-          title: form.authorizedRep.title.trim(),
-          dob: form.authorizedRep.dob,
-          ssn: form.authorizedRep.ssn,
-          address: {
-            street1: form.authorizedRep.street1,
-            street2: form.authorizedRep.street2,
-            city: form.authorizedRep.city,
-            state: form.authorizedRep.state,
-            zip: form.authorizedRep.zip,
-            country: form.authorizedRep.country
-          }
-        } } : {}),
-        ...(form.accountType === 'joint' ? { jointHoldingType: form.jointHoldingType } : {}),
-        ...(form.accountType === 'joint' ? { jointHolder: {
-          firstName: form.jointHolder.firstName.trim(),
-          lastName: form.jointHolder.lastName.trim(),
-          email: form.jointHolder.email.trim(),
-          phone: form.jointHolder.phone.trim(),
-          dob: form.jointHolder.dob,
-          ssn: form.jointHolder.ssn,
-          address: {
-            street1: form.jointHolder.street1,
-            street2: form.jointHolder.street2,
-            city: form.jointHolder.city,
-            state: form.jointHolder.state,
-            zip: form.jointHolder.zip,
-            country: form.jointHolder.country
-          }
-        } } : {})
+      // Build payload with only fields supported by AdminUserUpdateRequest API
+      // Supported fields: firstName, lastName, email, ssn
+      const payload = {}
+      
+      // Only include email if it's changed and not empty
+      if (form.email && form.email.trim()) {
+        payload.email = form.email.trim()
+      }
+      
+      // Only include firstName and lastName for non-entity accounts
+      if (form.accountType !== 'entity') {
+        if (form.firstName && form.firstName.trim()) {
+          payload.firstName = form.firstName.trim()
+        }
+        if (form.lastName && form.lastName.trim()) {
+          payload.lastName = form.lastName.trim()
+        }
+        // Include SSN if provided
+        if (form.ssn) {
+          payload.ssn = form.ssn.replace(/\D/g, '') // Remove formatting
+        }
       }
 
-      const res = await fetch(`/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      const data = await res.json()
-      if (!data.success) {
-        alert(data.error || 'Failed to save user changes')
+      const result = await adminService.updateUser(id, payload)
+      
+      if (!result.success) {
+        alert(result.error || 'Failed to save user changes')
         return
       }
-      setUser(data.user)
+      
+      // Update local user state with the response
+      if (result.user) {
+        setUser(result.user)
+      }
+      
       setIsEditing(false)
       alert('User updated successfully')
     } catch (e) {
       console.error('Failed to save user', e)
-      alert('An error occurred while saving')
+      alert('An error occurred while saving: ' + (e.message || 'Unknown error'))
     } finally {
       setIsSaving(false)
     }
@@ -1048,6 +1009,19 @@ function AdminUserDetailsContent() {
                 </div>
               </div>
                 </div>
+            {isEditing && (
+              <div style={{ 
+                padding: '12px 16px', 
+                background: '#fef3c7', 
+                border: '1px solid #fbbf24', 
+                borderRadius: '6px', 
+                marginBottom: '16px',
+                fontSize: '13px',
+                color: '#92400e'
+              }}>
+                <strong>Note:</strong> Only First Name, Last Name, Email, and SSN can be updated via admin. Other fields (phone, address, DOB, entity info) are read-only and cannot be modified through this interface.
+              </div>
+            )}
             <div className={styles.grid}>
               <div><b>Account Type:</b> {form.accountType || '-'}</div>
               <div>
@@ -1073,15 +1047,15 @@ function AdminUserDetailsContent() {
                 </>
               )}
               <div>
-                <label><b>Phone</b></label>
-                <input name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={!isEditing} />
+                <label><b>Phone</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
+                <input name="phone" value={form.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                 {errors.phone && <div className={styles.muted}>{errors.phone}</div>}
               </div>
               {form.accountType !== 'entity' && (
                 <>
                   <div>
-                    <label><b>Date of Birth</b></label>
-                    <input type="date" name="dob" value={form.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
+                    <label><b>Date of Birth</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
+                    <input type="date" name="dob" value={form.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors.dob && <div className={styles.muted}>{errors.dob}</div>}
                   </div>
                   <div>
@@ -1110,27 +1084,27 @@ function AdminUserDetailsContent() {
                 </>
               )}
               <div>
-                <label><b>Street Address</b></label>
-                <input name="street1" value={form.street1} onChange={handleChange} disabled={!isEditing} />
+                <label><b>Street Address</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
+                <input name="street1" value={form.street1} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                 {errors.street1 && <div className={styles.muted}>{errors.street1}</div>}
               </div>
               <div>
-                <label><b>Apt or Unit</b></label>
-                <input name="street2" value={form.street2} onChange={handleChange} disabled={!isEditing} />
+                <label><b>Apt or Unit</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
+                <input name="street2" value={form.street2} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
               </div>
               <div>
-                <label><b>City</b></label>
-                <input name="city" value={form.city} onChange={handleChange} disabled={!isEditing} />
+                <label><b>City</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
+                <input name="city" value={form.city} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                 {errors.city && <div className={styles.muted}>{errors.city}</div>}
               </div>
               <div>
-                <label><b>Zip</b></label>
-                <input name="zip" value={form.zip} onChange={handleChange} disabled={!isEditing} />
+                <label><b>Zip</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
+                <input name="zip" value={form.zip} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                 {errors.zip && <div className={styles.muted}>{errors.zip}</div>}
               </div>
               <div>
-                <label><b>State</b></label>
-                <select name="state" value={form.state} onChange={handleChange} disabled={!isEditing}>
+                <label><b>State</b> <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>(read-only)</span></label>
+                <select name="state" value={form.state} onChange={handleChange} disabled={true} style={{ background: '#f3f4f6', cursor: 'not-allowed' }}>
                   <option value="">Select state</option>
                   {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
                 </select>
@@ -1146,49 +1120,49 @@ function AdminUserDetailsContent() {
             {form.accountType === 'entity' && (
               <>
                 <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
-                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Entity Information</h3>
+                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Entity Information <span style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', fontWeight: 'normal' }}>(read-only)</span></h3>
                 </div>
                 <div className={styles.grid}>
                 <div>
                   <label><b>Entity Name</b></label>
-                  <input name="entityName" value={form.entityName} onChange={handleChange} disabled={!isEditing} />
+                  <input name="entityName" value={form.entityName} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors.entityName && <div className={styles.muted}>{errors.entityName}</div>}
               </div>
                 <div>
                   <label><b>Entity Tax ID (EIN)</b></label>
-                  <input name="entityTaxId" value={form.entityTaxId} onChange={handleChange} placeholder="12-3456789" disabled={!isEditing} />
+                  <input name="entityTaxId" value={form.entityTaxId} onChange={handleChange} placeholder="12-3456789" disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors.entityTaxId && <div className={styles.muted}>{errors.entityTaxId}</div>}
                 </div>
                 <div>
                   <label><b>Entity Formation Date</b></label>
-                  <input type="date" name="entityRegistrationDate" value={form.entityRegistrationDate} onChange={handleChange} min={MIN_DOB} max={maxToday} disabled={!isEditing} />
+                  <input type="date" name="entityRegistrationDate" value={form.entityRegistrationDate} onChange={handleChange} min={MIN_DOB} max={maxToday} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors.entityRegistrationDate && <div className={styles.muted}>{errors.entityRegistrationDate}</div>}
             </div>
           </div>
 
               {/* Authorized Representative Subsection */}
               <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
-                <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Authorized Representative</h3>
+                <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Authorized Representative <span style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', fontWeight: 'normal' }}>(read-only)</span></h3>
               </div>
               <div className={styles.grid}>
                 <div>
                   <label><b>First Name</b></label>
-                  <input name="authorizedRep.firstName" value={form.authorizedRep.firstName} onChange={handleChange} disabled={!isEditing} />
+                  <input name="authorizedRep.firstName" value={form.authorizedRep.firstName} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors['authorizedRep.firstName'] && <div className={styles.muted}>{errors['authorizedRep.firstName']}</div>}
                     </div>
                 <div>
                   <label><b>Last Name</b></label>
-                  <input name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} disabled={!isEditing} />
+                  <input name="authorizedRep.lastName" value={form.authorizedRep.lastName} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors['authorizedRep.lastName'] && <div className={styles.muted}>{errors['authorizedRep.lastName']}</div>}
                 </div>
                 <div>
                   <label><b>Title</b></label>
-                  <input name="authorizedRep.title" value={form.authorizedRep.title} onChange={handleChange} placeholder="e.g., Manager, CEO" disabled={!isEditing} />
+                  <input name="authorizedRep.title" value={form.authorizedRep.title} onChange={handleChange} placeholder="e.g., Manager, CEO" disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors['authorizedRep.title'] && <div className={styles.muted}>{errors['authorizedRep.title']}</div>}
                 </div>
                 <div>
                   <label><b>Date of Birth</b></label>
-                  <input type="date" name="authorizedRep.dob" value={form.authorizedRep.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
+                  <input type="date" name="authorizedRep.dob" value={form.authorizedRep.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors['authorizedRep.dob'] && <div className={styles.muted}>{errors['authorizedRep.dob']}</div>}
                 </div>
                 <div>
@@ -1200,8 +1174,9 @@ function AdminUserDetailsContent() {
                       value={showAuthRepSSN ? form.authorizedRep.ssn : maskSSN(form.authorizedRep.ssn)} 
                       onChange={handleChange} 
                       placeholder="123-45-6789" 
-                      disabled={!isEditing || !showAuthRepSSN}
-                      readOnly={!showAuthRepSSN}
+                      disabled={true}
+                      readOnly={true}
+                      style={{ background: '#f3f4f6', cursor: 'not-allowed' }}
                     />
                     <button
                       type="button"
@@ -1216,26 +1191,26 @@ function AdminUserDetailsContent() {
                 </div>
                 <div>
                   <label><b>Street Address</b></label>
-                  <input name="authorizedRep.street1" value={form.authorizedRep.street1} onChange={handleChange} disabled={!isEditing} />
+                  <input name="authorizedRep.street1" value={form.authorizedRep.street1} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors['authorizedRep.street1'] && <div className={styles.muted}>{errors['authorizedRep.street1']}</div>}
                 </div>
                 <div>
                   <label><b>Apt or Unit</b></label>
-                  <input name="authorizedRep.street2" value={form.authorizedRep.street2} onChange={handleChange} disabled={!isEditing} />
+                  <input name="authorizedRep.street2" value={form.authorizedRep.street2} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                 </div>
                 <div>
                   <label><b>City</b></label>
-                  <input name="authorizedRep.city" value={form.authorizedRep.city} onChange={handleChange} disabled={!isEditing} />
+                  <input name="authorizedRep.city" value={form.authorizedRep.city} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors['authorizedRep.city'] && <div className={styles.muted}>{errors['authorizedRep.city']}</div>}
                 </div>
                 <div>
                   <label><b>Zip</b></label>
-                  <input name="authorizedRep.zip" value={form.authorizedRep.zip} onChange={handleChange} disabled={!isEditing} />
+                  <input name="authorizedRep.zip" value={form.authorizedRep.zip} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   {errors['authorizedRep.zip'] && <div className={styles.muted}>{errors['authorizedRep.zip']}</div>}
                 </div>
                 <div>
                   <label><b>State</b></label>
-                  <select name="authorizedRep.state" value={form.authorizedRep.state} onChange={handleChange} disabled={!isEditing}>
+                  <select name="authorizedRep.state" value={form.authorizedRep.state} onChange={handleChange} disabled={true} style={{ background: '#f3f4f6', cursor: 'not-allowed' }}>
                     <option value="">Select state</option>
                     {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
                   </select>
@@ -1253,12 +1228,12 @@ function AdminUserDetailsContent() {
             {form.accountType === 'joint' && (
               <>
                 <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
-                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Joint Holder Information</h3>
+                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>Joint Holder Information <span style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', fontWeight: 'normal' }}>(read-only)</span></h3>
                 </div>
                 <div className={styles.grid}>
                   <div>
                     <label><b>Joint Holding Type</b></label>
-                    <select name="jointHoldingType" value={form.jointHoldingType} onChange={handleChange} disabled={!isEditing}>
+                    <select name="jointHoldingType" value={form.jointHoldingType} onChange={handleChange} disabled={true} style={{ background: '#f3f4f6', cursor: 'not-allowed' }}>
                       <option value="">Select joint holding type</option>
                       <option value="spouse">Spouse</option>
                       <option value="sibling">Sibling</option>
@@ -1271,27 +1246,27 @@ function AdminUserDetailsContent() {
                   <div />
                   <div>
                     <label><b>First Name</b></label>
-                    <input name="jointHolder.firstName" value={form.jointHolder.firstName} onChange={handleChange} disabled={!isEditing} />
+                    <input name="jointHolder.firstName" value={form.jointHolder.firstName} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.firstName'] && <div className={styles.muted}>{errors['jointHolder.firstName']}</div>}
                   </div>
                   <div>
                     <label><b>Last Name</b></label>
-                    <input name="jointHolder.lastName" value={form.jointHolder.lastName} onChange={handleChange} disabled={!isEditing} />
+                    <input name="jointHolder.lastName" value={form.jointHolder.lastName} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.lastName'] && <div className={styles.muted}>{errors['jointHolder.lastName']}</div>}
                   </div>
                   <div>
                     <label><b>Email</b></label>
-                    <input name="jointHolder.email" value={form.jointHolder.email} onChange={handleChange} disabled={!isEditing} />
+                    <input name="jointHolder.email" value={form.jointHolder.email} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.email'] && <div className={styles.muted}>{errors['jointHolder.email']}</div>}
                   </div>
                   <div>
                     <label><b>Phone</b></label>
-                    <input name="jointHolder.phone" value={form.jointHolder.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={!isEditing} />
+                    <input name="jointHolder.phone" value={form.jointHolder.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.phone'] && <div className={styles.muted}>{errors['jointHolder.phone']}</div>}
                   </div>
                   <div>
                     <label><b>Date of Birth</b></label>
-                    <input type="date" name="jointHolder.dob" value={form.jointHolder.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={!isEditing} />
+                    <input type="date" name="jointHolder.dob" value={form.jointHolder.dob} onChange={handleChange} min={MIN_DOB} max={maxAdultDob} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.dob'] && <div className={styles.muted}>{errors['jointHolder.dob']}</div>}
                   </div>
                   <div>
@@ -1303,8 +1278,9 @@ function AdminUserDetailsContent() {
                         value={showJointSSN ? form.jointHolder.ssn : maskSSN(form.jointHolder.ssn)} 
                         onChange={handleChange} 
                         placeholder="123-45-6789" 
-                        disabled={!isEditing || !showJointSSN}
-                        readOnly={!showJointSSN}
+                        disabled={true}
+                        readOnly={true}
+                        style={{ background: '#f3f4f6', cursor: 'not-allowed' }}
                       />
                       <button
                         type="button"
@@ -1319,26 +1295,26 @@ function AdminUserDetailsContent() {
                   </div>
                   <div>
                     <label><b>Street Address</b></label>
-                    <input name="jointHolder.street1" value={form.jointHolder.street1} onChange={handleChange} disabled={!isEditing} />
+                    <input name="jointHolder.street1" value={form.jointHolder.street1} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.street1'] && <div className={styles.muted}>{errors['jointHolder.street1']}</div>}
                   </div>
                   <div>
                     <label><b>Apt or Unit</b></label>
-                    <input name="jointHolder.street2" value={form.jointHolder.street2} onChange={handleChange} disabled={!isEditing} />
+                    <input name="jointHolder.street2" value={form.jointHolder.street2} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                   </div>
                   <div>
                     <label><b>City</b></label>
-                    <input name="jointHolder.city" value={form.jointHolder.city} onChange={handleChange} disabled={!isEditing} />
+                    <input name="jointHolder.city" value={form.jointHolder.city} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.city'] && <div className={styles.muted}>{errors['jointHolder.city']}</div>}
                   </div>
                   <div>
                     <label><b>Zip</b></label>
-                    <input name="jointHolder.zip" value={form.jointHolder.zip} onChange={handleChange} disabled={!isEditing} />
+                    <input name="jointHolder.zip" value={form.jointHolder.zip} onChange={handleChange} disabled={true} readOnly style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
                     {errors['jointHolder.zip'] && <div className={styles.muted}>{errors['jointHolder.zip']}</div>}
                   </div>
                   <div>
                     <label><b>State</b></label>
-                    <select name="jointHolder.state" value={form.jointHolder.state} onChange={handleChange} disabled={!isEditing}>
+                    <select name="jointHolder.state" value={form.jointHolder.state} onChange={handleChange} disabled={true} style={{ background: '#f3f4f6', cursor: 'not-allowed' }}>
                       <option value="">Select state</option>
                       {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
                     </select>
