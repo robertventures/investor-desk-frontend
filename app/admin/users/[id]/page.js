@@ -1024,6 +1024,26 @@ function AdminUserDetailsContent() {
                 <b>Verified:</b> {user.isVerified ? 'Yes' : 'No'}
               </div>
               <div>
+                <b>Accreditation Status:</b> 
+                {(() => {
+                  const latestInvestment = (user.investments || [])
+                    .sort((a, b) => {
+                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                      return dateB - dateA
+                    })[0]
+                  const status = latestInvestment?.compliance?.status
+                  
+                  if (status === 'accredited') {
+                    return <span style={{ color: '#166534', fontWeight: '500', marginLeft: '6px' }}>✓ Accredited</span>
+                  }
+                  if (status === 'not_accredited') {
+                    return <span style={{ color: '#4b5563', fontWeight: '500', marginLeft: '6px' }}>Not Accredited</span>
+                  }
+                  return <span style={{ color: '#9ca3af', marginLeft: '6px' }}>-</span>
+                })()}
+              </div>
+              <div>
                 <label><b>Email</b></label>
                 <input name="email" value={form.email} onChange={handleChange} disabled={!isEditing} />
                 {errors.email && <div className={styles.muted}>{errors.email}</div>}
@@ -1483,6 +1503,22 @@ function AdminUserDetailsContent() {
                             fontWeight: '500'
                           }}>
                             ✓ Accredited
+                          </span>
+                        )}
+                        {inv.compliance && inv.compliance.status === 'not_accredited' && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            background: '#f3f4f6',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            color: '#4b5563',
+                            fontWeight: '500'
+                          }}>
+                            Not Accredited
                           </span>
                         )}
 
@@ -2109,6 +2145,12 @@ function AdminUserDetailsContent() {
                               <div>
                                 <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Status</div>
                                 <div style={{ color: '#0369a1', fontWeight: '600' }}>✓ Accredited</div>
+                              </div>
+                            )}
+                            {inv.compliance?.status === 'not_accredited' && (
+                              <div>
+                                <div style={{ color: '#6b7280', marginBottom: '2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Status</div>
+                                <div style={{ color: '#4b5563', fontWeight: '600' }}>Not Accredited</div>
                               </div>
                             )}
                           </div>

@@ -366,7 +366,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   display: grid;
-  grid-template-columns: 200px 1fr auto auto;
+  grid-template-columns: 200px 1fr auto;
   gap: 24px;
   align-items: start;
   position: relative;
@@ -462,6 +462,28 @@
   text-align: center;
 }
 
+.accreditedBadge {
+  background: #f0f9ff;
+  color: #0369a1;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid #e0f2fe;
+}
+
+.notAccreditedBadge {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
 .warningBadge {
   background: #fef3c7;
   color: #92400e;
@@ -539,6 +561,10 @@
 
 .statusPending {
   color: #f59e0b;
+}
+
+.statusNeutral {
+  color: #6b7280;
 }
 
 .statusError {

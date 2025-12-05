@@ -29,6 +29,13 @@ function AdminPageContent() {
     return allowed.includes(t) ? t : 'dashboard'
   }, [searchParams])
   const [activeTab, setActiveTab] = useState(initialTab)
+  
+  // Sub-tab management for Accounts panel
+  const initialAccountsSubTab = useMemo(() => {
+    const subTab = searchParams?.get('accountsView') || 'all'
+    return subTab === 'incomplete' ? 'incomplete' : 'all'
+  }, [searchParams])
+  const [accountsSubTab, setAccountsSubTab] = useState(initialAccountsSubTab)
 
   // Data management with custom hook
   const {
@@ -101,6 +108,9 @@ function AdminPageContent() {
     
     const params = new URLSearchParams()
     params.set('tab', 'accounts')
+    if (accountsSubTab === 'incomplete') {
+      params.set('accountsView', 'incomplete')
+    }
     
     // Only include non-default values to keep URL clean
     if (accountsSearch) params.set('search', accountsSearch)
@@ -130,6 +140,12 @@ function AdminPageContent() {
     // Get values from URL
     const urlSearch = searchParams?.get('search') || ''
     const urlPage = Number(searchParams?.get('page')) || 1
+    const urlAccountsView = searchParams?.get('accountsView') || 'all'
+    if (urlAccountsView === 'incomplete' && accountsSubTab !== 'incomplete') {
+      setAccountsSubTab('incomplete')
+    } else if (urlAccountsView !== 'incomplete' && accountsSubTab === 'incomplete') {
+      setAccountsSubTab('all')
+    }
     const urlFilters = {
       hasInvestments: searchParams?.get('hasInvestments') || 'all',
       investmentAmountMin: searchParams?.get('investmentAmountMin') || '',
@@ -224,6 +240,23 @@ function AdminPageContent() {
     
     let filtered = sortedAccountUsers
     
+    // Apply sub-tab-based filtering (verified vs incomplete accounts)
+    if (activeTab === 'accounts') {
+      if (accountsSubTab === 'incomplete') {
+        // Show unverified users with NO investments
+        filtered = filtered.filter(user => {
+          const hasInvestments = user.investments && user.investments.length > 0
+          return user.isVerified === false && !hasInvestments
+        })
+      } else {
+        // Show verified users OR users with investments
+        filtered = filtered.filter(user => {
+          const hasInvestments = user.investments && user.investments.length > 0
+          return user.isVerified === true || hasInvestments
+        })
+      }
+    }
+    
     // Apply search filter
     if (accountsSearch.trim()) {
       const term = accountsSearch.toLowerCase()
@@ -308,7 +341,7 @@ function AdminPageContent() {
     })
     
     return filtered
-  }, [sortedAccountUsers, accountsSearch, accountFilters, timeMachineData.appTime])
+  }, [sortedAccountUsers, activeTab, accountsSubTab, accountsSearch, accountFilters, timeMachineData.appTime])
 
   // PERFORMANCE: Paginate accounts for better rendering performance
   const paginatedAccountUsers = useMemo(() => {
@@ -633,7 +666,7 @@ function AdminPageContent() {
               </h1>
               <p className={styles.subtitle}>
                 {activeTab === 'dashboard' && 'Overview of platform metrics and recent activity'}
-                {activeTab === 'accounts' && 'View and manage user accounts'}
+                {activeTab === 'accounts' && (accountsSubTab === 'incomplete' ? 'View accounts that are not verified and have no investments' : 'View and manage verified accounts and accounts with investments')}
                 {activeTab === 'activity' && 'View all activity events across the platform'}
                 {activeTab === 'distributions' && 'Track all transactions including investments, monthly payments and compounding interest calculations'}
                 {activeTab === 'operations' && 'Manage withdrawals, tax reporting, and system operations'}
@@ -697,6 +730,64 @@ function AdminPageContent() {
           {/* Accounts Tab */}
           {activeTab === 'accounts' && (
             <div>
+              {/* Sub-tab navigation for Accounts */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '4px', 
+                marginBottom: '24px',
+                background: '#f3f4f6',
+                padding: '4px',
+                borderRadius: '8px',
+                width: 'fit-content'
+              }}>
+                <button
+                  onClick={() => {
+                    setAccountsSubTab('all')
+                    const params = new URLSearchParams(searchParams.toString())
+                    params.set('tab', 'accounts')
+                    params.delete('accountsView')
+                    router.replace(`/admin?${params.toString()}`, { scroll: false })
+                  }}
+                  style={{
+                    padding: '8px 24px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    background: accountsSubTab === 'all' ? '#ffffff' : 'transparent',
+                    color: accountsSubTab === 'all' ? '#1a1a1a' : '#6b7280',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    boxShadow: accountsSubTab === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Verified Accounts
+                </button>
+                <button
+                  onClick={() => {
+                    setAccountsSubTab('incomplete')
+                    const params = new URLSearchParams(searchParams.toString())
+                    params.set('tab', 'accounts')
+                    params.set('accountsView', 'incomplete')
+                    router.replace(`/admin?${params.toString()}`, { scroll: false })
+                  }}
+                  style={{
+                    padding: '8px 24px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    background: accountsSubTab === 'incomplete' ? '#ffffff' : 'transparent',
+                    color: accountsSubTab === 'incomplete' ? '#1a1a1a' : '#6b7280',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    boxShadow: accountsSubTab === 'incomplete' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Incomplete
+                </button>
+              </div>
+              
               <div className={styles.searchContainer}>
                 <input
                   type="text"
@@ -942,6 +1033,15 @@ function AdminPageContent() {
                       return sum + (Number(calculation.currentValue) || 0)
                     }, 0)
                   
+                  // Determine accreditation status from latest investment
+                  const latestInvestment = (user.investments || [])
+                    .sort((a, b) => {
+                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                      return dateB - dateA
+                    })[0]
+                  const accreditationStatus = latestInvestment?.compliance?.status
+                  
                   return (
                     <div
                       key={user.id}
@@ -1015,45 +1115,18 @@ function AdminPageContent() {
                           <div className={styles.statLabel}>Created</div>
                           <div className={styles.statValue}>{(user.displayCreatedAt || user.createdAt || user.created_at) ? formatDateForDisplay(user.displayCreatedAt || user.createdAt || user.created_at) : '-'}</div>
                         </div>
-                      </div>
-                      <div className={styles.accountCardActions} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className={styles.dangerButton}
-                          onClick={async (e) => {
-                            e.stopPropagation()
-                            if (!confirm(`Are you sure you want to delete ${user.firstName} ${user.lastName} (${user.email})?\n\nThis will permanently delete:\n• Account and profile\n• All investments and transactions\n• All activity and withdrawals\n• Authentication access\n\nThis action cannot be undone.`)) return
-                            
-                            console.log(`[Frontend] Deleting user ${user.id} (${user.email})...`)
-                            
-                            try {
-                              const data = await apiClient.deleteUser(user.id)
-                              console.log('[Frontend] Response data:', data)
-                              
-                              // Handle partial success (database deleted but auth failed)
-                              if (data.partialSuccess) {
-                                alert(`⚠️ Partial Success:\n\n${data.error}\n\n✅ User removed from database\n❌ Failed to remove from the authentication service\n\nYou may need to manually delete this user in your auth provider dashboard.`)
-                                await refreshUsers(true)
-                                return
-                              }
-                              
-                              // Handle complete failure
-                              if (!data.success) {
-                                alert(`❌ Failed to delete user:\n\n${data.error}`)
-                                return
-                              }
-                              
-                              // Success
-                              console.log('[Frontend] ✅ User deleted successfully')
-                              alert(`✅ User ${user.email} deleted successfully!`)
-                              await refreshUsers(true)  // Force refresh to bypass cache
-                            } catch (e) {
-                              console.error('[Frontend] Delete failed:', e)
-                              alert(`An error occurred: ${e.message}`)
-                            }
-                          }}
-                        >
-                          Delete
-                        </button>
+                        <div className={styles.accountStat}>
+                          <div className={styles.statLabel}>Accredited</div>
+                          <div className={styles.statValue}>
+                            {accreditationStatus === 'accredited' ? (
+                              <span style={{ color: '#166534' }}>Yes</span>
+                            ) : accreditationStatus === 'not_accredited' ? (
+                              <span style={{ color: '#6b7280' }}>No</span>
+                            ) : (
+                              <span style={{ color: '#9ca3af' }}>-</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )
