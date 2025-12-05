@@ -13,6 +13,32 @@ const CACHE_KEY_ACTIVITY = 'admin_activity_cache'
 const CACHE_KEY_TRANSACTIONS = 'admin_transactions_cache'
 
 /**
+ * Helper to determine if a user has a bank account connected
+ * Checks multiple sources of truth since onboardingStatus.bankConnected
+ * may not be updated for manual entry bank accounts
+ */
+const hasUserBankConnected = (user, payouts = []) => {
+  // If no user provided, we can't determine bank connection status
+  if (!user) return false
+  
+  // Check 1: Backend's onboardingStatus flag
+  if (user.onboardingStatus?.bankConnected) return true
+  
+  // Check 2: User has bankAccounts array with items
+  if (Array.isArray(user.bankAccounts) && user.bankAccounts.length > 0) return true
+  
+  // Check 3: Any payout for this user has a bank nickname (means bank was used for payment)
+  const userPayouts = payouts.filter(p => {
+    const payoutUserId = String(p.userId || '')
+    const userId = String(user.id || '')
+    return payoutUserId === userId || payoutUserId.endsWith(userId.replace(/\D/g, ''))
+  })
+  if (userPayouts.some(p => p.payoutBankNickname)) return true
+  
+  return false
+}
+
+/**
  * Custom hook to manage all admin data fetching and state with intelligent caching
  */
 export function useAdminData() {
@@ -423,7 +449,7 @@ export function useAdminData() {
         ...payout,
         userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || `User #${payoutUserId}` : `User #${payoutUserId}`,
         userEmail: user?.email || null,
-        bankConnected: user?.onboardingStatus?.bankConnected || false
+        bankConnected: hasUserBankConnected(user, pendingPayouts)
       }
     })
   }, [pendingPayouts, users])

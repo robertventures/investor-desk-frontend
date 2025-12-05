@@ -310,7 +310,9 @@ function AdminPageContent() {
       if (accountFilters.passwordSet === 'no' && isPasswordSet) return false
 
       // Filter by bank connected status
-      const isBankConnected = user.onboardingStatus?.bankConnected
+      // Check both onboardingStatus flag and bankAccounts array since manual entry may not update the flag
+      const isBankConnected = user.onboardingStatus?.bankConnected || 
+        (Array.isArray(user.bankAccounts) && user.bankAccounts.length > 0)
       if (accountFilters.bankConnected === 'yes' && !isBankConnected) return false
       if (accountFilters.bankConnected === 'no' && isBankConnected) return false
 
@@ -1042,6 +1044,10 @@ function AdminPageContent() {
                     })[0]
                   const accreditationStatus = latestInvestment?.compliance?.status
                   
+                  // Check both onboardingStatus flag and bankAccounts array since manual entry may not update the flag
+                  const hasBankAccount = user.onboardingStatus?.bankConnected || 
+                    (Array.isArray(user.bankAccounts) && user.bankAccounts.length > 0)
+                  
                   return (
                     <div
                       key={user.id}
@@ -1086,8 +1092,8 @@ function AdminPageContent() {
                           </div>
                           <div className={styles.statusItem}>
                             <span className={styles.statusLabel}>Bank</span>
-                            <span className={`${styles.statusValue} ${user.onboardingStatus?.bankConnected ? styles.statusSuccess : styles.statusPending}`}>
-                              {user.onboardingStatus?.bankConnected ? 'Connected' : 'Not Connected'}
+                            <span className={`${styles.statusValue} ${hasBankAccount ? styles.statusSuccess : styles.statusPending}`}>
+                              {hasBankAccount ? 'Connected' : 'Not Connected'}
                             </span>
                           </div>
                           <div className={styles.statusItem}>
