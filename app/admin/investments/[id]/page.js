@@ -7,7 +7,7 @@ import logger from '../../../../lib/logger'
 import AdminHeader from '../../../components/AdminHeader'
 import InvestmentAdminHeader from '../../components/InvestmentAdminHeader'
 import { calculateInvestmentValue, formatCurrency, formatDate } from '../../../../lib/investmentCalculations.js'
-import { formatDateForDisplay, formatDateTime } from '../../../../lib/dateUtils.js'
+import { formatDateForDisplay, formatDateTime, toEstStartOfDay } from '../../../../lib/dateUtils.js'
 import { useUser } from '@/app/contexts/UserContext'
 import styles from './page.module.css'
 
@@ -418,9 +418,10 @@ function AdminInvestmentDetailsContent() {
   const handleTerminateConfirm = async () => {
     if (!user || !investment || !currentUser) return
 
-    // Check if lockup override is needed
-    const now = new Date(appTime || new Date().toISOString())
-    const needsOverride = investment.lockupEndDate && now < new Date(investment.lockupEndDate)
+    // Check if lockup override is needed - use UTC start of day for date-based comparison
+    const now = toEstStartOfDay(appTime || new Date().toISOString())
+    const lockupEnd = investment.lockupEndDate ? toEstStartOfDay(investment.lockupEndDate) : null
+    const needsOverride = lockupEnd && now < lockupEnd
     
     if (needsOverride && !overrideLockupConfirmed) {
       alert('Please confirm that you understand you are overriding the lockup period.')
@@ -1053,8 +1054,8 @@ function AdminInvestmentDetailsContent() {
                 {/* Lockup Status */}
                 <div style={{ marginBottom: '20px' }}>
                   {(() => {
-                    const now = new Date(appTime || new Date().toISOString())
-                    const lockupEnd = investment.lockupEndDate ? new Date(investment.lockupEndDate) : null
+                    const now = toEstStartOfDay(appTime || new Date().toISOString())
+                    const lockupEnd = investment.lockupEndDate ? toEstStartOfDay(investment.lockupEndDate) : null
                     const isLockupExpired = !lockupEnd || now >= lockupEnd
 
                     return isLockupExpired ? (
@@ -1179,8 +1180,8 @@ function AdminInvestmentDetailsContent() {
 
                   {/* Lockup Override Warning */}
                   {(() => {
-                    const now = new Date(appTime || new Date().toISOString())
-                    const lockupEnd = investment.lockupEndDate ? new Date(investment.lockupEndDate) : null
+                    const now = toEstStartOfDay(appTime || new Date().toISOString())
+                    const lockupEnd = investment.lockupEndDate ? toEstStartOfDay(investment.lockupEndDate) : null
                     const needsOverride = lockupEnd && now < lockupEnd
 
                     return needsOverride ? (
