@@ -11,6 +11,7 @@ const CACHE_KEY_WITHDRAWALS = 'admin_withdrawals_cache'
 const CACHE_KEY_PAYOUTS = 'admin_payouts_cache'
 const CACHE_KEY_ACTIVITY = 'admin_activity_cache'
 const CACHE_KEY_TRANSACTIONS = 'admin_transactions_cache'
+const DISMISSED_PAYOUTS_KEY = 'admin_dismissed_payouts'
 
 /**
  * Helper to determine if a user has a bank account connected
@@ -52,6 +53,18 @@ export function useAdminData() {
     appTime: null, 
     isActive: false,
     autoApproveDistributions: false
+  })
+  
+  // Track dismissed payouts (persisted in localStorage)
+  const [dismissedPayoutIds, setDismissedPayoutIds] = useState(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = localStorage.getItem(DISMISSED_PAYOUTS_KEY)
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch (e) {
+      logger.error('Failed to load dismissed payouts from localStorage:', e)
+      return new Set()
+    }
   })
 
   // Helper to get cached data if still valid
@@ -447,6 +460,122 @@ export function useAdminData() {
   }, [pendingPayouts, users])
 
   /**
+   * Build a map of investmentId -> paymentFrequency for filtering
+   * Only monthly investments have actual payouts to track
+   */
+  const investmentPaymentFrequencyMap = useMemo(() => {
+    const map = new Map()
+    users.forEach(user => {
+      const investments = user.investments || []
+      investments.forEach(inv => {
+        if (inv.id && inv.paymentFrequency) {
+          map.set(inv.id.toString(), inv.paymentFrequency)
+        }
+      })
+    })
+    return map
+  }, [users])
+
+  /**
+   * Monitored payouts - distributions that have been processed (not pending)
+   * Only tracks monthly payout investments (compounding investments don't have payouts)
+   * Auto-hides after 3 days of being in completed/cleared/received status
+   */
+  const monitoredPayouts = useMemo(() => {
+    if (!allTransactions || allTransactions.length === 0) return []
+    
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
+    const now = Date.now()
+    
+    // Filter for distribution transactions that are NOT pending
+    // Only include monthly payout investments (not compounding)
+    const nonPendingDistributions = allTransactions.filter(tx => {
+      const type = tx.type?.toLowerCase() || ''
+      const isDistribution = type === 'distribution' || type === 'monthly_distribution'
+      const isPending = tx.status?.toLowerCase() === 'pending'
+      const isDismissed = dismissedPayoutIds.has(tx.id)
+      
+      if (!isDistribution || isPending || isDismissed) return false
+      
+      // Only include payouts from monthly investments (not compounding)
+      const investmentId = tx.investmentId?.toString()
+      const paymentFrequency = investmentPaymentFrequencyMap.get(investmentId)
+      if (paymentFrequency === 'compounding') {
+        return false // Skip compounding investments - they don't have actual payouts
+      }
+      
+      // Auto-hide cleared/completed payouts after 3 days
+      const statusLower = tx.status?.toLowerCase() || ''
+      const isCleared = statusLower === 'completed' || statusLower === 'cleared' || statusLower === 'received'
+      if (isCleared) {
+        const txDate = tx.date ? new Date(tx.date).getTime() : 0
+        if (txDate && (now - txDate > THREE_DAYS_MS)) {
+          return false // Auto-hide old cleared payouts
+        }
+      }
+      
+      return true
+    })
+    
+    // Create a lookup map for users by both numeric and string IDs
+    const userMap = new Map()
+    users.forEach(user => {
+      const userIdStr = user.id.toString()
+      userMap.set(userIdStr, user)
+      // Also map by numeric part (e.g., "USR-1025" -> "1025")
+      const numericMatch = userIdStr.match(/\d+$/)
+      if (numericMatch) {
+        userMap.set(numericMatch[0], user)
+      }
+    })
+    
+    // Enrich with user data and sort by date (most recent first)
+    return nonPendingDistributions
+      .map(tx => {
+        const txUserId = tx.userId?.toString() || ''
+        let user = userMap.get(txUserId)
+        if (!user) {
+          const numericMatch = txUserId.match(/\d+$/)
+          if (numericMatch) {
+            user = userMap.get(numericMatch[0])
+          }
+        }
+        
+        return {
+          ...tx,
+          userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || `User #${txUserId}` : `User #${txUserId}`,
+          userEmail: user?.email || null
+        }
+      })
+      .sort((a, b) => {
+        const dateA = a.date ? new Date(a.date).getTime() : 0
+        const dateB = b.date ? new Date(b.date).getTime() : 0
+        return dateB - dateA
+      })
+  }, [allTransactions, users, dismissedPayoutIds, investmentPaymentFrequencyMap])
+
+  /**
+   * Dismiss a payout from the monitored list
+   * Persists to localStorage so it stays dismissed across sessions
+   * @param {number|string} payoutId - The transaction ID to dismiss
+   */
+  const dismissPayout = (payoutId) => {
+    setDismissedPayoutIds(prev => {
+      const newSet = new Set(prev)
+      newSet.add(payoutId)
+      
+      // Persist to localStorage
+      try {
+        localStorage.setItem(DISMISSED_PAYOUTS_KEY, JSON.stringify([...newSet]))
+      } catch (e) {
+        logger.error('Failed to save dismissed payouts to localStorage:', e)
+      }
+      
+      return newSet
+    })
+  }
+
+  /**
    * Process ACHQ payment for a pending payout transaction
    * @param {number} transactionId - The transaction ID to process
    * @returns {Promise<{success: boolean, error?: string}>}
@@ -487,6 +616,7 @@ export function useAdminData() {
     isLoadingActivity,
     allTransactions,
     isLoadingTransactions,
+    monitoredPayouts,
     timeMachineData,
     setTimeMachineData,
     refreshUsers: loadUsers,
@@ -495,7 +625,8 @@ export function useAdminData() {
     refreshActivity: loadActivityEvents,
     refreshTransactions: loadAllTransactions,
     refreshTimeMachine: loadTimeMachine,
-    processAchqPayment
+    processAchqPayment,
+    dismissPayout
   }
 }
 

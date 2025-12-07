@@ -7,7 +7,7 @@ import styles from './DashboardTab.module.css'
 import { formatCurrency } from '../../../lib/formatters.js'
 
 /**
- * Main dashboard tab showing overview metrics and recent activity
+ * Main dashboard tab showing overview metrics and payout status
  * PERFORMANCE: Memoized to prevent unnecessary re-renders
  */
 const DashboardTab = memo(function DashboardTab({ 
@@ -20,7 +20,11 @@ const DashboardTab = memo(function DashboardTab({
   onReject, 
   savingId,
   onProcessPayment,
-  onRefreshPayouts
+  onRefreshPayouts,
+  monitoredPayouts,
+  onDismissPayout,
+  onRefreshTransactions,
+  isLoadingTransactions
 }) {
   const router = useRouter()
 
@@ -507,39 +511,92 @@ const DashboardTab = memo(function DashboardTab({
         </div>
       </SectionCard>
 
-      {/* Recent Activity */}
-      <SectionCard title="Recent Activity">
-        <div className={styles.activityCard}>
-          <h3 className={styles.activityCardTitle}>Latest Investments</h3>
-          <div className={styles.activityList}>
-            {metrics.recentInvestments.length > 0 ? (
-              metrics.recentInvestments.slice(0, 5).map(inv => (
-                <div
-                  key={`${inv.userId}-${inv.id}`}
-                  className={styles.activityItem}
-                  onClick={() => router.push(`/admin/users/${inv.userId}`)}
-                >
-                  <div className={styles.activityItemHeader}>
-                    <span className={styles.activityItemTitle}>
-                      Investment #{inv.id}
-                    </span>
-                    <span className={`${styles.activityStatus} ${styles[`status-${inv.status}`]}`}>
-                      {inv.status}
-                    </span>
-                  </div>
-                  <div className={styles.activityItemDetails}>
-                    <span>{inv.userName}</span>
-                    <span className={styles.activityItemAmount}>
-                      {formatCurrency(inv.amount)}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className={styles.emptyState}>No recent investments</p>
-            )}
+      {/* Payout Status - Track processed payouts */}
+      <SectionCard title="Payout Status">
+        <div className={styles.sectionHeader}>
+          <p className={styles.sectionDescription}>
+            Track monthly payouts as they move through processing. Cleared payouts auto-hide after 3 days.
+          </p>
+          <div className={styles.sectionActions}>
+            <button 
+              className={styles.refreshButton} 
+              onClick={() => onRefreshTransactions && onRefreshTransactions(true)} 
+              disabled={isLoadingTransactions}
+            >
+              {isLoadingTransactions ? 'Refreshing...' : 'Refresh'}
+            </button>
           </div>
         </div>
+
+        {monitoredPayouts && monitoredPayouts.length > 0 ? (
+          <div className={styles.payoutStatusTableContainer}>
+            <table className={styles.payoutTable}>
+              <thead>
+                <tr>
+                  <th>Investment</th>
+                  <th>Investor</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monitoredPayouts.map(payout => {
+                  const statusLower = (payout.status || '').toLowerCase()
+                  const isCleared = statusLower === 'completed' || statusLower === 'cleared' || statusLower === 'received'
+                  
+                  return (
+                    <tr key={payout.id} className={isCleared ? styles.clearedRow : ''}>
+                      <td>
+                        <Link 
+                          href={`/admin/investments/${payout.investmentId}`}
+                          className={styles.investmentLink}
+                        >
+                          #{payout.investmentId}
+                        </Link>
+                      </td>
+                      <td>
+                        <div className={styles.investorCell}>
+                          <span 
+                            className={styles.investorName}
+                            onClick={() => router.push(`/admin/users/${payout.userId}`)}
+                          >
+                            {payout.userName}
+                          </span>
+                          {payout.userEmail && (
+                            <span className={styles.investorEmail}>{payout.userEmail}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td><strong>{formatCurrency(payout.amount || 0)}</strong></td>
+                      <td className={styles.dateCell}>
+                        {payout.date ? new Date(payout.date).toLocaleDateString() : '-'}
+                      </td>
+                      <td>
+                        <div className={styles.statusCell}>
+                          <span className={`${styles.badge} ${styles[statusLower] || styles.defaultBadge}`}>
+                            {(payout.status || 'unknown').toUpperCase()}
+                          </span>
+                          <button
+                            className={styles.dismissButtonSmall}
+                            onClick={() => onDismissPayout(payout.id)}
+                            title="Remove from list"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            No payouts currently being processed. Payouts will appear here after they are submitted for payment.
+          </div>
+        )}
       </SectionCard>
     </div>
   )

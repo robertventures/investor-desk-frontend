@@ -51,6 +51,7 @@ function AdminPageContent() {
     isLoadingActivity,
     allTransactions,
     isLoadingTransactions,
+    monitoredPayouts,
     timeMachineData,
     setTimeMachineData,
     refreshUsers,
@@ -58,7 +59,8 @@ function AdminPageContent() {
     refreshPayouts,
     refreshActivity,
     refreshTransactions,
-    processAchqPayment
+    processAchqPayment,
+    dismissPayout
   } = useAdminData()
 
   // Metrics calculation with custom hook
@@ -689,6 +691,10 @@ function AdminPageContent() {
               savingId={savingId}
               onProcessPayment={processAchqPayment}
               onRefreshPayouts={refreshPayouts}
+              monitoredPayouts={monitoredPayouts}
+              onDismissPayout={dismissPayout}
+              onRefreshTransactions={refreshTransactions}
+              isLoadingTransactions={isLoadingTransactions}
             />
           )}
 
