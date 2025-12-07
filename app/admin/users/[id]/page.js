@@ -714,8 +714,7 @@ function AdminUserDetailsContent() {
            // Check logic matches getInvestmentsNeedingBanks in onboarding page
            const hasMonthly = invResult.investments.some(inv => 
              inv.status !== 'withdrawn' && 
-             inv.paymentFrequency === 'monthly' && 
-             inv.paymentMethod !== 'wire-transfer'
+             inv.paymentFrequency === 'monthly'
            )
            needsBank = hasMonthly
         }

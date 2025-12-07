@@ -30,8 +30,6 @@ function OnboardingContent() {
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(true)
   const [bankAccountRequired, setBankAccountRequired] = useState(initialBankRequired)
   const [showBankModal, setShowBankModal] = useState(false)
-  const [currentInvestmentForBank, setCurrentInvestmentForBank] = useState(null)
-  const [currentBankType, setCurrentBankType] = useState(null) // 'funding' or 'payout'
   const [investmentBankAssignments, setInvestmentBankAssignments] = useState({})
   
   // Password step state
@@ -83,29 +81,19 @@ function OnboardingContent() {
       investments: investments
     })
     
-    // Check if bank accounts are needed (all active investments except wire transfers)
+    // Check if bank accounts are needed (only monthly payment investments need payout accounts)
     const investmentsNeedingBanks = investments.filter(inv => 
       inv.status !== 'withdrawn' && 
-      inv.paymentMethod !== 'wire-transfer' // All payment methods except wire need bank accounts
+      inv.paymentFrequency === 'monthly'
     )
     
     const needsBank = investmentsNeedingBanks.length > 0
-    setBankAccountRequired(true) // Always require bank setup step
-    
-    // Initialize bank assignments for investments that already have banks
-    const initialAssignments = {}
-    investments.forEach(inv => {
-      if (inv.bankAccountId) {
-        // Mark as having a bank (we'll show it as connected)
-        initialAssignments[inv.id] = { id: inv.bankAccountId }
-      }
-    })
-    setInvestmentBankAssignments(initialAssignments)
+    setBankAccountRequired(needsBank) // Only require for monthly payment investments
     
     console.log('Investments needing banks:', investmentsNeedingBanks.length)
     
-    // Always go to bank step
-    setCurrentStep(ONBOARDING_STEPS.BANK)
+    // Go to bank step only if user has monthly investments, otherwise skip to complete
+    setCurrentStep(needsBank ? ONBOARDING_STEPS.BANK : ONBOARDING_STEPS.COMPLETE)
   }
 
   // Initialize on mount
@@ -276,15 +264,13 @@ function OnboardingContent() {
     console.log('✅ Bank account connected, UI state updated:', updatedAssignments)
     
     setShowBankModal(false)
-    setCurrentInvestmentForBank(null)
-    setCurrentBankType(null)
   }
   
-  // Get investments that need bank accounts (all active investments except wire transfer)
+  // Get investments that need bank accounts (only monthly payment investments)
   const getInvestmentsNeedingBanks = () => {
     return userData?.investments?.filter(inv => 
       inv.status !== 'withdrawn' && 
-      inv.paymentMethod !== 'wire-transfer' // All payment methods except wire need bank accounts
+      inv.paymentFrequency === 'monthly'
     ) || []
   }
   
@@ -300,12 +286,6 @@ function OnboardingContent() {
     const required = getRequiredBanksForInvestment(investment)
     const investmentBanks = assignments[investment.id] || {}
     return required.every(bankType => investmentBanks[bankType])
-  }
-  
-  // Check if a specific bank type is assigned for an investment
-  const investmentHasBank = (investment, bankType) => {
-    const investmentBanks = investmentBankAssignments[investment.id] || {}
-    return !!investmentBanks[bankType]
   }
 
   const allBanksConnected = getInvestmentsNeedingBanks().every(inv => investmentHasAllRequiredBanks(inv))
