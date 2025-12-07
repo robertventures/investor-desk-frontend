@@ -59,8 +59,7 @@ function AdminPageContent() {
     refreshPayouts,
     refreshActivity,
     refreshTransactions,
-    processAchqPayment,
-    dismissPayout
+    processAchqPayment
   } = useAdminData()
 
   // Metrics calculation with custom hook
@@ -692,7 +691,6 @@ function AdminPageContent() {
               onProcessPayment={processAchqPayment}
               onRefreshPayouts={refreshPayouts}
               monitoredPayouts={monitoredPayouts}
-              onDismissPayout={dismissPayout}
               onRefreshTransactions={refreshTransactions}
               isLoadingTransactions={isLoadingTransactions}
             />

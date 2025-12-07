@@ -11,7 +11,6 @@ const CACHE_KEY_WITHDRAWALS = 'admin_withdrawals_cache'
 const CACHE_KEY_PAYOUTS = 'admin_payouts_cache'
 const CACHE_KEY_ACTIVITY = 'admin_activity_cache'
 const CACHE_KEY_TRANSACTIONS = 'admin_transactions_cache'
-const DISMISSED_PAYOUTS_KEY = 'admin_dismissed_payouts'
 
 /**
  * Helper to determine if a user has a bank account connected
@@ -55,18 +54,6 @@ export function useAdminData() {
     autoApproveDistributions: false
   })
   
-  // Track dismissed payouts (persisted in localStorage)
-  const [dismissedPayoutIds, setDismissedPayoutIds] = useState(() => {
-    if (typeof window === 'undefined') return new Set()
-    try {
-      const stored = localStorage.getItem(DISMISSED_PAYOUTS_KEY)
-      return stored ? new Set(JSON.parse(stored)) : new Set()
-    } catch (e) {
-      logger.error('Failed to load dismissed payouts from localStorage:', e)
-      return new Set()
-    }
-  })
-
   // Helper to get cached data if still valid
   const getCachedData = (key) => {
     try {
@@ -493,9 +480,8 @@ export function useAdminData() {
       const type = tx.type?.toLowerCase() || ''
       const isDistribution = type === 'distribution' || type === 'monthly_distribution'
       const isPending = tx.status?.toLowerCase() === 'pending'
-      const isDismissed = dismissedPayoutIds.has(tx.id)
       
-      if (!isDistribution || isPending || isDismissed) return false
+      if (!isDistribution || isPending) return false
       
       // Only include payouts from monthly investments (not compounding)
       const investmentId = tx.investmentId?.toString()
@@ -552,28 +538,7 @@ export function useAdminData() {
         const dateB = b.date ? new Date(b.date).getTime() : 0
         return dateB - dateA
       })
-  }, [allTransactions, users, dismissedPayoutIds, investmentPaymentFrequencyMap])
-
-  /**
-   * Dismiss a payout from the monitored list
-   * Persists to localStorage so it stays dismissed across sessions
-   * @param {number|string} payoutId - The transaction ID to dismiss
-   */
-  const dismissPayout = (payoutId) => {
-    setDismissedPayoutIds(prev => {
-      const newSet = new Set(prev)
-      newSet.add(payoutId)
-      
-      // Persist to localStorage
-      try {
-        localStorage.setItem(DISMISSED_PAYOUTS_KEY, JSON.stringify([...newSet]))
-      } catch (e) {
-        logger.error('Failed to save dismissed payouts to localStorage:', e)
-      }
-      
-      return newSet
-    })
-  }
+  }, [allTransactions, users, investmentPaymentFrequencyMap])
 
   /**
    * Process ACHQ payment for a pending payout transaction
@@ -625,8 +590,7 @@ export function useAdminData() {
     refreshActivity: loadActivityEvents,
     refreshTransactions: loadAllTransactions,
     refreshTimeMachine: loadTimeMachine,
-    processAchqPayment,
-    dismissPayout
+    processAchqPayment
   }
 }
 

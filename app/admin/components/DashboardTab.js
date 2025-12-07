@@ -22,7 +22,6 @@ const DashboardTab = memo(function DashboardTab({
   onProcessPayment,
   onRefreshPayouts,
   monitoredPayouts,
-  onDismissPayout,
   onRefreshTransactions,
   isLoadingTransactions
 }) {
@@ -573,20 +572,9 @@ const DashboardTab = memo(function DashboardTab({
                         {payout.date ? new Date(payout.date).toLocaleDateString() : '-'}
                       </td>
                       <td>
-                        <div className={styles.statusCell}>
-                          <span className={`${styles.badge} ${styles[statusLower] || styles.defaultBadge}`}>
-                            {(payout.status || 'unknown').toUpperCase()}
-                          </span>
-                          {isCleared && (
-                            <button
-                              className={styles.dismissButtonSmall}
-                              onClick={() => onDismissPayout(payout.id)}
-                              title="Remove from list"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
+                        <span className={`${styles.badge} ${styles[statusLower] || styles.defaultBadge}`}>
+                          {(payout.status || 'unknown').toUpperCase()}
+                        </span>
                       </td>
                     </tr>
                   )

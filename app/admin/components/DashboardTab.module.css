@@ -946,6 +946,13 @@
   overflow: hidden;
 }
 
+/* Ensure nice spacing for columns */
+.payoutTable th:nth-child(1) { width: 15%; } /* Investment */
+.payoutTable th:nth-child(2) { width: 35%; } /* Investor */
+.payoutTable th:nth-child(3) { width: 15%; } /* Amount */
+.payoutTable th:nth-child(4) { width: 15%; } /* Date */
+.payoutTable th:nth-child(5) { width: 20%; } /* Status */
+
 .investorCell {
   display: flex;
   flex-direction: column;
@@ -975,40 +982,6 @@
 
 .clearedRow:hover {
   background-color: #dcfce7 !important;
-}
-
-.statusCell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-width: 140px; /* Ensure enough space */
-}
-
-.dismissButtonSmall {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  background-color: transparent;
-  color: #9ca3af;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-left: auto; /* Push to the right */
-}
-
-.dismissButtonSmall:hover {
-  background-color: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
 }
 
 /* Status badge variants */
