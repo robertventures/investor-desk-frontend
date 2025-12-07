@@ -980,18 +980,20 @@
 .statusCell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  width: 100%;
+  min-width: 140px; /* Ensure enough space */
 }
 
 .dismissButtonSmall {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   background-color: transparent;
   color: #9ca3af;
-  border: 1px solid #e5e7eb;
+  border: 1px solid transparent;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 500;
   line-height: 1;
   cursor: pointer;
@@ -1000,12 +1002,13 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-left: auto; /* Push to the right */
 }
 
 .dismissButtonSmall:hover {
   background-color: #fee2e2;
-  border-color: #fca5a5;
   color: #dc2626;
+  border-color: #fca5a5;
 }
 
 /* Status badge variants */

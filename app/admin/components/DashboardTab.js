@@ -577,13 +577,15 @@ const DashboardTab = memo(function DashboardTab({
                           <span className={`${styles.badge} ${styles[statusLower] || styles.defaultBadge}`}>
                             {(payout.status || 'unknown').toUpperCase()}
                           </span>
-                          <button
-                            className={styles.dismissButtonSmall}
-                            onClick={() => onDismissPayout(payout.id)}
-                            title="Remove from list"
-                          >
-                            ×
-                          </button>
+                          {isCleared && (
+                            <button
+                              className={styles.dismissButtonSmall}
+                              onClick={() => onDismissPayout(payout.id)}
+                              title="Remove from list"
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
