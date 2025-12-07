@@ -229,13 +229,20 @@ function AdminInvestmentDetailsContent() {
                 || event.eventMetadata?.description 
                 || null
               
+              // Extract date fields for the three new columns
+              const transactionDate = event.transaction?.transaction_date || event.transaction_date || null
+              const createdAt = event.transaction?.created_at || event.created_at || event.createdAt || null
+              const eventDate = event.event_date || event.eventDate || null
+              
               return {
                 id: event.id,
                 type: event.activity_type || event.type || event.activityType,
                 amount: amount,
-                eventDate: event.event_date || event.eventDate,  // Business date for sorting
-                date: event.created_at || event.createdAt || event.date,
-                displayDate: event.display_date || event.displayDate || event.transaction?.transaction_date,
+                eventDate: eventDate,  // Business date for sorting
+                date: createdAt || event.date,
+                displayDate: event.display_date || event.displayDate || transactionDate,
+                transactionDate: transactionDate,  // Transaction Date column
+                createdAt: createdAt,  // Created At column
                 status: status,
                 humanId: humanId,
                 description: description,
@@ -914,8 +921,9 @@ function AdminInvestmentDetailsContent() {
                       <th>Event</th>
                       <th>Amount</th>
                       <th>Status</th>
-                      <th>Date</th>
-                      <th>Event ID</th>
+                      <th title="Maps to: event.transaction?.transaction_date" style={{ color: '#dc2626' }}>Created Date</th>
+                      <th title="Maps to: event.transaction?.created_at || event.created_at || event.createdAt" style={{ color: '#dc2626' }}>Date Sent</th>
+                      <th title="Maps to: event.event_date || event.eventDate" style={{ color: '#dc2626' }}>Date Received</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -928,16 +936,21 @@ function AdminInvestmentDetailsContent() {
                       })
                       .map(event => {
                         const meta = getEventMeta(event.type)
-                        const dateValue = event.displayDate || event.date
-                        const date = dateValue
-                          ? new Date(dateValue).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              timeZone: 'America/New_York'
-                            })
+                        
+                        // Format the three date columns
+                        // Created Date: When the transaction was created (transaction.transaction_date)
+                        const transactionDateFormatted = event.transactionDate
+                          ? formatDateTime(event.transactionDate)
+                          : '-'
+                        
+                        // Date Sent: When the transaction was processed/sent (transaction.created_at or event.created_at)
+                        const createdAtFormatted = event.createdAt
+                          ? formatDateTime(event.createdAt)
+                          : '-'
+                        
+                        // Date Received: When the user received the payment (event.event_date)
+                        const eventDateFormatted = event.eventDate
+                          ? formatDateTime(event.eventDate)
                           : '-'
                         
                         // Get status configuration
@@ -989,9 +1002,14 @@ function AdminInvestmentDetailsContent() {
                                 <span className={styles.naText}>-</span>
                               )}
                             </td>
-                            <td className={styles.dateCell}>{date}</td>
-                            <td className={styles.eventIdCell}>
-                              <code>{event.id}</code>
+                            <td className={styles.dateCell}>
+                              {transactionDateFormatted}
+                            </td>
+                            <td className={styles.dateCell}>
+                              {createdAtFormatted}
+                            </td>
+                            <td className={styles.dateCell}>
+                              {eventDateFormatted}
                             </td>
                           </tr>
                         )
