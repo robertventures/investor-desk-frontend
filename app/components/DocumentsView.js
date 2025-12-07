@@ -4,6 +4,7 @@ import { apiClient } from '../../lib/apiClient'
 import styles from './DocumentsView.module.css'
 import { formatCurrency } from '../../lib/formatters.js'
 import { formatDateLocale } from '../../lib/dateUtils.js'
+import { getInvestmentStatus } from '../../lib/investmentCalculations.js'
 
 export default function DocumentsView() {
   const [mounted, setMounted] = useState(false)
@@ -219,20 +220,49 @@ export default function DocumentsView() {
             <h3 className={styles.sectionTitle}>Investment Agreements</h3>
             <div className={styles.documentsGrid}>
               {finalizedInvestments.map(investment => {
+                const status = getInvestmentStatus(investment)
+                
+                // Format investment type - check accountType first, then infer from other fields
+                const getInvestmentType = () => {
+                  const accountType = investment.accountType
+                  
+                  // First check explicit accountType field
+                  if (accountType === 'individual') return 'Individual'
+                  if (accountType === 'joint') return 'Joint'
+                  if (accountType === 'entity') return 'Entity'
+                  if (accountType === 'ira' || accountType === 'sdira') return 'IRA'
+                  
+                  // If accountType is not set, infer from other fields
+                  if (investment.entity) return 'Entity'
+                  if (investment.jointHolder) return 'Joint'
+                  if (investment.ira || investment.sdira) return 'IRA'
+                  
+                  // Default to Individual if none of the above
+                  return 'Individual'
+                }
+                
                 return (
                   <div key={investment.id} className={styles.documentCard}>
                     <div className={styles.documentIcon}>📄</div>
                     <div className={styles.documentInfo}>
-                      <h4 className={styles.documentTitle}>
-                        Bond Agreement - {investment.id.toString().slice(-8)}
-                      </h4>
+                      <div className={styles.documentTitleWithBadge}>
+                        <h4 className={styles.documentTitle}>
+                          Bond Agreement - {investment.id.toString().slice(-8)}
+                        </h4>
+                        <span className={`${styles.statusBadge} ${
+                          status.status === 'withdrawn' ? styles.withdrawn :
+                          status.isLocked ? styles.pending : styles.completed
+                        }`}>
+                          {status.statusLabel}
+                        </span>
+                      </div>
                       <div className={styles.documentDetails}>
                         <p><strong>Amount:</strong> {formatCurrency(investment.amount)}</p>
-                        <p><strong>Account Type:</strong> {investment.accountType?.toUpperCase() || 'N/A'}</p>
+                        <p><strong>Investment Type:</strong> {getInvestmentType()}</p>
                         <p><strong>Payment Frequency:</strong> {investment.paymentFrequency || 'N/A'}</p>
                         <p><strong>Lockup Period:</strong> {investment.lockupPeriod || 'N/A'}</p>
-                        <p><strong>Status:</strong> {investment.status?.toUpperCase() || 'N/A'}</p>
-                        <p><strong>Submitted:</strong> {formatDateLocale(investment.submittedAt || investment.updatedAt)}</p>
+                        <p><strong>Bond Issued:</strong> {formatDateLocale(investment.submittedAt || investment.createdAt)}</p>
+                        <p><strong>Bond Approved:</strong> {investment.confirmedAt ? formatDateLocale(investment.confirmedAt) : 'Pending'}</p>
                       </div>
                     </div>
                     <div className={styles.documentActions}>

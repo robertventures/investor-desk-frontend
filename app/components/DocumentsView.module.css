@@ -100,7 +100,16 @@
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;
-  margin: 0 0 12px 0;
+  margin: 0;
+}
+
+.documentTitleWithBadge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .documentDetails {
@@ -201,6 +210,31 @@
   top: 12px;
   color: #10b981;
   font-weight: 600;
+}
+
+.statusBadge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.statusBadge.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.statusBadge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge.withdrawn {
+  background: #e0f2fe;
+  color: #0c4a6e;
 }
 
 @media (max-width: 768px) {
