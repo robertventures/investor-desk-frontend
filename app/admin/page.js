@@ -1096,12 +1096,6 @@ function AdminPageContent() {
                               {hasBankAccount ? 'Connected' : 'Not Connected'}
                             </span>
                           </div>
-                          <div className={styles.statusItem}>
-                            <span className={styles.statusLabel}>Complete</span>
-                            <span className={`${styles.statusValue} ${user.onboardingStatus?.isComplete ? styles.statusSuccess : styles.statusPending}`}>
-                              {user.onboardingStatus?.isComplete ? 'Yes' : 'No'}
-                            </span>
-                          </div>
                         </div>
                       </div>
                       <div className={styles.accountCardFooter}>
