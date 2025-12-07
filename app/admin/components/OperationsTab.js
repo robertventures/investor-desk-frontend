@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiClient } from '../../../lib/apiClient'
 import { formatCurrency } from '../../../lib/formatters.js'
+import { TIME_MACHINE_ENABLED } from '../../../lib/featureFlags'
 import SectionCard from './SectionCard'
 import TimeMachineTab from './TimeMachineTab'
 import DocumentManagerSection from './DocumentManagerSection'
@@ -169,19 +170,21 @@ export default function OperationsTab({
       </SectionCard>
 
       {/* Time Machine Section */}
-      <SectionCard title="Time Machine">
-        <TimeMachineTab
-          timeMachineData={timeMachineData}
-          onUpdate={onTimeMachineUpdate}
-          onReset={onTimeMachineReset}
-          currentUser={currentUser}
-          onDeleteAccounts={onDeleteAccounts}
-          onSeedTestAccounts={onSeedTestAccounts}
-          isDeletingAccounts={isDeletingAccounts}
-          isSeedingAccounts={isSeedingAccounts}
-          onToggleAutoApprove={onToggleAutoApprove}
-        />
-      </SectionCard>
+      {TIME_MACHINE_ENABLED && (
+        <SectionCard title="Time Machine">
+          <TimeMachineTab
+            timeMachineData={timeMachineData}
+            onUpdate={onTimeMachineUpdate}
+            onReset={onTimeMachineReset}
+            currentUser={currentUser}
+            onDeleteAccounts={onDeleteAccounts}
+            onSeedTestAccounts={onSeedTestAccounts}
+            isDeletingAccounts={isDeletingAccounts}
+            isSeedingAccounts={isSeedingAccounts}
+            onToggleAutoApprove={onToggleAutoApprove}
+          />
+        </SectionCard>
+      )}
 
       {/* Withdrawals Section */}
       <SectionCard title="Withdrawals">

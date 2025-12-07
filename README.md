@@ -190,6 +190,17 @@ npm run build
 
 **Important**: Make sure to configure `NEXT_PUBLIC_API_URL` to point to your production backend API.
 
+#### Environment Variables by Environment
+
+**Staging (staging branch):**
+- `NEXT_PUBLIC_ENABLE_TIME_MACHINE=true` - Enables Time Machine feature for testing
+
+**Production (master/main branch):**
+- `NEXT_PUBLIC_ENABLE_TIME_MACHINE` - Leave unset or set to `false` (Time Machine disabled by default)
+
+**Localhost:**
+- Create `.env.local` file with `NEXT_PUBLIC_ENABLE_TIME_MACHINE=true` for local testing
+
 ## CORS and Cookies
 
 The frontend uses `credentials: 'include'` for all API requests to ensure HTTP-only cookies are sent. Your backend must:
