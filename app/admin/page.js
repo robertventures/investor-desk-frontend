@@ -5,6 +5,7 @@ import { apiClient } from '../../lib/apiClient'
 import AdminHeader from '../components/AdminHeader'
 import { useAdminData } from './hooks/useAdminData'
 import { useAdminMetrics } from './hooks/useAdminMetrics'
+import { adminService } from '../../lib/services/admin'
 import DashboardTab from './components/DashboardTab'
 import OperationsTab from './components/OperationsTab'
 import ActivityTab from './components/ActivityTab'
@@ -92,6 +93,11 @@ function AdminPageContent() {
   const [showFilters, setShowFilters] = useState(false)
   const [accountsSearch, setAccountsSearch] = useState(initialAccountsSearch)
   const [accountFilters, setAccountFilters] = useState(initialAccountFilters)
+  
+  // Onboarding link generation state
+  const [generatingLinkUserId, setGeneratingLinkUserId] = useState(null)
+  const [generatedLinks, setGeneratedLinks] = useState({})
+  const [copiedLinkId, setCopiedLinkId] = useState(null)
   
   // PERFORMANCE: Pagination for accounts view
   const [accountsPage, setAccountsPage] = useState(initialAccountsPage)
@@ -376,6 +382,45 @@ function AdminPageContent() {
     // through the regular signup flow - only needed during investment finalization
     
     return hasPersonalDetails && hasAddress
+  }
+
+  // Onboarding link handlers
+  const handleGenerateLink = async (e, userId) => {
+    e.stopPropagation()
+    if (generatingLinkUserId) return
+    
+    setGeneratingLinkUserId(userId)
+    try {
+      const result = await adminService.resetUserOnboarding(userId)
+      
+      if (result.success && result.token) {
+        const link = `${window.location.origin}/onboarding?token=${result.token}`
+        // Automatically copy to clipboard
+        navigator.clipboard.writeText(link).catch(err => console.error('Auto-copy failed:', err))
+        
+        setGeneratedLinks(prev => ({
+          ...prev,
+          [userId]: link
+        }))
+      } else {
+        alert('Failed to generate link: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Failed to generate link', error)
+      alert('An error occurred while generating the link')
+    } finally {
+      setGeneratingLinkUserId(null)
+    }
+  }
+
+  const copyLink = (e, link, userId) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedLinkId(userId)
+      setTimeout(() => setCopiedLinkId(null), 2000)
+    }).catch(err => {
+      console.error('Failed to copy link', err)
+    })
   }
 
   // Investment operations
@@ -1106,35 +1151,142 @@ function AdminPageContent() {
                           </div>
                         </div>
                       </div>
-                      <div className={styles.accountCardFooter}>
-                        <div className={styles.accountStat}>
-                          <div className={styles.statLabel}>Investments</div>
-                          <div className={styles.statValue}>{(user.investments || []).length}</div>
-                        </div>
-                        <div className={styles.accountStat}>
-                          <div className={styles.statLabel}>Invested</div>
-                          <div className={styles.statValue}>{formatCurrency(Number(investedAmount) || 0)}</div>
-                        </div>
-                        <div className={styles.accountStat}>
-                          <div className={styles.statLabel}>Account Value</div>
-                          <div className={styles.statValue}>{formatCurrency(Number(accountValue) || 0)}</div>
-                        </div>
-                        <div className={styles.accountStat}>
-                          <div className={styles.statLabel}>Created</div>
-                          <div className={styles.statValue}>{(user.displayCreatedAt || user.createdAt || user.created_at) ? formatDateForDisplay(user.displayCreatedAt || user.createdAt || user.created_at) : '-'}</div>
-                        </div>
-                        <div className={styles.accountStat}>
-                          <div className={styles.statLabel}>Accredited</div>
-                          <div className={styles.statValue}>
-                            {accreditationStatus === 'accredited' ? (
-                              <span style={{ color: '#166534' }}>Yes</span>
-                            ) : accreditationStatus === 'not_accredited' ? (
-                              <span style={{ color: '#6b7280' }}>No</span>
-                            ) : (
-                              <span style={{ color: '#9ca3af' }}>-</span>
-                            )}
+                      <div className={styles.accountCardFooter} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0' }}>
+                        <div style={{ display: 'flex', gap: '32px', alignItems: 'center', width: '100%', paddingBottom: '16px' }}>
+                          <div className={styles.accountStat}>
+                            <div className={styles.statLabel}>Investments</div>
+                            <div className={styles.statValue}>{(user.investments || []).length}</div>
+                          </div>
+                          <div className={styles.accountStat}>
+                            <div className={styles.statLabel}>Invested</div>
+                            <div className={styles.statValue}>{formatCurrency(Number(investedAmount) || 0)}</div>
+                          </div>
+                          <div className={styles.accountStat}>
+                            <div className={styles.statLabel}>Account Value</div>
+                            <div className={styles.statValue}>{formatCurrency(Number(accountValue) || 0)}</div>
+                          </div>
+                          <div className={styles.accountStat}>
+                            <div className={styles.statLabel}>Created</div>
+                            <div className={styles.statValue}>{(user.displayCreatedAt || user.createdAt || user.created_at) ? formatDateForDisplay(user.displayCreatedAt || user.createdAt || user.created_at) : '-'}</div>
+                          </div>
+                          <div className={styles.accountStat}>
+                            <div className={styles.statLabel}>Accredited</div>
+                            <div className={styles.statValue}>
+                              {accreditationStatus === 'accredited' ? (
+                                <span style={{ color: '#166534' }}>Yes</span>
+                              ) : accreditationStatus === 'not_accredited' ? (
+                                <span style={{ color: '#6b7280' }}>No</span>
+                              ) : (
+                                <span style={{ color: '#9ca3af' }}>-</span>
+                              )}
+                            </div>
                           </div>
                         </div>
+
+                        {/* Onboarding Link Button */}
+                        {!user.onboardingStatus?.passwordSet && (user.investments || []).length > 0 && (
+                          <div style={{ width: '100%', borderTop: '1px solid #f1f5f9', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                            {generatedLinks[user.id] ? (
+                              <div style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                background: '#ecfdf5',
+                                border: '1px solid #10b981',
+                                borderRadius: '8px'
+                              }}>
+                                <div style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'space-between',
+                                  marginBottom: '8px'
+                                }}>
+                                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#065f46' }}>
+                                    ✅ Onboarding link copied to clipboard!
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setGeneratedLinks(prev => {
+                                        const newLinks = { ...prev }
+                                        delete newLinks[user.id]
+                                        return newLinks
+                                      })
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      color: '#6b7280',
+                                      fontSize: '16px',
+                                      padding: '0 4px'
+                                    }}
+                                    title="Dismiss"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px'
+                                }}>
+                                  <input
+                                    type="text"
+                                    value={generatedLinks[user.id]}
+                                    readOnly
+                                    style={{
+                                      flex: 1,
+                                      padding: '8px 12px',
+                                      fontSize: '12px',
+                                      fontFamily: 'monospace',
+                                      border: '1px solid #d1d5db',
+                                      borderRadius: '6px',
+                                      background: 'white',
+                                      color: '#374151'
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      e.target.select()
+                                    }}
+                                  />
+                                  <button
+                                    onClick={(e) => copyLink(e, generatedLinks[user.id], user.id)}
+                                    style={{
+                                      padding: '8px 12px',
+                                      background: '#059669',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      fontWeight: '500',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title="Copy again"
+                                  >
+                                    Copy
+                                  </button>
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px' }}>
+                                  Valid for 72 hours
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => handleGenerateLink(e, user.id)}
+                                className={styles.secondaryButton}
+                                disabled={generatingLinkUserId === user.id}
+                                style={{ 
+                                  padding: '6px 12px', 
+                                  fontSize: '12px',
+                                  height: '32px'
+                                }}
+                              >
+                                {generatingLinkUserId === user.id ? 'Sending...' : 'Send Link'}
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
