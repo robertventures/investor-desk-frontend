@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
-import { fetchWithCsrf } from '../../../../lib/csrfClient'
 import logger from '../../../../lib/logger'
 import AdminHeader from '../../../components/AdminHeader'
 import InvestmentAdminHeader from '../../components/InvestmentAdminHeader'
@@ -441,7 +440,7 @@ function AdminInvestmentDetailsContent() {
 
     setIsTerminating(true)
     try {
-      const res = await fetchWithCsrf('/api/admin/withdrawals/terminate', {
+      const res = await fetch('/api/admin/withdrawals/terminate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -449,7 +448,8 @@ function AdminInvestmentDetailsContent() {
           investmentId: investment.id,
           adminUserId: currentUser.id,
           overrideLockup: needsOverride && overrideLockupConfirmed
-        })
+        }),
+        credentials: 'include'
       })
 
       const data = await res.json()

@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { fetchWithCsrf } from '../../lib/csrfClient'
 import { apiClient } from '../../lib/apiClient'
 import AdminHeader from '../components/AdminHeader'
 import { useAdminData } from './hooks/useAdminData'
@@ -417,10 +416,11 @@ function AdminPageContent() {
   // Withdrawal operations
   const actOnWithdrawal = async (action, userId, withdrawalId) => {
     try {
-      const res = await fetchWithCsrf('/api/admin/withdrawals', {
+      const res = await fetch('/api/admin/withdrawals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, userId, withdrawalId })
+        body: JSON.stringify({ action, userId, withdrawalId }),
+        credentials: 'include'
       })
       const data = await res.json()
       if (!data.success) {
@@ -439,10 +439,11 @@ function AdminPageContent() {
   // Payout operations
   const handlePayoutAction = async (action, userId, transactionId, failureReason = null) => {
     try {
-      const res = await fetchWithCsrf('/api/admin/pending-payouts', {
+      const res = await fetch('/api/admin/pending-payouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, userId, transactionId, failureReason })
+        body: JSON.stringify({ action, userId, transactionId, failureReason }),
+        credentials: 'include'
       })
       
       if (!res.ok) {
@@ -543,12 +544,13 @@ function AdminPageContent() {
     }
     
     try {
-      const res = await fetchWithCsrf('/api/admin/time-machine', {
+      const res = await fetch('/api/admin/time-machine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           autoApproveDistributions: newValue
-        })
+        }),
+        credentials: 'include'
       })
       
       if (!res.ok) {
@@ -577,10 +579,11 @@ function AdminPageContent() {
     if (!confirm('Delete ALL accounts? This will remove every non-admin user.')) return
     setIsDeletingAccounts(true)
     try {
-      const res = await fetchWithCsrf('/api/admin/accounts', {
+      const res = await fetch('/api/admin/accounts', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminUserId: currentUser.id })
+        body: JSON.stringify({ adminUserId: currentUser.id }),
+        credentials: 'include'
       })
       const data = await res.json()
       if (!data.success) {
@@ -611,10 +614,11 @@ function AdminPageContent() {
     if (!confirm('Seed test accounts? This will create the full local dataset.')) return
     setIsSeedingAccounts(true)
     try {
-      const res = await fetchWithCsrf('/api/admin/seed', {
+      const res = await fetch('/api/admin/seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminUserId: currentUser.id })
+        body: JSON.stringify({ adminUserId: currentUser.id }),
+        credentials: 'include'
       })
       const data = await res.json()
       if (!data.success) {

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '../contexts/UserContext'
 import { apiClient } from '../../lib/apiClient'
-import { fetchWithCsrf } from '../../lib/csrfClient'
 import styles from './InvestmentDetailsContent.module.css'
 import TransactionsList from './TransactionsList'
 import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../lib/investmentCalculations.js'
@@ -141,10 +140,11 @@ export default function InvestmentDetailsContent({ investmentId }) {
     setShowWithdrawConfirm(false)
     
     try {
-      const res = await fetchWithCsrf('/api/withdrawals', {
+      const res = await fetch('/api/withdrawals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userData.id, investmentId: investmentData.id })
+        body: JSON.stringify({ userId: userData.id, investmentId: investmentData.id }),
+        credentials: 'include'
       })
       
       const data = await res.json()

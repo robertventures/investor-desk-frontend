@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
-import { fetchWithCsrf } from '../../../../lib/csrfClient'
 import { apiClient } from '../../../../lib/apiClient'
 import { adminService } from '../../../../lib/services/admin'
 import AdminHeader from '../../../components/AdminHeader'

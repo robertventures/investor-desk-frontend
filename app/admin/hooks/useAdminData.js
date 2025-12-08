@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../../lib/apiClient'
-import { fetchWithCsrf } from '../../../lib/csrfClient'
 import logger from '@/lib/logger'
 
 // Cache configuration

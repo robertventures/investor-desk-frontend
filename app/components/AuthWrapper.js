@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { initCsrfToken } from '../../lib/csrfClient'
 import { apiClient } from '../../lib/apiClient'
 import logger from '../../lib/logger'
 import { UserProvider } from '../contexts/UserContext'
@@ -37,8 +36,6 @@ export default function AuthWrapper({ children }) {
   useTokenRefresh(isAuthenticated, handleRefreshFailure)
 
   useEffect(() => {
-    // Initialize CSRF token on app load
-    initCsrfToken()
     
     if (typeof window === 'undefined') return
     

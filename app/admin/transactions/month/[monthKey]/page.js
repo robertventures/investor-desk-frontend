@@ -1,7 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { fetchWithCsrf } from '../../../../../lib/csrfClient'
 import AdminHeader from '../../../../components/AdminHeader'
 import { useAdminData } from '../../../hooks/useAdminData'
 import styles from './page.module.css'
@@ -382,14 +381,15 @@ export default function MonthTransactionsPage() {
       let errorCount = 0
       
       for (const transaction of pendingTransactions) {
-        const res = await fetchWithCsrf('/api/admin/pending-payouts', {
+        const res = await fetch('/api/admin/pending-payouts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'approve',
             userId: transaction.userId,
             transactionId: transaction.id
-          })
+          }),
+          credentials: 'include'
         })
         
         const data = await res.json()

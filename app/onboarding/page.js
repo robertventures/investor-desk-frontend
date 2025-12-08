@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { fetchWithCsrf } from '../../lib/csrfClient'
 import { apiClient } from '../../lib/apiClient'
 import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'

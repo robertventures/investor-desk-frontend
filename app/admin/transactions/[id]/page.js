@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
-import { fetchWithCsrf } from '../../../../lib/csrfClient'
 import AdminHeader from '../../../components/AdminHeader'
 import styles from './page.module.css'
 import { formatCurrency } from '../../../../lib/formatters.js'
@@ -170,14 +169,15 @@ export default function AdminTransactionDetailsPage() {
     setIsProcessing(true)
 
     try {
-      const res = await fetchWithCsrf('/api/admin/pending-payouts', {
+      const res = await fetch('/api/admin/pending-payouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'approve',
           userId: user.id,
           transactionId: transaction.id
-        })
+        }),
+        credentials: 'include'
       })
 
       const data = await res.json()
