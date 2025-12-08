@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { fetchWithCsrf } from '../../../lib/csrfClient'
+import { adminService } from '../../../lib/services/admin'
 import styles from './DocumentManagerSection.module.css'
 
 /**
@@ -22,13 +22,16 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
   const loadDocuments = async () => {
     setLoading(true)
     try {
-      // Fetch documents using the API we created earlier
-      const res = await fetch(`/api/users/${user.id}/documents`)
-      const data = await res.json()
+      const result = await adminService.getUserDocuments(user.id)
       
-      if (data.success) {
+      if (result.success) {
         // Sort by upload date desc
-        const docs = (data.documents || []).sort((a, b) => 
+        // Backend returns "createdAt", map it to "uploadedAt" if needed or use directly
+        const docs = (result.documents || []).map(doc => ({
+          ...doc,
+          uploadedAt: doc.createdAt || doc.uploadedAt,
+          uploadedBy: doc.uploadedBy || 'Admin' // Fallback if backend doesn't return this yet
+        })).sort((a, b) => 
           new Date(b.uploadedAt) - new Date(a.uploadedAt)
         )
         setDocuments(docs)
@@ -45,21 +48,9 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      formData.append('userId', user.id)
-      formData.append('adminEmail', currentUser.email)
-      formData.append('userName', `${user.firstName} ${user.lastName}`)
-      formData.append('userEmail', user.email)
-
-      const res = await fetchWithCsrf('/api/admin/documents/upload-single', {
-        method: 'POST',
-        body: formData
-      })
-
-      const data = await res.json()
+      const result = await adminService.uploadUserDocument(user.id, selectedFile)
       
-      if (data.success) {
+      if (result.success) {
         alert(`Document uploaded successfully`)
         setSelectedFile(null)
         // Reset file input
@@ -69,7 +60,7 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
         loadDocuments()
         if (onUploadComplete) onUploadComplete()
       } else {
-        alert(`Upload failed: ${data.error}`)
+        alert(`Upload failed: ${result.error}`)
       }
     } catch (error) {
       console.error('Upload error:', error)
@@ -84,24 +75,13 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
     }
 
     try {
-      const res = await fetch(`/api/admin/documents/${docId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          adminEmail: currentUser.email
-        })
-      })
-
-      const data = await res.json()
+      const result = await adminService.deleteUserDocument(user.id, docId)
       
-      if (data.success) {
+      if (result.success) {
         alert('Document deleted successfully')
         loadDocuments()
       } else {
-        alert(`Delete failed: ${data.error}`)
+        alert(`Delete failed: ${result.error}`)
       }
     } catch (error) {
       console.error('Delete error:', error)
@@ -111,15 +91,14 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
 
   const handleDownload = async (docId, fileName) => {
     try {
-      const res = await fetch(`/api/users/${user.id}/documents/${docId}?requestingUserId=${currentUser.id}`)
+      const result = await adminService.getUserDocument(user.id, docId)
       
-      if (!res.ok) {
+      if (!result.success || !result.blob) {
         alert('Failed to download document')
         return
       }
 
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
+      const url = URL.createObjectURL(result.blob)
       const a = document.createElement('a')
       a.href = url
       a.download = fileName
