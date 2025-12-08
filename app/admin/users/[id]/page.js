@@ -51,11 +51,9 @@ function AdminUserDetailsContent() {
     if (!userId) return
     setIsLoadingDocuments(true)
     try {
-      const numericId = userId.toString().replace(/\D/g, '')
-      const res = await fetch(`/api/users/${numericId}/documents`)
-      const data = await res.json()
-      if (data.success && data.documents) {
-        setUserDocuments(data.documents)
+      const result = await adminService.getUserDocuments(userId)
+      if (result.success && result.documents) {
+        setUserDocuments(result.documents)
       } else {
         setUserDocuments([])
       }
@@ -84,27 +82,15 @@ function AdminUserDetailsContent() {
 
     setIsUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('userId', user.id)
-      formData.append('adminEmail', currentUser.email)
-      formData.append('userName', `${user.firstName} ${user.lastName}`)
-      formData.append('userEmail', user.email)
-
-      const res = await fetchWithCsrf('/api/admin/documents/upload-single', {
-        method: 'POST',
-        body: formData
-      })
-
-      const data = await res.json()
+      const result = await adminService.uploadUserDocument(user.id, file)
       
-      if (data.success) {
+      if (result.success) {
         alert(`Document uploaded successfully`)
         if (documentsFileInputRef.current) documentsFileInputRef.current.value = ''
         // Reload documents list
         loadUserDocuments(user.id)
       } else {
-        alert(`Upload failed: ${data.error}`)
+        alert(`Upload failed: ${result.error}`)
       }
     } catch (error) {
       console.error('Upload error:', error)
@@ -121,25 +107,14 @@ function AdminUserDetailsContent() {
 
     setIsDeletingDocument(docId)
     try {
-      const numericUserId = user.id.toString().replace(/\D/g, '')
-      const res = await fetchWithCsrf(`/api/admin/documents/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: numericUserId,
-          documentId: docId,
-          adminEmail: currentUser.email
-        })
-      })
-
-      const data = await res.json()
+      const result = await adminService.deleteUserDocument(user.id, docId)
       
-      if (data.success) {
+      if (result.success) {
         alert('Document deleted successfully')
         // Reload documents list
         loadUserDocuments(user.id)
       } else {
-        alert(`Delete failed: ${data.error}`)
+        alert(`Delete failed: ${result.error}`)
       }
     } catch (error) {
       console.error('Delete error:', error)
@@ -166,22 +141,9 @@ function AdminUserDetailsContent() {
 
     setIsUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('userId', user.id)
-      formData.append('adminEmail', currentUser.email)
-      // Pass user details for the response echo
-      formData.append('userName', `${user.firstName} ${user.lastName}`)
-      formData.append('userEmail', user.email)
-
-      const res = await fetchWithCsrf('/api/admin/documents/upload-single', {
-        method: 'POST',
-        body: formData
-      })
-
-      const data = await res.json()
+      const result = await adminService.uploadUserDocument(user.id, file)
       
-      if (data.success) {
+      if (result.success) {
         alert(`Document uploaded successfully to ${user.firstName} ${user.lastName}`)
         // Clear input
         if (fileInputRef.current) fileInputRef.current.value = ''
@@ -190,7 +152,7 @@ function AdminUserDetailsContent() {
           loadUserDocuments(user.id)
         }
       } else {
-        alert(`Upload failed: ${data.error}`)
+        alert(`Upload failed: ${result.error}`)
       }
     } catch (error) {
       console.error('Upload error:', error)
@@ -2362,7 +2324,7 @@ function AdminUserDetailsContent() {
                                 {doc.fileName}
                               </div>
                               <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                                Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString() : 'Unknown'}
+                                Uploaded: {(doc.createdAt || doc.uploadedAt) ? new Date(doc.createdAt || doc.uploadedAt).toLocaleString() : 'Unknown'}
                                 {doc.uploadedBy && ` by ${doc.uploadedBy}`}
                               </div>
                             </div>
@@ -2371,14 +2333,12 @@ function AdminUserDetailsContent() {
                             <button
                               onClick={async () => {
                                 try {
-                                  const numericUserId = user.id.toString().replace(/\D/g, '')
-                                  const res = await fetch(`/api/users/${numericUserId}/documents/${doc.id}`)
-                                  if (!res.ok) {
+                                  const result = await adminService.getUserDocument(user.id, doc.id)
+                                  if (!result.success || !result.blob) {
                                     alert('Failed to download document')
                                     return
                                   }
-                                  const blob = await res.blob()
-                                  const url = URL.createObjectURL(blob)
+                                  const url = URL.createObjectURL(result.blob)
                                   window.open(url, '_blank')
                                   setTimeout(() => URL.revokeObjectURL(url), 60000)
                                 } catch (error) {

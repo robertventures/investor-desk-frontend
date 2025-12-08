@@ -37,49 +37,13 @@ export default function DocumentsView() {
             setInvestments(investmentsData.investments || [])
           }
 
-          // Always try to load documents from API (backend might not include them in profile)
-          const existingDocs = data.user?.documents || []
-          try {
-            console.log(`[DocumentsView] Fetching documents for userId: ${userId}`)
-            // Try both userId formats
-            const docsRes = await fetch(`/api/users/${userId}/documents`)
-            if (!docsRes.ok) {
-              console.warn(`[DocumentsView] Failed to fetch documents: ${docsRes.status} ${docsRes.statusText}`)
-              // Try numeric ID format
-              const numericId = userId.toString().replace(/\D/g, '')
-              if (numericId && numericId !== userId) {
-                console.log(`[DocumentsView] Trying numeric ID format: ${numericId}`)
-                const altRes = await fetch(`/api/users/${numericId}/documents`)
-                if (altRes.ok) {
-                  const altData = await altRes.json()
-                  if (altData.success && altData.documents) {
-                    console.log(`[DocumentsView] Loaded ${altData.documents.length} documents using numeric ID`)
-                    setUserDocuments(altData.documents)
-                  }
-                } else {
-                  console.warn(`[DocumentsView] Numeric ID fetch also failed: ${altRes.status}`)
-                }
-              }
-            } else {
-              const docsData = await docsRes.json()
-              console.log(`[DocumentsView] API response:`, docsData)
-              if (docsData.success && docsData.documents) {
-                console.log(`[DocumentsView] Loaded ${docsData.documents.length} documents`)
-                setUserDocuments(docsData.documents)
-              } else {
-                console.warn('[DocumentsView] Documents API returned success=false or no documents:', docsData)
-                // Fall back to existing docs from user object if API fails
-                if (existingDocs.length > 0) {
-                  setUserDocuments(existingDocs)
-                }
-              }
-            }
-          } catch (error) {
-            console.error('[DocumentsView] Failed to load documents:', error)
-            // Fall back to existing docs from user object if fetch fails
-            if (existingDocs.length > 0) {
-              setUserDocuments(existingDocs)
-            }
+          // Documents come from the user profile if backend includes them
+          // Note: User-facing document endpoint (/api/users/me/documents) is not yet available
+          // Once backend supports it, we can fetch documents directly
+          const userDocs = data.user?.documents || []
+          if (userDocs.length > 0) {
+            console.log(`[DocumentsView] Found ${userDocs.length} documents in user profile`)
+            setUserDocuments(userDocs)
           }
         }
       } catch (error) {
@@ -185,35 +149,15 @@ export default function DocumentsView() {
   )
 
   // Sort documents by upload date (most recent first)
+  // Backend may return createdAt instead of uploadedAt
   const sortedDocuments = userDocuments
-    .filter(doc => doc.type === 'document')
-    .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
+    .filter(doc => doc.type === 'document' || !doc.type) // Include docs without type field
+    .sort((a, b) => new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt))
 
   const downloadDocument = async (docId, fileName) => {
-    try {
-      if (typeof window === 'undefined') return
-      
-      const userId = localStorage.getItem('currentUserId')
-      const res = await fetch(`/api/users/${userId}/documents/${docId}?requestingUserId=${userId}`)
-      
-      if (!res.ok) {
-        alert('Failed to download document')
-        return
-      }
-
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Failed to download document:', error)
-      alert('Failed to download document')
-    }
+    // Note: User document download endpoint (/api/users/me/documents/{id}) is not yet available
+    // This will be enabled once the backend supports user-facing document downloads
+    alert('Document download will be available soon. Please contact support if you need this document urgently.')
   }
 
   // Prevent hydration mismatch
@@ -243,15 +187,16 @@ export default function DocumentsView() {
                     </h4>
                     <div className={styles.documentDetails}>
                       <p><strong>File:</strong> {doc.fileName}</p>
-                      <p><strong>Uploaded:</strong> {formatDateLocale(doc.uploadedAt)}</p>
+                      <p><strong>Uploaded:</strong> {formatDateLocale(doc.createdAt || doc.uploadedAt)}</p>
                     </div>
                   </div>
                   <div className={styles.documentActions}>
                     <button
                       className={styles.downloadButton}
                       onClick={() => downloadDocument(doc.id, doc.fileName)}
+                      title="Download will be available soon"
                     >
-                      📥 Download
+                      📥 View
                     </button>
                   </div>
                 </div>

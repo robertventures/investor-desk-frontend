@@ -15,16 +15,7 @@ const nextConfig = {
     }
     
     return [
-      // Local API routes should NOT be proxied
-      {
-        source: '/api/users/:userId/documents/:path*',
-        destination: '/api/users/:userId/documents/:path*',
-      },
-      {
-        source: '/api/admin/documents/:path*',
-        destination: '/api/admin/documents/:path*',
-      },
-      // Proxy everything else to backend
+      // Proxy all API requests to backend
       {
         source: '/api/:path*',
         destination: `${apiUrl}/api/:path*`,
