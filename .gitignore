@@ -46,3 +46,6 @@ node_modules/
 # Documentation (local reference only)
 docs/
 lib/apiTypes.ts
+
+# Local Uploads (Server Storage)
+public/uploads/

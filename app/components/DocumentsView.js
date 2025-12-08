@@ -10,6 +10,7 @@ export default function DocumentsView() {
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState(null)
   const [investments, setInvestments] = useState([])
+  const [userDocuments, setUserDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [agreementLoadingId, setAgreementLoadingId] = useState(null)
 
@@ -34,6 +35,51 @@ export default function DocumentsView() {
           const investmentsData = await apiClient.getInvestments(userId)
           if (investmentsData.success) {
             setInvestments(investmentsData.investments || [])
+          }
+
+          // Always try to load documents from API (backend might not include them in profile)
+          const existingDocs = data.user?.documents || []
+          try {
+            console.log(`[DocumentsView] Fetching documents for userId: ${userId}`)
+            // Try both userId formats
+            const docsRes = await fetch(`/api/users/${userId}/documents`)
+            if (!docsRes.ok) {
+              console.warn(`[DocumentsView] Failed to fetch documents: ${docsRes.status} ${docsRes.statusText}`)
+              // Try numeric ID format
+              const numericId = userId.toString().replace(/\D/g, '')
+              if (numericId && numericId !== userId) {
+                console.log(`[DocumentsView] Trying numeric ID format: ${numericId}`)
+                const altRes = await fetch(`/api/users/${numericId}/documents`)
+                if (altRes.ok) {
+                  const altData = await altRes.json()
+                  if (altData.success && altData.documents) {
+                    console.log(`[DocumentsView] Loaded ${altData.documents.length} documents using numeric ID`)
+                    setUserDocuments(altData.documents)
+                  }
+                } else {
+                  console.warn(`[DocumentsView] Numeric ID fetch also failed: ${altRes.status}`)
+                }
+              }
+            } else {
+              const docsData = await docsRes.json()
+              console.log(`[DocumentsView] API response:`, docsData)
+              if (docsData.success && docsData.documents) {
+                console.log(`[DocumentsView] Loaded ${docsData.documents.length} documents`)
+                setUserDocuments(docsData.documents)
+              } else {
+                console.warn('[DocumentsView] Documents API returned success=false or no documents:', docsData)
+                // Fall back to existing docs from user object if API fails
+                if (existingDocs.length > 0) {
+                  setUserDocuments(existingDocs)
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[DocumentsView] Failed to load documents:', error)
+            // Fall back to existing docs from user object if fetch fails
+            if (existingDocs.length > 0) {
+              setUserDocuments(existingDocs)
+            }
           }
         }
       } catch (error) {
@@ -138,8 +184,8 @@ export default function DocumentsView() {
     investment.status === 'withdrawn'
   )
 
-  // Get documents and sort by upload date (most recent first)
-  const userDocuments = (user?.documents || [])
+  // Sort documents by upload date (most recent first)
+  const sortedDocuments = userDocuments
     .filter(doc => doc.type === 'document')
     .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
 
@@ -184,11 +230,11 @@ export default function DocumentsView() {
 
       <div className={styles.content}>
         {/* Documents Section */}
-        {userDocuments.length > 0 && (
+        {sortedDocuments.length > 0 && (
           <div className={styles.documentsList}>
             <h3 className={styles.sectionTitle}>Documents</h3>
             <div className={styles.documentsGrid}>
-              {userDocuments.map(doc => (
+              {sortedDocuments.map(doc => (
                 <div key={doc.id} className={styles.documentCard}>
                   <div className={styles.documentIcon}>📄</div>
                   <div className={styles.documentInfo}>
@@ -281,7 +327,7 @@ export default function DocumentsView() {
               })}
             </div>
           </div>
-        ) : userDocuments.length === 0 ? (
+        ) : sortedDocuments.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📄</div>
             <h3 className={styles.emptyTitle}>No Documents Yet</h3>
