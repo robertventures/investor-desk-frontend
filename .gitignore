@@ -43,3 +43,6 @@ node_modules/
 /.pnp
 .pnp.js
 
+# Documentation (local reference only)
+docs/
+lib/apiTypes.ts
