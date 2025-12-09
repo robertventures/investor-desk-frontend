@@ -459,25 +459,35 @@ function AdminPageContent() {
   }
 
   // Withdrawal operations
+  // Returns true on success, false on failure (for callers that need to know)
   const actOnWithdrawal = async (action, userId, withdrawalId) => {
     try {
-      const res = await fetch('/api/admin/withdrawals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, userId, withdrawalId }),
-        credentials: 'include'
-      })
-      const data = await res.json()
-      if (!data.success) {
-        alert(data.error || 'Failed to update withdrawal')
-        return
+      let result
+      
+      if (action === 'complete' || action === 'approve') {
+        result = await apiClient.approveWithdrawal(withdrawalId)
+      } else if (action === 'reject') {
+        result = await apiClient.rejectWithdrawal(withdrawalId)
+      } else {
+        alert(`Unknown action: ${action}`)
+        return false
       }
+      
+      if (!result.success) {
+        alert(result.error || 'Failed to update withdrawal')
+        return false
+      }
+      
       await refreshWithdrawals(true)  // Force refresh to bypass cache
       await refreshUsers(true)  // Force refresh to bypass cache
-      alert('Withdrawal updated successfully')
+      
+      const actionLabel = action === 'reject' ? 'rejected' : 'completed'
+      alert(`Withdrawal ${actionLabel} successfully`)
+      return true
     } catch (e) {
       console.error('Failed to update withdrawal', e)
-      alert('An error occurred')
+      alert('An error occurred while updating the withdrawal')
+      return false
     }
   }
 

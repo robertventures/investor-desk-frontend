@@ -33,6 +33,11 @@ export default function OperationsTab({
   const [masterPasswordInfo, setMasterPasswordInfo] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
+  
+  // Withdrawal rejection confirmation modal state
+  const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [withdrawalToReject, setWithdrawalToReject] = useState(null)
+  const [isRejecting, setIsRejecting] = useState(false)
 
   // Fetch current master password info (only if feature is enabled)
   useEffect(() => {
@@ -110,6 +115,37 @@ export default function OperationsTab({
     const minutes = Math.floor(ms / 60000)
     const seconds = Math.floor((ms % 60000) / 1000)
     return `${minutes}m ${seconds}s`
+  }
+
+  // Open reject confirmation modal
+  const handleRejectClick = (withdrawal) => {
+    setWithdrawalToReject(withdrawal)
+    setRejectModalOpen(true)
+  }
+
+  // Close reject confirmation modal
+  const handleRejectCancel = () => {
+    setRejectModalOpen(false)
+    setWithdrawalToReject(null)
+  }
+
+  // Confirm and execute rejection
+  const handleRejectConfirm = async () => {
+    if (!withdrawalToReject) return
+    
+    setIsRejecting(true)
+    try {
+      const success = await onWithdrawalAction('reject', withdrawalToReject.userId, withdrawalToReject.id)
+      if (success) {
+        // Only close modal on success - on failure, keep it open so user can retry or cancel
+        setRejectModalOpen(false)
+        setWithdrawalToReject(null)
+      }
+    } catch (error) {
+      console.error('Failed to reject withdrawal:', error)
+    } finally {
+      setIsRejecting(false)
+    }
   }
 
   return (
@@ -247,8 +283,8 @@ export default function OperationsTab({
                         </button>
                         <button 
                           className={styles.rejectButton} 
-                          onClick={() => onWithdrawalAction('reject', w.userId, w.id)} 
-                          disabled={w.status === 'rejected'}
+                          onClick={() => handleRejectClick(w)} 
+                          disabled={w.status === 'rejected' || w.status === 'approved'}
                         >
                           Reject
                         </button>
@@ -271,6 +307,54 @@ export default function OperationsTab({
           </table>
         </div>
       </SectionCard>
+
+      {/* Rejection Confirmation Modal */}
+      {rejectModalOpen && withdrawalToReject && (
+        <div className={styles.modalOverlay} onClick={handleRejectCancel}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Confirm Withdrawal Rejection</h3>
+            <div className={styles.modalBody}>
+              <p className={styles.modalWarning}>
+                Are you sure you want to reject this withdrawal request?
+              </p>
+              <div className={styles.modalDetails}>
+                <div className={styles.modalDetailRow}>
+                  <span className={styles.modalDetailLabel}>User:</span>
+                  <span className={styles.modalDetailValue}>{withdrawalToReject.userEmail}</span>
+                </div>
+                <div className={styles.modalDetailRow}>
+                  <span className={styles.modalDetailLabel}>Investment ID:</span>
+                  <span className={styles.modalDetailValue}>{withdrawalToReject.investmentId}</span>
+                </div>
+                <div className={styles.modalDetailRow}>
+                  <span className={styles.modalDetailLabel}>Amount:</span>
+                  <span className={styles.modalDetailValue}>{formatCurrency(withdrawalToReject.amount || 0)}</span>
+                </div>
+              </div>
+              <p className={styles.modalNote}>
+                Rejecting this withdrawal will restore the investment to its normal active state. 
+                The investor will not see this as a rejection - their investment will simply continue as before.
+              </p>
+            </div>
+            <div className={styles.modalActions}>
+              <button 
+                className={styles.modalCancelButton}
+                onClick={handleRejectCancel}
+                disabled={isRejecting}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.modalConfirmButton}
+                onClick={handleRejectConfirm}
+                disabled={isRejecting}
+              >
+                {isRejecting ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
