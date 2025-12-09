@@ -406,44 +406,31 @@ export function useAdminData() {
   }
 
   /**
-   * Enrich pending payouts with user data (name, email)
-   * Joins payouts with users based on userId
+   * Pending payouts - distributions that need processing or reprocessing
    */
   const enrichedPendingPayouts = useMemo(() => {
-    if (!pendingPayouts || pendingPayouts.length === 0) return []
-    if (!users || users.length === 0) return pendingPayouts
+    if (!allTransactions || allTransactions.length === 0) return []
     
-    // Create a lookup map for users by both numeric and string IDs
-    const userMap = new Map()
-    users.forEach(user => {
-      const userIdStr = user.id.toString()
-      userMap.set(userIdStr, user)
-      // Also map by numeric part (e.g., "USR-1025" -> "1025")
-      const numericMatch = userIdStr.match(/\d+$/)
-      if (numericMatch) {
-        userMap.set(numericMatch[0], user)
-      }
+    // Filter for pending/failed/rejected distributions
+    const actionablePayouts = allTransactions.filter(tx => {
+      const type = tx.type?.toLowerCase() || ''
+      const status = tx.status?.toLowerCase() || ''
+      const isDistribution = type === 'distribution' || type === 'monthly_distribution'
+      const needsAction = status === 'pending' || status === 'failed' || status === 'rejected'
+      return isDistribution && needsAction
     })
     
-    return pendingPayouts.map(payout => {
-      const payoutUserId = payout.userId?.toString() || ''
-      // Try to find user by exact match or numeric part
-      let user = userMap.get(payoutUserId)
-      if (!user) {
-        const numericMatch = payoutUserId.match(/\d+$/)
-        if (numericMatch) {
-          user = userMap.get(numericMatch[0])
-        }
-      }
-      
+    // Enrich with user data
+    return actionablePayouts.map(tx => {
+      const user = users.find(u => u.id?.toString() === tx.userId?.toString())
       return {
-        ...payout,
-        userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || `User #${payoutUserId}` : `User #${payoutUserId}`,
+        ...tx,
+        userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : `User #${tx.userId}`,
         userEmail: user?.email || null,
         bankConnected: hasUserBankConnected(user)
       }
     })
-  }, [pendingPayouts, users])
+  }, [allTransactions, users])
 
   /**
    * Build a map of investmentId -> paymentFrequency for filtering
