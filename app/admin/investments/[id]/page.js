@@ -215,12 +215,8 @@ function AdminInvestmentDetailsContent() {
               // TransactionStatus: pending, submitted, approved, rejected, received
               const status = event.transaction?.status || event.status || null
               
-              // Extract human-readable transaction ID (available in API)
-              const humanId = event.transaction?.human_id 
-                || event.transaction?.humanId 
-                || event.eventMetadata?.human_id 
-                || event.eventMetadata?.humanId 
-                || null
+              // Extract event ID (use main event id, not nested transaction human_id)
+              const humanId = event.id || null
               
               // Extract description (available in API)
               const description = event.transaction?.description 
