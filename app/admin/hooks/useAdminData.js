@@ -430,29 +430,13 @@ export function useAdminData() {
       })
     })
     
-    // Find which investments already have a submitted/completed payout (don't need action)
-    const processedInvestments = new Set()
-    allTransactions.forEach(tx => {
-      const type = tx.type?.toLowerCase() || ''
-      const status = tx.status?.toLowerCase() || ''
-      if ((type === 'distribution' || type === 'monthly_distribution') &&
-          (status === 'submitted' || status === 'completed' || status === 'cleared' || status === 'received')) {
-        processedInvestments.add(tx.investmentId?.toString())
-      }
-    })
-    
-    // Filter for pending/failed/rejected distributions (skip if investment already processed)
+    // Filter for distributions with pending or rejected status
     const actionablePayouts = allTransactions.filter(tx => {
       const type = tx.type?.toLowerCase() || ''
       const status = tx.status?.toLowerCase() || ''
       const isDistribution = type === 'distribution' || type === 'monthly_distribution'
-      const needsAction = status === 'pending' || status === 'failed' || status === 'rejected'
-      if (!isDistribution || !needsAction) return false
-      
-      // If this investment already has a submitted payout, don't show the old rejected one
-      if (processedInvestments.has(tx.investmentId?.toString())) return false
-      
-      return true
+      const needsAction = status === 'pending' || status === 'rejected'
+      return isDistribution && needsAction
     })
     
     // Enrich with user and investment data
