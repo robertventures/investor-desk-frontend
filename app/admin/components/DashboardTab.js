@@ -436,9 +436,10 @@ const DashboardTab = memo(function DashboardTab({
                           <tr>
                             <th className={styles.checkboxCell}></th>
                             <th>Investment</th>
-                            <th>Amount</th>
+                            <th>Inv. Amount</th>
+                            <th>Term</th>
+                            <th>Payout</th>
                             <th>Date</th>
-                            <th>Bank</th>
                             <th>Status</th>
                             <th>Actions</th>
                           </tr>
@@ -446,7 +447,8 @@ const DashboardTab = memo(function DashboardTab({
                         <tbody>
                           {group.payouts.map(payout => {
                             const isProcessing = processingPayoutId === payout.id
-                            const isFailed = payout.status === 'rejected' || payout.status === 'failed'
+                            const isFailed = payout.status?.toLowerCase() === 'rejected' || payout.status?.toLowerCase() === 'failed'
+                            const termLabel = payout.investmentTerm === '1-year' ? '1 Year' : payout.investmentTerm === '3-year' ? '3 Years' : payout.investmentTerm || '-'
                             
                             return (
                               <tr 
@@ -471,13 +473,14 @@ const DashboardTab = memo(function DashboardTab({
                                     #{payout.investmentId}
                                   </Link>
                                 </td>
+                                <td>{payout.investmentAmount ? formatCurrency(payout.investmentAmount) : '-'}</td>
+                                <td>{termLabel}</td>
                                 <td><strong>{formatCurrency(payout.amount || 0)}</strong></td>
                                 <td className={styles.dateCell}>
                                   {payout.date ? new Date(payout.date).toLocaleDateString() : '-'}
                                 </td>
-                                <td className={styles.bankCell}>{payout.payoutBankNickname || 'Default'}</td>
                                 <td>
-                                  <span className={`${styles.badge} ${styles[payout.status] || styles.pending}`}>
+                                  <span className={`${styles.badge} ${styles[payout.status?.toLowerCase()] || styles.pending}`}>
                                     {(payout.status || 'pending').toUpperCase()}
                                   </span>
                                 </td>

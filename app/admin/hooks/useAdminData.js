@@ -411,6 +411,25 @@ export function useAdminData() {
   const enrichedPendingPayouts = useMemo(() => {
     if (!allTransactions || allTransactions.length === 0) return []
     
+    // Build lookup maps for faster matching
+    const userMap = new Map()
+    const investmentMap = new Map()
+    users.forEach(user => {
+      // Map by full ID and numeric part
+      const id = user.id?.toString() || ''
+      userMap.set(id, user)
+      const numericId = id.match(/\d+$/)?.[0]
+      if (numericId) userMap.set(numericId, user)
+      
+      // Build investment map
+      ;(user.investments || []).forEach(inv => {
+        const invId = inv.id?.toString() || ''
+        investmentMap.set(invId, { ...inv, user })
+        const numericInvId = invId.match(/\d+$/)?.[0]
+        if (numericInvId) investmentMap.set(numericInvId, { ...inv, user })
+      })
+    })
+    
     // Filter for pending/failed/rejected distributions
     const actionablePayouts = allTransactions.filter(tx => {
       const type = tx.type?.toLowerCase() || ''
@@ -420,14 +439,28 @@ export function useAdminData() {
       return isDistribution && needsAction
     })
     
-    // Enrich with user data
+    // Enrich with user and investment data
     return actionablePayouts.map(tx => {
-      const user = users.find(u => u.id?.toString() === tx.userId?.toString())
+      const txUserId = tx.userId?.toString() || ''
+      const txInvId = tx.investmentId?.toString() || ''
+      
+      // Find user (try full ID then numeric)
+      let user = userMap.get(txUserId) || userMap.get(txUserId.match(/\d+$/)?.[0])
+      
+      // Find investment (try full ID then numeric)
+      const investment = investmentMap.get(txInvId) || investmentMap.get(txInvId.match(/\d+$/)?.[0])
+      
+      // If no user found via userId, try via investment
+      if (!user && investment?.user) user = investment.user
+      
       return {
         ...tx,
-        userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : `User #${tx.userId}`,
+        userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : `User #${txUserId}`,
         userEmail: user?.email || null,
-        bankConnected: hasUserBankConnected(user)
+        bankConnected: hasUserBankConnected(user),
+        investmentAmount: investment?.amount || null,
+        investmentTerm: investment?.lockupPeriod || investment?.term || null,
+        paymentFrequency: investment?.paymentFrequency || null
       }
     })
   }, [allTransactions, users])
