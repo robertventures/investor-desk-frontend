@@ -479,8 +479,9 @@ export function useAdminData() {
       const type = tx.type?.toLowerCase() || ''
       const isDistribution = type === 'distribution' || type === 'monthly_distribution'
       const isPending = tx.status?.toLowerCase() === 'pending'
+      const isFailed = tx.status?.toLowerCase() === 'failed' || tx.status?.toLowerCase() === 'rejected'
       
-      if (!isDistribution || isPending) return false
+      if (!isDistribution || isPending || isFailed) return false
       
       // Only include payouts from monthly investments (not compounding)
       const investmentId = tx.investmentId?.toString()
