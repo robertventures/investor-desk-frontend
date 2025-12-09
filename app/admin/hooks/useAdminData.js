@@ -453,12 +453,14 @@ export function useAdminData() {
       // Always show pending (new payouts need processing)
       if (status === 'pending') return true
       
-      // For rejected: only show if no newer submitted exists for this investment
+      // For rejected: only show if no submitted exists OR rejected is newer than submitted
       if (status === 'rejected') {
         const invId = tx.investmentId?.toString()
+        const submittedDate = latestSubmittedDate.get(invId)
+        // Show if no submitted exists for this investment
+        if (!submittedDate) return true
+        // Show if rejected is newer than the latest submitted
         const txDate = tx.date ? new Date(tx.date).getTime() : 0
-        const submittedDate = latestSubmittedDate.get(invId) || 0
-        // Show rejected only if it's newer than any submitted (or no submitted exists)
         return txDate > submittedDate
       }
       
