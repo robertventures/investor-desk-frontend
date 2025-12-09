@@ -430,13 +430,36 @@ export function useAdminData() {
       })
     })
     
-    // Filter for distributions with pending or rejected status
+    // Build set of reprocessed payouts (investment + amount + month)
+    const reprocessedPayouts = new Set()
+    allTransactions.forEach(tx => {
+      const type = tx.type?.toLowerCase() || ''
+      const status = tx.status?.toLowerCase() || ''
+      if ((type === 'distribution' || type === 'monthly_distribution') && status === 'submitted') {
+        const month = tx.date ? new Date(tx.date).toISOString().slice(0, 7) : ''
+        const key = `${tx.investmentId}-${tx.amount}-${month}`
+        reprocessedPayouts.add(key)
+      }
+    })
+    
+    // Filter for actionable payouts
     const actionablePayouts = allTransactions.filter(tx => {
       const type = tx.type?.toLowerCase() || ''
       const status = tx.status?.toLowerCase() || ''
       const isDistribution = type === 'distribution' || type === 'monthly_distribution'
-      const needsAction = status === 'pending' || status === 'rejected'
-      return isDistribution && needsAction
+      if (!isDistribution) return false
+      
+      // Always show pending
+      if (status === 'pending') return true
+      
+      // For rejected: only show if not reprocessed (same investment + amount + month)
+      if (status === 'rejected') {
+        const month = tx.date ? new Date(tx.date).toISOString().slice(0, 7) : ''
+        const key = `${tx.investmentId}-${tx.amount}-${month}`
+        return !reprocessedPayouts.has(key)
+      }
+      
+      return false
     })
     
     // Enrich with user and investment data
