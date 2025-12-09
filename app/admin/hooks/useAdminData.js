@@ -573,8 +573,8 @@ export function useAdminData() {
       
       if (result.success) {
         logger.log(`✓ ACHQ payment processed for transaction ${transactionId}`)
-        // Refresh payouts list to get updated status
-        await loadPendingPayouts(true)
+        // Refresh transactions to update both pending payouts and payout status lists
+        await loadAllTransactions(true)
         return { success: true, data: result }
       } else {
         logger.error(`ACHQ payment failed for transaction ${transactionId}:`, result.error)
