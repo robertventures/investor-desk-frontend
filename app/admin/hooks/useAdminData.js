@@ -430,41 +430,13 @@ export function useAdminData() {
       })
     })
     
-    // Build map of latest submitted transaction date per investment
-    const latestSubmittedDate = new Map()
-    allTransactions.forEach(tx => {
-      const type = tx.type?.toLowerCase() || ''
-      const status = tx.status?.toLowerCase() || ''
-      if ((type === 'distribution' || type === 'monthly_distribution') && status === 'submitted') {
-        const invId = tx.investmentId?.toString()
-        const txDate = tx.date ? new Date(tx.date).getTime() : 0
-        const existing = latestSubmittedDate.get(invId) || 0
-        if (txDate > existing) latestSubmittedDate.set(invId, txDate)
-      }
-    })
-    
-    // Filter for actionable payouts
+    // Filter for distributions with pending or rejected status
     const actionablePayouts = allTransactions.filter(tx => {
       const type = tx.type?.toLowerCase() || ''
       const status = tx.status?.toLowerCase() || ''
       const isDistribution = type === 'distribution' || type === 'monthly_distribution'
-      if (!isDistribution) return false
-      
-      // Always show pending (new payouts need processing)
-      if (status === 'pending') return true
-      
-      // For rejected: only show if no submitted exists OR rejected is newer than submitted
-      if (status === 'rejected') {
-        const invId = tx.investmentId?.toString()
-        const submittedDate = latestSubmittedDate.get(invId)
-        // Show if no submitted exists for this investment
-        if (!submittedDate) return true
-        // Show if rejected is newer than the latest submitted
-        const txDate = tx.date ? new Date(tx.date).getTime() : 0
-        return txDate > submittedDate
-      }
-      
-      return false
+      const needsAction = status === 'pending' || status === 'rejected'
+      return isDistribution && needsAction
     })
     
     // Enrich with user and investment data
