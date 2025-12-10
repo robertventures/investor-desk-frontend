@@ -154,10 +154,10 @@ export function useAdminData() {
         }
 
         // Load all data in parallel
+        // Note: loadPendingPayouts removed - we now use loadActivityEvents for pending payouts
         await Promise.all([
           loadUsers(),
           loadWithdrawals(),
-          loadPendingPayouts(),
           loadActivityEvents(),
           loadAllTransactions(),
           loadTimeMachine()
@@ -451,18 +451,7 @@ export function useAdminData() {
    * Uses Activity Events API which correctly reflects real-time status updates
    */
   const enrichedPendingPayouts = useMemo(() => {
-    if (!activityEvents || activityEvents.length === 0) {
-      logger.log('[enrichedPendingPayouts] No activity events available')
-      return []
-    }
-    
-    // Debug: log all statuses we see
-    const statusCounts = {}
-    activityEvents.forEach(e => {
-      const s = e.status?.toLowerCase() || 'unknown'
-      statusCounts[s] = (statusCounts[s] || 0) + 1
-    })
-    logger.log('[enrichedPendingPayouts] Status counts:', statusCounts)
+    if (!activityEvents || activityEvents.length === 0) return []
     
     // Build lookup maps for faster matching
     const userMap = new Map()
