@@ -25,6 +25,8 @@ function AdminInvestmentDetailsContent() {
   const [showTerminateModal, setShowTerminateModal] = useState(false)
   const [isTerminating, setIsTerminating] = useState(false)
   const [overrideLockupConfirmed, setOverrideLockupConfirmed] = useState(false)
+  const [calculationData, setCalculationData] = useState(null)
+  const [isLoadingCalculation, setIsLoadingCalculation] = useState(false)
   const [appTime, setAppTime] = useState(null)
   const [isDownloadingAgreement, setIsDownloadingAgreement] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -416,9 +418,25 @@ function AdminInvestmentDetailsContent() {
     }
   }
 
-  const handleTerminateClick = () => {
+  const handleTerminateClick = async () => {
     setShowTerminateModal(true)
     setOverrideLockupConfirmed(false)
+    setCalculationData(null)
+    setIsLoadingCalculation(true)
+    
+    try {
+      const result = await apiClient.getInvestmentCalculation(user.id, investment.id)
+      if (result.success) {
+        setCalculationData(result)
+        logger.debug('[AdminInvestmentDetails] Fetched calculation data:', result)
+      } else {
+        logger.error('[AdminInvestmentDetails] Failed to fetch calculation data:', result.error)
+      }
+    } catch (error) {
+      logger.error('[AdminInvestmentDetails] Error fetching calculation data:', error)
+    } finally {
+      setIsLoadingCalculation(false)
+    }
   }
 
   const handleTerminateConfirm = async () => {
@@ -475,6 +493,7 @@ function AdminInvestmentDetailsContent() {
   const handleTerminateCancel = () => {
     setShowTerminateModal(false)
     setOverrideLockupConfirmed(false)
+    setCalculationData(null)
   }
 
   const handleViewAgreement = async () => {
@@ -1159,41 +1178,110 @@ function AdminInvestmentDetailsContent() {
                     <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#64748b', marginBottom: '12px' }}>
                       Investment #{investment.id}
                     </h3>
-                    {(() => {
-                      const currentValue = calculateInvestmentValue(investment, appTime)
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Investor:</span>
-                            <span style={{ fontWeight: '600' }}>{user.firstName} {user.lastName}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Principal:</span>
-                            <span style={{ fontWeight: '600' }}>
-                              {formatCurrency(investment.amount)}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Earnings:</span>
-                            <span style={{ fontWeight: '600', color: '#059669' }}>
-                              {formatCurrency(currentValue.totalEarnings)}
-                            </span>
-                          </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between',
-                            paddingTop: '8px',
-                            marginTop: '8px',
-                            borderTop: '1px solid #e2e8f0'
-                          }}>
-                            <span style={{ fontWeight: '600', color: '#64748b' }}>Total Payout:</span>
-                            <span style={{ fontSize: '18px', fontWeight: '700', color: '#0369a1' }}>
-                              {formatCurrency(currentValue.currentValue)}
-                            </span>
-                          </div>
+                    {isLoadingCalculation ? (
+                      <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+                        Loading calculation data...
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#64748b' }}>Investor:</span>
+                          <span style={{ fontWeight: '600' }}>{user.firstName} {user.lastName}</span>
                         </div>
-                      )
-                    })()}
+                        {(() => {
+                          // Get calculation data from API response
+                          const data = calculationData?.data || {}
+                          
+                          // Determine investment type from API response or fallback to investment object
+                          const frequency = (data.paymentFrequency || investment.paymentFrequency || '').toLowerCase()
+                          const isCompounding = frequency === 'compounding' || frequency === 'compound'
+                          
+                          // Get values from calculation data
+                          const principal = parseFloat(data.principalAmount) || investment.amount
+                          const totalEarnings = parseFloat(data.totalEarnings) || 0
+                          const currentValue = parseFloat(data.currentValue) || (principal + totalEarnings)
+                          
+                          // Get current month accrual from the last accrual segment
+                          const accrualSegments = data.details?.accrualSegments || []
+                          const lastSegment = accrualSegments[accrualSegments.length - 1]
+                          const currentMonthAccrual = lastSegment ? (parseFloat(lastSegment.earningsInSegment) || 0) : 0
+                          
+                          // For compounding: compounded interest is total earnings minus current month accrual
+                          const compoundedInterest = isCompounding ? Math.max(0, totalEarnings - currentMonthAccrual) : 0
+                          
+                          // Total payout is the currentValue from API (principal + all earnings)
+                          const totalPayout = currentValue
+                          
+                          if (isCompounding) {
+                            // Compounding investments: show principal, compounded interest, current month accrual, total
+                            return (
+                              <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: '#64748b' }}>Principal:</span>
+                                  <span style={{ fontWeight: '600' }}>
+                                    {formatCurrency(principal)}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: '#64748b' }}>Compounded Interest:</span>
+                                  <span style={{ fontWeight: '600', color: '#059669' }}>
+                                    {formatCurrency(compoundedInterest)}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: '#64748b' }}>Current Month Accrual:</span>
+                                  <span style={{ fontWeight: '600', color: '#059669' }}>
+                                    {formatCurrency(currentMonthAccrual)}
+                                  </span>
+                                </div>
+                                <div style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between',
+                                  paddingTop: '8px',
+                                  marginTop: '8px',
+                                  borderTop: '1px solid #e2e8f0'
+                                }}>
+                                  <span style={{ fontWeight: '600', color: '#64748b' }}>Total Payout:</span>
+                                  <span style={{ fontSize: '18px', fontWeight: '700', color: '#0369a1' }}>
+                                    {formatCurrency(totalPayout)}
+                                  </span>
+                                </div>
+                              </>
+                            )
+                          } else {
+                            // Monthly payment investments: show principal, current month accrual, total
+                            return (
+                              <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: '#64748b' }}>Principal:</span>
+                                  <span style={{ fontWeight: '600' }}>
+                                    {formatCurrency(principal)}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span style={{ color: '#64748b' }}>Current Month Accrual:</span>
+                                  <span style={{ fontWeight: '600', color: '#059669' }}>
+                                    {formatCurrency(currentMonthAccrual)}
+                                  </span>
+                                </div>
+                                <div style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between',
+                                  paddingTop: '8px',
+                                  marginTop: '8px',
+                                  borderTop: '1px solid #e2e8f0'
+                                }}>
+                                  <span style={{ fontWeight: '600', color: '#64748b' }}>Total Payout:</span>
+                                  <span style={{ fontSize: '18px', fontWeight: '700', color: '#0369a1' }}>
+                                    {formatCurrency(totalPayout)}
+                                  </span>
+                                </div>
+                              </>
+                            )
+                          }
+                        })()}
+                      </div>
+                    )}
                   </div>
 
                   {/* Lockup Override Warning */}
