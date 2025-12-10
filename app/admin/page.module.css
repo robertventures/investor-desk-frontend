@@ -572,6 +572,11 @@
   color: var(--color-danger);
 }
 
+.statusDisconnected {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 .accountCardFooter {
   display: flex;
   gap: 32px;

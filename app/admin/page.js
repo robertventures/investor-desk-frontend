@@ -54,6 +54,12 @@ function AdminPageContent() {
     monitoredPayouts,
     timeMachineData,
     setTimeMachineData,
+    // Payment methods / ACH status
+    paymentMethodsByUser,
+    isLoadingPaymentMethods,
+    disconnectedBankUsers,
+    loadPaymentMethods,
+    // Refresh functions
     refreshUsers,
     refreshWithdrawals,
     refreshPayouts,
@@ -183,6 +189,14 @@ function AdminPageContent() {
       setAccountFilters(urlFilters)
     }
   }, [searchParams, activeTab]) // Note: intentionally not including state in deps to avoid loops
+
+  // Load payment methods when users are loaded (for ACH status tracking)
+  useEffect(() => {
+    if (users && users.length > 0 && !isLoading) {
+      loadPaymentMethods(users)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, isLoading])
 
   // Filter functions
   const nonAdminUsers = useMemo(() => 
@@ -752,6 +766,8 @@ function AdminPageContent() {
               monitoredPayouts={monitoredPayouts}
               onRefreshTransactions={refreshTransactions}
               isLoadingTransactions={isLoadingTransactions}
+              disconnectedBankUsers={disconnectedBankUsers}
+              isLoadingPaymentMethods={isLoadingPaymentMethods}
             />
           )}
 
@@ -1111,6 +1127,24 @@ function AdminPageContent() {
                   const hasBankAccount = user.onboardingStatus?.bankConnected || 
                     (Array.isArray(user.bankAccounts) && user.bankAccounts.length > 0)
                   
+                  // Compute ACH status from payment methods
+                  // Only shows "Disconnected" if payment method exists but connection_status !== 'connected'
+                  const userPaymentData = paymentMethodsByUser[user.id.toString()]
+                  const paymentMethods = userPaymentData?.paymentMethods || []
+                  let achStatus = 'na' // Default: no bank account or no payment methods
+                  
+                  if (isLoadingPaymentMethods && hasBankAccount) {
+                    achStatus = 'loading'
+                  } else if (paymentMethods.length > 0) {
+                    // User has payment methods - check their connection status
+                    const hasDisconnected = paymentMethods.some(pm => {
+                      const connStatus = pm.connection_status || pm.connectionStatus
+                      // Only flag as disconnected if connection_status exists and is not 'connected'
+                      return connStatus && connStatus !== 'connected'
+                    })
+                    achStatus = hasDisconnected ? 'disconnected' : 'active'
+                  }
+                  
                   return (
                     <div
                       key={user.id}
@@ -1157,6 +1191,20 @@ function AdminPageContent() {
                             <span className={styles.statusLabel}>Bank</span>
                             <span className={`${styles.statusValue} ${hasBankAccount ? styles.statusSuccess : styles.statusPending}`}>
                               {hasBankAccount ? 'Connected' : 'Not Connected'}
+                            </span>
+                          </div>
+                          <div className={styles.statusItem}>
+                            <span className={styles.statusLabel}>ACH Status</span>
+                            <span className={`${styles.statusValue} ${
+                              achStatus === 'active' ? styles.statusSuccess : 
+                              achStatus === 'disconnected' ? styles.statusDisconnected : 
+                              achStatus === 'loading' ? '' : 
+                              styles.statusPending
+                            }`}>
+                              {achStatus === 'active' ? 'Active' : 
+                               achStatus === 'disconnected' ? 'Disconnected' : 
+                               achStatus === 'loading' ? '...' : 
+                               'N/A'}
                             </span>
                           </div>
                         </div>

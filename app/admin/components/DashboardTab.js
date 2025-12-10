@@ -23,7 +23,10 @@ const DashboardTab = memo(function DashboardTab({
   onRefreshPayouts,
   monitoredPayouts,
   onRefreshTransactions,
-  isLoadingTransactions
+  isLoadingTransactions,
+  // Disconnected bank accounts
+  disconnectedBankUsers,
+  isLoadingPaymentMethods
 }) {
   const router = useRouter()
 
@@ -221,6 +224,48 @@ const DashboardTab = memo(function DashboardTab({
           value={formatCurrency(Number(metrics.pendingCapital) || 0)} 
         />
       </div>
+
+      {/* Disconnected Banks Alert Panel */}
+      {disconnectedBankUsers && disconnectedBankUsers.length > 0 && (
+        <div className={styles.disconnectedBanksPanel}>
+          <div className={styles.disconnectedBanksHeader}>
+            <span className={styles.disconnectedBanksIcon}>⚠️</span>
+            <span className={styles.disconnectedBanksTitle}>
+              Disconnected Bank Accounts ({disconnectedBankUsers.length})
+            </span>
+          </div>
+          <p className={styles.disconnectedBanksDescription}>
+            These users need to reconnect their bank account before monthly payments can be sent.
+          </p>
+          <div className={styles.disconnectedBanksList}>
+            {disconnectedBankUsers.map(user => (
+              <div key={user.id} className={styles.disconnectedBankItem}>
+                <div className={styles.disconnectedBankUserInfo}>
+                  <Link 
+                    href={`/admin/users/${user.id}`}
+                    className={styles.disconnectedBankUserEmail}
+                  >
+                    {user.email}
+                  </Link>
+                  <span className={styles.disconnectedBankUserName}>
+                    {user.firstName} {user.lastName}
+                  </span>
+                </div>
+                <span className={styles.disconnectedBankReason}>
+                  {user.connectionStatus || 'Disconnected'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Loading state for payment methods */}
+      {isLoadingPaymentMethods && (
+        <div className={styles.loadingPaymentMethods}>
+          Checking bank connection status...
+        </div>
+      )}
 
       {/* Pending Approvals List */}
       <SectionCard title="Pending Approvals">

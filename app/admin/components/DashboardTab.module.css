@@ -1013,6 +1013,107 @@
   color: #374151;
 }
 
+/* Disconnected Banks Panel */
+.disconnectedBanksPanel {
+  background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%);
+  border: 1px solid #f87171;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 8px;
+}
+
+.disconnectedBanksHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.disconnectedBanksIcon {
+  font-size: 20px;
+}
+
+.disconnectedBanksTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.disconnectedBanksDescription {
+  font-size: 14px;
+  color: #7c2d12;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.disconnectedBanksList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.disconnectedBankItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.disconnectedBankItem:hover {
+  border-color: #f87171;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);
+}
+
+.disconnectedBankUserInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.disconnectedBankUserEmail {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.disconnectedBankUserEmail:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.disconnectedBankUserName {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.disconnectedBankReason {
+  font-size: 12px;
+  font-weight: 500;
+  color: #dc2626;
+  padding: 4px 10px;
+  background: #fee2e2;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* Loading state for payment methods */
+.loadingPaymentMethods {
+  padding: 12px 16px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0369a1;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
 @media (max-width: 768px) {
   .primaryMetricsGrid {
     grid-template-columns: 1fr 1fr;

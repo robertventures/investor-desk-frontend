@@ -10,6 +10,7 @@ const CACHE_KEY_WITHDRAWALS = 'admin_withdrawals_cache'
 const CACHE_KEY_PAYOUTS = 'admin_payouts_cache'
 const CACHE_KEY_ACTIVITY = 'admin_activity_cache'
 const CACHE_KEY_TRANSACTIONS = 'admin_transactions_cache'
+const CACHE_KEY_PAYMENT_METHODS = 'admin_payment_methods_cache'
 
 /**
  * Helper to determine if a user has a bank account connected
@@ -52,6 +53,10 @@ export function useAdminData() {
     isActive: false,
     autoApproveDistributions: false
   })
+  
+  // Payment methods state for ACH connection status tracking
+  const [paymentMethodsByUser, setPaymentMethodsByUser] = useState({})
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false)
   
   // Helper to get cached data if still valid
   const getCachedData = (key) => {
@@ -448,6 +453,77 @@ export function useAdminData() {
     clearCache(CACHE_KEY_PAYOUTS)
     clearCache(CACHE_KEY_ACTIVITY)
     clearCache(CACHE_KEY_TRANSACTIONS)
+    clearCache(CACHE_KEY_PAYMENT_METHODS)
+  }
+
+  /**
+   * Load payment methods for users who have bank accounts connected
+   * This fetches the connection_status to determine ACH health
+   */
+  const loadPaymentMethods = async (usersList, forceRefresh = false) => {
+    try {
+      // Check cache first unless forcing refresh
+      if (!forceRefresh) {
+        const cached = getCachedData(CACHE_KEY_PAYMENT_METHODS)
+        if (cached) {
+          logger.log('📦 Using cached payment methods data')
+          setPaymentMethodsByUser(cached)
+          return cached
+        }
+      }
+      
+      if (forceRefresh) {
+        clearCache(CACHE_KEY_PAYMENT_METHODS)
+      }
+      
+      // Filter for users who have bank accounts connected
+      const usersWithBanks = usersList.filter(user => hasUserBankConnected(user))
+      
+      if (usersWithBanks.length === 0) {
+        logger.log('No users with bank accounts to fetch payment methods for')
+        return {}
+      }
+      
+      logger.log(`Fetching payment methods for ${usersWithBanks.length} users with bank accounts...`)
+      setIsLoadingPaymentMethods(true)
+      
+      // Batch fetch payment methods in parallel (limit concurrency to avoid overwhelming API)
+      const BATCH_SIZE = 10
+      const results = {}
+      
+      for (let i = 0; i < usersWithBanks.length; i += BATCH_SIZE) {
+        const batch = usersWithBanks.slice(i, i + BATCH_SIZE)
+        const batchPromises = batch.map(async (user) => {
+          try {
+            const numericId = user.id.toString().replace(/\D/g, '')
+            const response = await apiClient.getUserPaymentMethods(numericId)
+            if (response && response.success) {
+              return { userId: user.id.toString(), paymentMethods: response.payment_methods || [] }
+            }
+            return { userId: user.id.toString(), paymentMethods: [] }
+          } catch (err) {
+            logger.error(`Failed to fetch payment methods for user ${user.id}:`, err)
+            return { userId: user.id.toString(), paymentMethods: [], error: err.message }
+          }
+        })
+        
+        const batchResults = await Promise.all(batchPromises)
+        batchResults.forEach(result => {
+          results[result.userId] = result
+        })
+      }
+      
+      logger.log(`✓ Loaded payment methods for ${Object.keys(results).length} users`)
+      setPaymentMethodsByUser(results)
+      setCachedData(CACHE_KEY_PAYMENT_METHODS, results)
+      
+      return results
+    } catch (e) {
+      logger.error('Failed to load payment methods', e)
+      return {}
+    } finally {
+      setIsLoadingPaymentMethods(false)
+    }
   }
 
   /**
@@ -620,6 +696,62 @@ export function useAdminData() {
   }, [allTransactions, users, investmentPaymentFrequencyMap])
 
   /**
+   * Disconnected bank users - users whose bank connection is no longer healthy
+   * These need to reconnect their bank before we can send monthly payments
+   * 
+   * Only flags users who:
+   * 1. Have payment methods in the system
+   * 2. Have at least one payment method with connection_status !== 'connected'
+   */
+  const disconnectedBankUsers = useMemo(() => {
+    if (!users || users.length === 0 || Object.keys(paymentMethodsByUser).length === 0) {
+      return []
+    }
+    
+    const disconnected = []
+    
+    users.forEach(user => {
+      const userId = user.id.toString()
+      const userPaymentData = paymentMethodsByUser[userId]
+      
+      // Skip users without fetched payment data
+      if (!userPaymentData) {
+        return
+      }
+      
+      const paymentMethods = userPaymentData.paymentMethods || []
+      
+      // Skip users with no payment methods - they simply haven't connected a bank
+      if (paymentMethods.length === 0) {
+        return
+      }
+      
+      // Check if any payment method has a disconnected status
+      // A user is considered disconnected if connection_status exists and is not 'connected'
+      const disconnectedMethods = paymentMethods.filter(pm => {
+        const connectionStatus = pm.connection_status || pm.connectionStatus
+        // Only flag if connection_status field exists AND is not 'connected'
+        return connectionStatus && connectionStatus !== 'connected'
+      })
+      
+      if (disconnectedMethods.length > 0) {
+        disconnected.push({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone || user.phoneNumber,
+          paymentMethods: paymentMethods,
+          disconnectedMethods: disconnectedMethods,
+          connectionStatus: disconnectedMethods[0]?.connection_status || disconnectedMethods[0]?.connectionStatus
+        })
+      }
+    })
+    
+    return disconnected
+  }, [users, paymentMethodsByUser])
+
+  /**
    * Process ACHQ payment for a pending payout transaction
    * @param {number} transactionId - The transaction ID to process
    * @returns {Promise<{success: boolean, error?: string}>}
@@ -666,6 +798,12 @@ export function useAdminData() {
     monitoredPayouts,
     timeMachineData,
     setTimeMachineData,
+    // Payment methods / ACH status
+    paymentMethodsByUser,
+    isLoadingPaymentMethods,
+    disconnectedBankUsers,
+    loadPaymentMethods,
+    // Refresh functions
     refreshUsers: loadUsers,
     refreshWithdrawals: loadWithdrawals,
     refreshPayouts: loadPendingPayouts,
