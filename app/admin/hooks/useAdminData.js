@@ -563,8 +563,9 @@ export function useAdminData() {
       return true
     })
     
-    // Create a lookup map for users by both numeric and string IDs
+    // Create lookup maps for users and investments by both numeric and string IDs
     const userMap = new Map()
+    const investmentMap = new Map()
     users.forEach(user => {
       const userIdStr = user.id.toString()
       userMap.set(userIdStr, user)
@@ -573,12 +574,22 @@ export function useAdminData() {
       if (numericMatch) {
         userMap.set(numericMatch[0], user)
       }
+      
+      // Build investment map for looking up investment amounts
+      ;(user.investments || []).forEach(inv => {
+        const invId = inv.id?.toString() || ''
+        investmentMap.set(invId, inv)
+        const numericInvId = invId.match(/\d+$/)?.[0]
+        if (numericInvId) investmentMap.set(numericInvId, inv)
+      })
     })
     
-    // Enrich with user data and sort by date (most recent first)
+    // Enrich with user and investment data, sort by date (most recent first)
     return nonPendingDistributions
       .map(tx => {
         const txUserId = tx.userId?.toString() || ''
+        const txInvId = tx.investmentId?.toString() || ''
+        
         let user = userMap.get(txUserId)
         if (!user) {
           const numericMatch = txUserId.match(/\d+$/)
@@ -587,10 +598,14 @@ export function useAdminData() {
           }
         }
         
+        // Find investment (try full ID then numeric)
+        const investment = investmentMap.get(txInvId) || investmentMap.get(txInvId.match(/\d+$/)?.[0])
+        
         return {
           ...tx,
           userName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || `User #${txUserId}` : `User #${txUserId}`,
-          userEmail: user?.email || null
+          userEmail: user?.email || null,
+          investmentAmount: investment?.amount || null
         }
       })
       .sort((a, b) => {

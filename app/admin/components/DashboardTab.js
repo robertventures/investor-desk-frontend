@@ -537,8 +537,10 @@ const DashboardTab = memo(function DashboardTab({
                 <tr>
                   <th>Investment</th>
                   <th>Investor</th>
+                  <th>Inv. Value</th>
                   <th>Amount</th>
                   <th>Date</th>
+                  <th>Date Sent</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -570,9 +572,13 @@ const DashboardTab = memo(function DashboardTab({
                           )}
                         </div>
                       </td>
+                      <td>{payout.investmentAmount ? formatCurrency(payout.investmentAmount) : '-'}</td>
                       <td><strong>{formatCurrency(payout.amount || 0)}</strong></td>
                       <td className={styles.dateCell}>
                         {payout.date ? new Date(payout.date).toLocaleDateString() : '-'}
+                      </td>
+                      <td className={styles.dateCell}>
+                        {payout.createdAt ? new Date(payout.createdAt).toLocaleDateString() : '-'}
                       </td>
                       <td>
                         <span className={`${styles.badge} ${styles[statusLower] || styles.defaultBadge}`}>
