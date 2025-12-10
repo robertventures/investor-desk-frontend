@@ -541,6 +541,7 @@ const DashboardTab = memo(function DashboardTab({
                   <th>Amount</th>
                   <th>Date</th>
                   <th>Date Sent</th>
+                  <th>Date Received</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -578,7 +579,10 @@ const DashboardTab = memo(function DashboardTab({
                         {payout.date ? new Date(payout.date).toLocaleDateString() : '-'}
                       </td>
                       <td className={styles.dateCell}>
-                        {payout.createdAt ? new Date(payout.createdAt).toLocaleDateString() : '-'}
+                        {payout.submittedAt ? new Date(payout.submittedAt).toLocaleDateString() : '-'}
+                      </td>
+                      <td className={styles.dateCell}>
+                        {payout.receivedAt ? new Date(payout.receivedAt).toLocaleDateString() : '-'}
                       </td>
                       <td>
                         <span className={`${styles.badge} ${styles[statusLower] || styles.defaultBadge}`}>

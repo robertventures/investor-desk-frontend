@@ -224,9 +224,13 @@ function AdminInvestmentDetailsContent() {
                 || event.eventMetadata?.description 
                 || null
               
-              // Extract date fields for the three new columns
-              const transactionDate = event.transaction?.transaction_date || event.transaction_date || null
+              // Extract date fields for the three date columns:
+              // - createdAt: When the transaction record was created
+              // - submittedAt: When the payment was submitted for processing
+              // - receivedAt: When the payment was received by the investor
               const createdAt = event.transaction?.created_at || event.created_at || event.createdAt || null
+              const submittedAt = event.transaction?.submitted_at || event.submitted_at || event.submittedAt || null
+              const receivedAt = event.transaction?.received_at || event.received_at || event.receivedAt || null
               const eventDate = event.event_date || event.eventDate || null
               
               return {
@@ -235,9 +239,9 @@ function AdminInvestmentDetailsContent() {
                 amount: amount,
                 eventDate: eventDate,  // Business date for sorting
                 date: createdAt || event.date,
-                displayDate: event.display_date || event.displayDate || transactionDate,
-                transactionDate: transactionDate,  // Transaction Date column
-                createdAt: createdAt,  // Created At column
+                createdAt: createdAt,  // Created Date column
+                submittedAt: submittedAt,  // Date Sent column
+                receivedAt: receivedAt,  // Date Received column
                 status: status,
                 humanId: humanId,
                 description: description,
@@ -917,36 +921,36 @@ function AdminInvestmentDetailsContent() {
                       <th>Event</th>
                       <th>Amount</th>
                       <th>Status</th>
-                      <th title="Maps to: event.transaction?.transaction_date" style={{ color: '#dc2626' }}>Created Date</th>
-                      <th title="Maps to: event.transaction?.created_at || event.created_at || event.createdAt" style={{ color: '#dc2626' }}>Date Sent</th>
-                      <th title="Maps to: event.event_date || event.eventDate" style={{ color: '#dc2626' }}>Date Received</th>
+                      <th title="When the transaction was created (transaction.created_at)">Created Date</th>
+                      <th title="When the payment was submitted for processing (transaction.submitted_at)">Date Sent</th>
+                      <th title="When the payment was received by investor (transaction.received_at)">Date Received</th>
                     </tr>
                   </thead>
                   <tbody>
                     {investment.transactions
                       .sort((a, b) => {
-                        // Sort by event/business date (most recent first)
-                        const dateA = new Date(a.eventDate || a.displayDate || a.date || 0).getTime()
-                        const dateB = new Date(b.eventDate || b.displayDate || b.date || 0).getTime()
+                        // Sort by created date (most recent first)
+                        const dateA = new Date(a.createdAt || a.eventDate || a.date || 0).getTime()
+                        const dateB = new Date(b.createdAt || b.eventDate || b.date || 0).getTime()
                         return dateB - dateA
                       })
                       .map(event => {
                         const meta = getEventMeta(event.type)
                         
                         // Format the three date columns
-                        // Created Date: When the transaction was created (transaction.transaction_date)
-                        const transactionDateFormatted = event.transactionDate
-                          ? formatDateTime(event.transactionDate)
-                          : '-'
-                        
-                        // Date Sent: When the transaction was processed/sent (transaction.created_at or event.created_at)
+                        // Created Date: When the transaction record was created
                         const createdAtFormatted = event.createdAt
                           ? formatDateTime(event.createdAt)
                           : '-'
                         
-                        // Date Received: When the user received the payment (event.event_date)
-                        const eventDateFormatted = event.eventDate
-                          ? formatDateTime(event.eventDate)
+                        // Date Sent: When the payment was submitted for processing
+                        const submittedAtFormatted = event.submittedAt
+                          ? formatDateTime(event.submittedAt)
+                          : '-'
+                        
+                        // Date Received: When the payment was received by the investor
+                        const receivedAtFormatted = event.receivedAt
+                          ? formatDateTime(event.receivedAt)
                           : '-'
                         
                         // Get status configuration
@@ -999,13 +1003,13 @@ function AdminInvestmentDetailsContent() {
                               )}
                             </td>
                             <td className={styles.dateCell}>
-                              {transactionDateFormatted}
-                            </td>
-                            <td className={styles.dateCell}>
                               {createdAtFormatted}
                             </td>
                             <td className={styles.dateCell}>
-                              {eventDateFormatted}
+                              {submittedAtFormatted}
+                            </td>
+                            <td className={styles.dateCell}>
+                              {receivedAtFormatted}
                             </td>
                           </tr>
                         )
@@ -1399,4 +1403,5 @@ export default function AdminInvestmentDetailsPage() {
     </Suspense>
   )
 }
+
 

@@ -360,9 +360,11 @@ export function useAdminData() {
             // Extract status (prefer transaction status over activity status)
             const status = event.transaction?.status || event.status || null
             
-            // Extract date
+            // Extract date fields
             const transactionDate = event.transaction?.transaction_date || event.transaction_date || null
             const createdAt = event.transaction?.created_at || event.created_at || event.createdAt || null
+            const submittedAt = event.transaction?.submitted_at || event.submitted_at || event.submittedAt || null
+            const receivedAt = event.transaction?.received_at || event.received_at || event.receivedAt || null
             
             return {
               id: event.id,
@@ -375,6 +377,8 @@ export function useAdminData() {
               description: event.transaction?.description || event.description || null,
               humanId: event.id,
               createdAt: createdAt,
+              submittedAt: submittedAt,
+              receivedAt: receivedAt,
               rawData: event
             }
           })
