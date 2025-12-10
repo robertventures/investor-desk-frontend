@@ -769,6 +769,18 @@ function AdminInvestmentDetailsContent() {
                   </div>
                 )}
               </div>
+              <div>
+                <label>Lockup End Date</label>
+                <div className={styles.readOnly}>
+                  {investment.lockupEndAt ? formatDateForDisplay(investment.lockupEndAt) : '-'}
+                </div>
+              </div>
+              <div>
+                <label>State</label>
+                <div className={styles.readOnly} style={{ textTransform: 'capitalize' }}>
+                  {investment.state || '-'}
+                </div>
+              </div>
             </div>
 
             {isEditing && (

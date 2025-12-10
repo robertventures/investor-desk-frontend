@@ -1611,7 +1611,7 @@ function AdminUserDetailsContent() {
                       {/* Compact Details Row */}
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
                         gap: '12px',
                         marginBottom: '12px'
                       }}>
@@ -1655,14 +1655,24 @@ function AdminUserDetailsContent() {
                             {inv.createdAt ? formatDateForDisplay(inv.createdAt) : '-'}
                           </span>
                         </div>
-                        {inv.confirmedAt && (
-                          <div style={{ fontSize: '13px' }}>
-                            <span style={{ color: '#6b7280', fontWeight: '500' }}>Confirmed:</span>
-                            <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
-                              {formatDateForDisplay(inv.confirmedAt)}
-                            </span>
-                          </div>
-                        )}
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Confirmed:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                            {inv.confirmedAt ? formatDateForDisplay(inv.confirmedAt) : '-'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>Lockup Ends:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
+                            {inv.lockupEndAt ? formatDateForDisplay(inv.lockupEndAt) : '-'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px' }}>
+                          <span style={{ color: '#6b7280', fontWeight: '500' }}>State:</span>
+                          <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500', textTransform: 'capitalize' }}>
+                            {inv.state || '-'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Specialized Info - Inline */}
