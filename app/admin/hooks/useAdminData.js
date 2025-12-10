@@ -334,46 +334,51 @@ export function useAdminData() {
       }
       
       setIsLoadingActivity(true)
-      // Fetch distribution events only - this API correctly reflects real-time status updates
-      const data = await apiClient.getAdminActivityEvents({ activity_type: 'distribution', size: 500 })
+      // Fetch all activity events - this API correctly reflects real-time status updates
+      const data = await apiClient.getAdminActivityEvents({ size: 500 })
       if (data && data.success) {
         // Extract items from paginated response
         const rawEvents = data.items || data.events || []
         
-        // Transform events to flat format expected by pending payouts UI
-        const events = rawEvents.map(event => {
-          // Extract amount from nested structures
-          let amount = event.amount
-          if (amount === undefined || amount === null) {
-            amount = event.transaction?.amount ?? event.eventMetadata?.amount ?? null
-          }
-          if (typeof amount === 'string') {
-            amount = parseFloat(amount)
-          }
-          
-          // Extract status (prefer transaction status over activity status)
-          const status = event.transaction?.status || event.status || null
-          
-          // Extract date
-          const transactionDate = event.transaction?.transaction_date || event.transaction_date || null
-          const createdAt = event.transaction?.created_at || event.created_at || event.createdAt || null
-          
-          return {
-            id: event.id,
-            type: event.activity_type || event.type || event.activityType || 'distribution',
-            amount: amount,
-            status: status,
-            date: transactionDate || createdAt || event.date,
-            userId: event.user_id || event.userId,
-            investmentId: event.investment_id || event.investmentId,
-            description: event.transaction?.description || event.description || null,
-            humanId: event.id,
-            createdAt: createdAt,
-            rawData: event
-          }
-        })
+        // Filter for distribution events and transform to flat format
+        const events = rawEvents
+          .filter(event => {
+            const type = (event.activity_type || event.type || event.activityType || '').toLowerCase()
+            return type === 'distribution' || type === 'monthly_distribution'
+          })
+          .map(event => {
+            // Extract amount from nested structures
+            let amount = event.amount
+            if (amount === undefined || amount === null) {
+              amount = event.transaction?.amount ?? event.eventMetadata?.amount ?? null
+            }
+            if (typeof amount === 'string') {
+              amount = parseFloat(amount)
+            }
+            
+            // Extract status (prefer transaction status over activity status)
+            const status = event.transaction?.status || event.status || null
+            
+            // Extract date
+            const transactionDate = event.transaction?.transaction_date || event.transaction_date || null
+            const createdAt = event.transaction?.created_at || event.created_at || event.createdAt || null
+            
+            return {
+              id: event.id,
+              type: event.activity_type || event.type || event.activityType || 'distribution',
+              amount: amount,
+              status: status,
+              date: transactionDate || createdAt || event.date,
+              userId: event.user_id || event.userId,
+              investmentId: event.investment_id || event.investmentId,
+              description: event.transaction?.description || event.description || null,
+              humanId: event.id,
+              createdAt: createdAt,
+              rawData: event
+            }
+          })
         
-        logger.log(`✓ Loaded ${events.length} distribution activity events`)
+        logger.log(`✓ Loaded ${events.length} distribution activity events from ${rawEvents.length} total`)
         setActivityEvents(events)
         setCachedData(CACHE_KEY_ACTIVITY, events)
       }
@@ -445,7 +450,18 @@ export function useAdminData() {
    * Uses Activity Events API which correctly reflects real-time status updates
    */
   const enrichedPendingPayouts = useMemo(() => {
-    if (!activityEvents || activityEvents.length === 0) return []
+    if (!activityEvents || activityEvents.length === 0) {
+      logger.log('[enrichedPendingPayouts] No activity events available')
+      return []
+    }
+    
+    // Debug: log all statuses we see
+    const statusCounts = {}
+    activityEvents.forEach(e => {
+      const s = e.status?.toLowerCase() || 'unknown'
+      statusCounts[s] = (statusCounts[s] || 0) + 1
+    })
+    logger.log('[enrichedPendingPayouts] Status counts:', statusCounts)
     
     // Build lookup maps for faster matching
     const userMap = new Map()
