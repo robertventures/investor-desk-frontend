@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../../lib/apiClient'
+import { adminService } from '../../../lib/services/admin'
 import logger from '@/lib/logger'
 
 // Cache configuration
@@ -496,7 +497,7 @@ export function useAdminData() {
         const batchPromises = batch.map(async (user) => {
           try {
             const numericId = user.id.toString().replace(/\D/g, '')
-            const response = await apiClient.getUserPaymentMethods(numericId)
+            const response = await adminService.getUserPaymentMethods(numericId)
             if (response && response.success) {
               return { userId: user.id.toString(), paymentMethods: response.payment_methods || [] }
             }
@@ -740,9 +741,6 @@ export function useAdminData() {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          phone: user.phone || user.phoneNumber,
-          paymentMethods: paymentMethods,
-          disconnectedMethods: disconnectedMethods,
           connectionStatus: disconnectedMethods[0]?.connection_status || disconnectedMethods[0]?.connectionStatus
         })
       }
