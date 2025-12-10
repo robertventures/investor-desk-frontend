@@ -335,7 +335,8 @@ export function useAdminData() {
       
       setIsLoadingActivity(true)
       // Fetch all activity events - this API correctly reflects real-time status updates
-      const data = await apiClient.getAdminActivityEvents({ size: 500 })
+      // Note: API limit is 100 per page, but the service handles pagination automatically
+      const data = await apiClient.getAdminActivityEvents({ size: 100 })
       if (data && data.success) {
         // Extract items from paginated response
         const rawEvents = data.items || data.events || []
