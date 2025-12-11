@@ -11,6 +11,22 @@ import {
   formatPhone, 
   maskSSN 
 } from '@/lib/formatters'
+
+// Format ZIP code: only numbers, max 5 digits
+const formatZip = (value = '') => value.replace(/\D/g, '').slice(0, 5)
+
+// Format SSN: XXX-XX-XXXX format
+const formatSsn = (value = '') => {
+  const digits = value.replace(/\D/g, '').slice(0, 9)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`
+}
+
+// US States list for dropdown
+const US_STATES = [
+  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','District of Columbia','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'
+]
 import { 
   normalizePhoneForDB, 
   isValidUSPhoneDigits, 
@@ -382,6 +398,9 @@ export default function ProfileView() {
     if (name === 'phoneNumber') {
       formattedValue = formatPhone(value)
     }
+    if (name === 'ssn') {
+      formattedValue = formatSsn(value)
+    }
     setFormData(prev => ({ ...prev, [name]: formattedValue }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
     setSaveSuccess(false)
@@ -408,7 +427,15 @@ export default function ProfileView() {
     if (name === 'phone') {
       formattedValue = formatPhone(value)
     }
-    setFormData(prev => ({ ...prev, jointHolder: { ...prev.jointHolder, [name]: formattedValue } }))
+    if (name === 'ssn') {
+      formattedValue = formatSsn(value)
+    }
+    // Handle jointHoldingType specially as it's stored at the top level
+    if (name === 'jointHoldingType') {
+      setFormData(prev => ({ ...prev, jointHoldingType: formattedValue }))
+    } else {
+      setFormData(prev => ({ ...prev, jointHolder: { ...prev.jointHolder, [name]: formattedValue } }))
+    }
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
     setSaveSuccess(false)
   }
@@ -420,9 +447,13 @@ export default function ProfileView() {
       formattedValue = formatCity(value)
     } else if (name === 'street1' || name === 'street2') {
       formattedValue = formatStreet(value)
+    } else if (name === 'zip') {
+      formattedValue = formatZip(value)
     }
     setFormData(prev => ({ ...prev, jointHolder: { ...prev.jointHolder, address: { ...prev.jointHolder.address, [name]: formattedValue } } }))
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
+    if (errors[`joint${name.charAt(0).toUpperCase() + name.slice(1)}`]) {
+      setErrors(prev => ({ ...prev, [`joint${name.charAt(0).toUpperCase() + name.slice(1)}`]: '' }))
+    }
     setSaveSuccess(false)
   }
 
@@ -433,9 +464,13 @@ export default function ProfileView() {
       formattedValue = formatCity(value)
     } else if (name === 'street1' || name === 'street2') {
       formattedValue = formatStreet(value)
+    } else if (name === 'zip') {
+      formattedValue = formatZip(value)
     }
     setFormData(prev => ({ ...prev, entity: { ...prev.entity, address: { ...prev.entity.address, [name]: formattedValue } } }))
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
+    if (errors[`entity${name.charAt(0).toUpperCase() + name.slice(1)}`]) {
+      setErrors(prev => ({ ...prev, [`entity${name.charAt(0).toUpperCase() + name.slice(1)}`]: '' }))
+    }
     setSaveSuccess(false)
   }
 
@@ -540,6 +575,7 @@ export default function ProfileView() {
       if (!addressForm.city.trim()) newErrors.addressCity = 'Required'
       if (!addressForm.state.trim()) newErrors.addressState = 'Required'
       if (!addressForm.zip.trim()) newErrors.addressZip = 'Required'
+      else if (addressForm.zip.length !== 5) newErrors.addressZip = 'Enter 5 digits'
     }
 
     const hasPendingOrActiveEntity = Array.isArray(userData?.investments) && 
@@ -556,6 +592,7 @@ export default function ProfileView() {
           else if (/[0-9]/.test(formData.entity.address.city)) newErrors.entityCity = 'No numbers allowed'
           if (!formData.entity.address.state) newErrors.entityState = 'Required'
           if (!formData.entity.address.zip.trim()) newErrors.entityZip = 'Required'
+          else if (formData.entity.address.zip.length !== 5) newErrors.entityZip = 'Enter 5 digits'
         }
       }
     }
@@ -579,6 +616,7 @@ export default function ProfileView() {
           else if (/[0-9]/.test(formData.jointHolder.address.city)) newErrors.jointCity = 'No numbers allowed'
           if (!formData.jointHolder.address.state) newErrors.jointState = 'Required'
           if (!formData.jointHolder.address.zip.trim()) newErrors.jointZip = 'Required'
+          else if (formData.jointHolder.address.zip.length !== 5) newErrors.jointZip = 'Enter 5 digits'
         }
       }
     }
@@ -614,8 +652,6 @@ export default function ProfileView() {
           lastName: formData.lastName,
           email: formData.email,
           phoneNumber: normalizePhoneForDB(formData.phoneNumber),
-          dob: formData.dob,
-          ssn: formData.ssn,
           address: {
             street1: addressForm.street1 || '',
             street2: addressForm.street2 || '',
@@ -624,24 +660,39 @@ export default function ProfileView() {
             zip: addressForm.zip || ''
           }
         }
+        // Only include dob if it has a valid value (YYYY-MM-DD format)
+        if (formData.dob && /^\d{4}-\d{2}-\d{2}$/.test(formData.dob)) {
+          payload.dob = formData.dob
+        }
+        // Only include ssn if it has a valid value (XXX-XX-XXXX format, 9 digits)
+        if (formData.ssn && formData.ssn.replace(/\D/g, '').length === 9) {
+          payload.ssn = formData.ssn
+        }
       } else if (activeTab === 'joint-holder') {
+        const jointHolderData = {
+          firstName: formData.jointHolder?.firstName || '',
+          lastName: formData.jointHolder?.lastName || '',
+          email: formData.jointHolder?.email || '',
+          phone: normalizePhoneForDB(formData.jointHolder?.phone || ''),
+          address: {
+            street1: formData.jointHolder?.address?.street1 || '',
+            street2: formData.jointHolder?.address?.street2 || '',
+            city: formData.jointHolder?.address?.city || '',
+            state: formData.jointHolder?.address?.state || '',
+            zip: formData.jointHolder?.address?.zip || ''
+          }
+        }
+        // Only include dob if valid
+        if (formData.jointHolder?.dob && /^\d{4}-\d{2}-\d{2}$/.test(formData.jointHolder.dob)) {
+          jointHolderData.dob = formData.jointHolder.dob
+        }
+        // Only include ssn if valid (9 digits)
+        if (formData.jointHolder?.ssn && formData.jointHolder.ssn.replace(/\D/g, '').length === 9) {
+          jointHolderData.ssn = formData.jointHolder.ssn
+        }
         payload = {
           jointHoldingType: formData.jointHoldingType,
-          jointHolder: {
-            firstName: formData.jointHolder?.firstName || '',
-            lastName: formData.jointHolder?.lastName || '',
-            email: formData.jointHolder?.email || '',
-            phone: normalizePhoneForDB(formData.jointHolder?.phone || ''),
-            dob: formData.jointHolder?.dob || '',
-            ssn: formData.jointHolder?.ssn || '',
-            address: {
-              street1: formData.jointHolder?.address?.street1 || '',
-              street2: formData.jointHolder?.address?.street2 || '',
-              city: formData.jointHolder?.address?.city || '',
-              state: formData.jointHolder?.address?.state || '',
-              zip: formData.jointHolder?.address?.zip || ''
-            }
-          }
+          jointHolder: jointHolderData
         }
       } else if (activeTab === 'entity-info') {
         // Save authorized representative and entity information
@@ -650,8 +701,6 @@ export default function ProfileView() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phoneNumber: normalizePhoneForDB(formData.phoneNumber),
-          dob: formData.dob,
-          ssn: formData.ssn,
           entity: {
             name: formData.entity?.name || '',
             title: formData.entity?.title?.trim() || '',
@@ -666,6 +715,14 @@ export default function ProfileView() {
               zip: formData.entity?.address?.zip || ''
             }
           }
+        }
+        // Only include dob if it has a valid value
+        if (formData.dob && /^\d{4}-\d{2}-\d{2}$/.test(formData.dob)) {
+          payload.dob = formData.dob
+        }
+        // Only include ssn if it has a valid value (9 digits)
+        if (formData.ssn && formData.ssn.replace(/\D/g, '').length === 9) {
+          payload.ssn = formData.ssn
         }
       } else if (activeTab === 'trusted-contact') {
         // Use specific trusted contact endpoint to bypass profile lock
@@ -826,8 +883,14 @@ export default function ProfileView() {
       formattedValue = formatCity(value)
     } else if (name === 'street1' || name === 'street2') {
       formattedValue = formatStreet(value)
+    } else if (name === 'zip') {
+      formattedValue = formatZip(value)
     }
     setAddressForm(prev => ({ ...prev, [name]: formattedValue }))
+    if (errors[`address${name.charAt(0).toUpperCase() + name.slice(1)}`]) {
+      setErrors(prev => ({ ...prev, [`address${name.charAt(0).toUpperCase() + name.slice(1)}`]: '' }))
+    }
+    setSaveSuccess(false)
   }
 
   if (!userData || !formData || !mounted) {
@@ -1089,26 +1152,48 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
             <div className={styles.field}>
               <label className={styles.label}>Social Security Number</label>
               <div className={styles.inputWrapper}>
-                <input 
-                  className={`${styles.input} ${styles.inputWithToggle}`}
-                  type="text"
-                  name="ssn" 
-                  value={showSSN ? formData.ssn : maskSSN(formData.ssn)} 
-                  onChange={handleChange} 
-                  placeholder="123-45-6789"
-                  readOnly={!showSSN || shouldDisableFields}
-                  disabled={shouldDisableFields}
-                  maxLength={30}
-                />
-                <button
-                  type="button"
-                  className={styles.toggleButton}
-                  onClick={() => setShowSSN(!showSSN)}
-                  aria-label={showSSN ? 'Hide SSN' : 'Show SSN'}
-                  disabled={shouldDisableFields} 
-                >
-                  {showSSN ? 'Hide' : 'Show'}
-                </button>
+                {/* Only mask SSN if it was loaded from server (matches userData) AND showSSN is false */}
+                {(() => {
+                  const savedSsn = userData?.ssn || ''
+                  const hasSavedSsn = savedSsn && savedSsn.replace(/\D/g, '').length === 9
+                  const shouldMask = hasSavedSsn && !showSSN
+                  
+                  return shouldMask ? (
+                    <input 
+                      className={`${styles.input} ${styles.inputWithToggle}`}
+                      type="text"
+                      name="ssn" 
+                      value={maskSSN(formData.ssn)} 
+                      readOnly
+                      disabled={shouldDisableFields}
+                      maxLength={11}
+                    />
+                  ) : (
+                    <input 
+                      className={`${styles.input} ${styles.inputWithToggle}`}
+                      type="text"
+                      name="ssn" 
+                      value={formData.ssn || ''} 
+                      onChange={handleChange} 
+                      placeholder="123-45-6789"
+                      inputMode="numeric"
+                      disabled={shouldDisableFields}
+                      maxLength={11}
+                    />
+                  )
+                })()}
+                {/* Only show toggle button when SSN was saved (loaded from server) */}
+                {userData?.ssn && (userData.ssn.replace(/\D/g, '').length === 9) && (
+                  <button
+                    type="button"
+                    className={styles.toggleButton}
+                    onClick={() => setShowSSN(!showSSN)}
+                    aria-label={showSSN ? 'Hide SSN' : 'Show SSN'}
+                    disabled={shouldDisableFields} 
+                  >
+                    {showSSN ? 'Hide' : 'Show'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1193,15 +1278,18 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
             </div>
             <div className={styles.field}>
               <label className={styles.label}>State</label>
-              <input
+              <select
                 className={`${styles.input} ${errors.addressState ? styles.inputError : ''}`}
                 name="state"
                 value={addressForm.state}
                 onChange={handleAddressFormChange}
-                placeholder="NY"
                 disabled={shouldDisableFields}
-                maxLength={100}
-              />
+              >
+                <option value="">Select state</option>
+                {US_STATES.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
               {errors.addressState && <span className={styles.errorText}>{errors.addressState}</span>}
             </div>
             <div className={styles.field}>
@@ -1213,7 +1301,8 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
                 onChange={handleAddressFormChange}
                 placeholder="10001"
                 disabled={shouldDisableFields}
-                maxLength={20}
+                inputMode="numeric"
+                maxLength={5}
               />
               {errors.addressZip && <span className={styles.errorText}>{errors.addressZip}</span>}
             </div>
@@ -1361,12 +1450,17 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
             </div>
             <div className={styles.field}>
               <label className={styles.label}>State</label>
-              <input className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} placeholder="NY" disabled={shouldDisableFields} maxLength={100} />
+              <select className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} disabled={shouldDisableFields}>
+                <option value="">Select state</option>
+                {US_STATES.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
               {errors.jointState && <span className={styles.errorText}>{errors.jointState}</span>}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>ZIP Code</label>
-              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" disabled={shouldDisableFields} maxLength={20} />
+              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" disabled={shouldDisableFields} inputMode="numeric" maxLength={5} />
               {errors.jointZip && <span className={styles.errorText}>{errors.jointZip}</span>}
             </div>
             <div className={styles.field}>
@@ -1487,15 +1581,18 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
           </div>
           <div className={styles.field}>
             <label className={styles.label}>State</label>
-            <input
+            <select
               className={`${styles.input} ${errors.entityState ? styles.inputError : ''}`}
-              type="text"
               name="state"
               value={formData.entity?.address?.state || ''}
               onChange={handleEntityAddressChange}
               disabled={entityLocked}
-              maxLength={100}
-            />
+            >
+              <option value="">Select state</option>
+              {US_STATES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
             {errors.entityState && <span className={styles.errorText}>{errors.entityState}</span>}
           </div>
           <div className={styles.field}>
@@ -1507,7 +1604,8 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               value={formData.entity?.address?.zip || ''}
               onChange={handleEntityAddressChange}
               disabled={entityLocked}
-              maxLength={20}
+              inputMode="numeric"
+              maxLength={5}
             />
             {errors.entityZip && <span className={styles.errorText}>{errors.entityZip}</span>}
           </div>
@@ -1995,14 +2093,17 @@ function AddressTab({ addressForm, setAddressForm, formatCity, formatStreet, err
             </div>
             <div className={styles.field}>
               <label className={styles.label}>State</label>
-              <input
+              <select
                 className={`${styles.input} ${errors.addressState ? styles.inputError : ''}`}
                 name="state"
                 value={addressForm.state}
                 onChange={handleAddressFormChange}
-                placeholder="NY"
-                maxLength={100}
-              />
+              >
+                <option value="">Select state</option>
+                {US_STATES.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
               {errors.addressState && <span className={styles.errorText}>{errors.addressState}</span>}
             </div>
             <div className={styles.field}>
@@ -2013,7 +2114,8 @@ function AddressTab({ addressForm, setAddressForm, formatCity, formatStreet, err
                 value={addressForm.zip}
                 onChange={handleAddressFormChange}
                 placeholder="10001"
-                maxLength={20}
+                inputMode="numeric"
+                maxLength={5}
               />
               {errors.addressZip && <span className={styles.errorText}>{errors.addressZip}</span>}
             </div>
