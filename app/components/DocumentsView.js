@@ -37,13 +37,11 @@ export default function DocumentsView() {
             setInvestments(investmentsData.investments || [])
           }
 
-          // Documents come from the user profile if backend includes them
-          // Note: User-facing document endpoint (/api/users/me/documents) is not yet available
-          // Once backend supports it, we can fetch documents directly
-          const userDocs = data.user?.documents || []
-          if (userDocs.length > 0) {
-            console.log(`[DocumentsView] Found ${userDocs.length} documents in user profile`)
-            setUserDocuments(userDocs)
+          // Load user documents from dedicated endpoint
+          const docsData = await apiClient.getDocuments()
+          if (docsData.success && docsData.documents) {
+            console.log(`[DocumentsView] Found ${docsData.documents.length} documents`)
+            setUserDocuments(docsData.documents)
           }
         }
       } catch (error) {
@@ -155,9 +153,36 @@ export default function DocumentsView() {
     .sort((a, b) => new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt))
 
   const downloadDocument = async (docId, fileName) => {
-    // Note: User document download endpoint (/api/users/me/documents/{id}) is not yet available
-    // This will be enabled once the backend supports user-facing document downloads
-    alert('Document download will be available soon. Please contact support if you need this document urgently.')
+    try {
+      const result = await apiClient.getDocument(docId)
+      
+      if (!result.success || !result.blob) {
+        alert('Failed to download document')
+        return
+      }
+
+      // Open in new tab or download
+      const url = URL.createObjectURL(result.blob)
+      const win = window.open(url, '_blank', 'noopener,noreferrer')
+      
+      if (!win) {
+        // Fallback to download if popup blocked
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
+      
+      // Cleanup URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+      }, 60000)
+    } catch (error) {
+      console.error('Failed to download document:', error)
+      alert('Failed to download document. Please try again.')
+    }
   }
 
   // Prevent hydration mismatch
@@ -173,20 +198,19 @@ export default function DocumentsView() {
       </div>
 
       <div className={styles.content}>
-        {/* Documents Section */}
-        {sortedDocuments.length > 0 && (
-          <div className={styles.documentsList}>
-            <h3 className={styles.sectionTitle}>Documents</h3>
+        {/* Your Documents Section - Always show */}
+        <div className={styles.documentsList}>
+          <h3 className={styles.sectionTitle}>Your Documents</h3>
+          {sortedDocuments.length > 0 ? (
             <div className={styles.documentsGrid}>
               {sortedDocuments.map(doc => (
                 <div key={doc.id} className={styles.documentCard}>
                   <div className={styles.documentIcon}>📄</div>
                   <div className={styles.documentInfo}>
                     <h4 className={styles.documentTitle}>
-                      Document
+                      {doc.fileName || 'Document'}
                     </h4>
                     <div className={styles.documentDetails}>
-                      <p><strong>File:</strong> {doc.fileName}</p>
                       <p><strong>Uploaded:</strong> {formatDateLocale(doc.createdAt || doc.uploadedAt)}</p>
                     </div>
                   </div>
@@ -194,7 +218,6 @@ export default function DocumentsView() {
                     <button
                       className={styles.downloadButton}
                       onClick={() => downloadDocument(doc.id, doc.fileName)}
-                      title="Download will be available soon"
                     >
                       📥 View
                     </button>
@@ -202,8 +225,12 @@ export default function DocumentsView() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className={styles.emptySection}>
+              <p>No documents have been shared with you yet.</p>
+            </div>
+          )}
+        </div>
 
         {/* Investment Agreements Section */}
         {finalizedInvestments.length > 0 ? (
