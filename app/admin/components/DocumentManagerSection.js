@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { adminService } from '../../../lib/services/admin'
 import styles from './DocumentManagerSection.module.css'
+import ConfirmModal from './ConfirmModal'
 
 /**
  * Document Manager Section
@@ -12,6 +13,13 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
+  const [deleteModalState, setDeleteModalState] = useState({
+    isOpen: false,
+    docId: null,
+    fileName: '',
+    isLoading: false,
+    isSuccess: false
+  })
 
   useEffect(() => {
     if (user?.id) {
@@ -69,22 +77,44 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
     setUploading(false)
   }
 
-  const handleDelete = async (docId, fileName) => {
-    if (!confirm(`Are you sure you want to delete ${fileName}?`)) {
-      return
-    }
+  const openDeleteModal = (docId, fileName) => {
+    setDeleteModalState({
+      isOpen: true,
+      docId,
+      fileName,
+      isLoading: false,
+      isSuccess: false
+    })
+  }
 
+  const closeDeleteModal = () => {
+    setDeleteModalState({
+      isOpen: false,
+      docId: null,
+      fileName: '',
+      isLoading: false,
+      isSuccess: false
+    })
+  }
+
+  const handleDelete = async () => {
+    const { docId } = deleteModalState
+    
+    setDeleteModalState(prev => ({ ...prev, isLoading: true }))
+    
     try {
       const result = await adminService.deleteUserDocument(user.id, docId)
       
       if (result.success) {
-        alert('Document deleted successfully')
+        setDeleteModalState(prev => ({ ...prev, isLoading: false, isSuccess: true }))
         loadDocuments()
       } else {
+        setDeleteModalState(prev => ({ ...prev, isLoading: false }))
         alert(`Delete failed: ${result.error}`)
       }
     } catch (error) {
       console.error('Delete error:', error)
+      setDeleteModalState(prev => ({ ...prev, isLoading: false }))
       alert('Delete failed. Please try again.')
     }
   }
@@ -175,7 +205,7 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
                         📥
                       </button>
                       <button
-                        onClick={() => handleDelete(doc.id, doc.fileName)}
+                        onClick={() => openDeleteModal(doc.id, doc.fileName)}
                         className={`${styles.actionButton} ${styles.deleteButton}`}
                         title="Delete"
                       >
@@ -189,6 +219,21 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
           </div>
         )}
       </div>
+
+      {/* Delete Document Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalState.isOpen}
+        onClose={closeDeleteModal}
+        onConfirm={handleDelete}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${deleteModalState.fileName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleteModalState.isLoading}
+        isSuccess={deleteModalState.isSuccess}
+        successMessage="Document deleted successfully"
+        variant="danger"
+      />
     </div>
   )
 }

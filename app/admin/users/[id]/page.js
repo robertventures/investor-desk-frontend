@@ -10,6 +10,7 @@ import { maskSSN, formatCurrency } from '../../../../lib/formatters.js'
 import { normalizePhoneForDB } from '../../../../lib/validation'
 import styles from './page.module.css'
 import { useUser } from '@/app/contexts/UserContext'
+import ConfirmModal from '../../components/ConfirmModal'
 
 function AdminUserDetailsContent() {
   const router = useRouter()
@@ -45,6 +46,13 @@ function AdminUserDetailsContent() {
   const [userDocuments, setUserDocuments] = useState([])
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
   const [isDeletingDocument, setIsDeletingDocument] = useState(null)
+  const [deleteModalState, setDeleteModalState] = useState({
+    isOpen: false,
+    docId: null,
+    fileName: '',
+    isLoading: false,
+    isSuccess: false
+  })
 
   const loadUserDocuments = async (userId) => {
     if (!userId) return
@@ -99,24 +107,47 @@ function AdminUserDetailsContent() {
     }
   }
 
-  const handleDeleteDocument = async (docId, fileName) => {
-    if (!confirm(`Are you sure you want to delete "${fileName}"?`)) {
-      return
-    }
+  const openDeleteModal = (docId, fileName) => {
+    setDeleteModalState({
+      isOpen: true,
+      docId,
+      fileName,
+      isLoading: false,
+      isSuccess: false
+    })
+  }
 
+  const closeDeleteModal = () => {
+    setDeleteModalState({
+      isOpen: false,
+      docId: null,
+      fileName: '',
+      isLoading: false,
+      isSuccess: false
+    })
+  }
+
+  const handleDeleteDocument = async () => {
+    const { docId } = deleteModalState
+    
+    setDeleteModalState(prev => ({ ...prev, isLoading: true }))
     setIsDeletingDocument(docId)
+    
     try {
       const result = await adminService.deleteUserDocument(user.id, docId)
       
       if (result.success) {
-        alert('Document deleted successfully')
+        // Show success state
+        setDeleteModalState(prev => ({ ...prev, isLoading: false, isSuccess: true }))
         // Reload documents list
         loadUserDocuments(user.id)
       } else {
+        setDeleteModalState(prev => ({ ...prev, isLoading: false }))
         alert(`Delete failed: ${result.error}`)
       }
     } catch (error) {
       console.error('Delete error:', error)
+      setDeleteModalState(prev => ({ ...prev, isLoading: false }))
       alert('Delete failed. Please try again.')
     } finally {
       setIsDeletingDocument(null)
@@ -391,6 +422,12 @@ function AdminUserDetailsContent() {
         }
 
         await loadUserActivity(targetUser.id)
+        
+        // Load documents if starting on documents tab
+        const initialTab = searchParams.get('tab')
+        if (initialTab === 'documents') {
+          loadUserDocuments(targetUser.id)
+        }
         
         const u = targetUser;
         setForm({
@@ -2369,7 +2406,7 @@ function AdminUserDetailsContent() {
                               📥 View
                             </button>
                             <button
-                              onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
+                              onClick={() => openDeleteModal(doc.id, doc.fileName)}
                               disabled={isDeletingDocument === doc.id}
                               style={{
                                 padding: '6px 12px',
@@ -2803,6 +2840,21 @@ function AdminUserDetailsContent() {
               </div>
             </div>
           )}
+
+          {/* Delete Document Confirmation Modal */}
+          <ConfirmModal
+            isOpen={deleteModalState.isOpen}
+            onClose={closeDeleteModal}
+            onConfirm={handleDeleteDocument}
+            title="Delete Document"
+            message={`Are you sure you want to delete "${deleteModalState.fileName}"? This action cannot be undone.`}
+            confirmText="Delete"
+            cancelText="Cancel"
+            isLoading={deleteModalState.isLoading}
+            isSuccess={deleteModalState.isSuccess}
+            successMessage="Document deleted successfully"
+            variant="danger"
+          />
         </div>
       </div>
     </div>
