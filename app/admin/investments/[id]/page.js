@@ -458,12 +458,11 @@ function AdminInvestmentDetailsContent() {
 
     setIsTerminating(true)
     try {
-      const res = await fetch('/api/admin/withdrawals/terminate', {
+      const res = await fetch(`/api/admin/investments/${investment.id}/terminate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          investmentId: investment.id,
           adminUserId: currentUser.id,
           overrideLockup: needsOverride && overrideLockupConfirmed
         }),
