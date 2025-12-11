@@ -631,13 +631,13 @@ export function useAdminData() {
         return false // Skip compounding investments - they don't have actual payouts
       }
       
-      // Auto-hide cleared/completed payouts after 3 days
+      // Auto-hide cleared/completed payouts after 3 days from when they were received
       const statusLower = tx.status?.toLowerCase() || ''
       const isCleared = statusLower === 'completed' || statusLower === 'cleared' || statusLower === 'received'
       if (isCleared) {
-        const txDate = tx.date ? new Date(tx.date).getTime() : 0
-        if (txDate && (now - txDate > THREE_DAYS_MS)) {
-          return false // Auto-hide old cleared payouts
+        const receivedDate = tx.receivedAt ? new Date(tx.receivedAt).getTime() : 0
+        if (receivedDate && (now - receivedDate > THREE_DAYS_MS)) {
+          return false // Auto-hide payouts 3 days after they were received
         }
       }
       
