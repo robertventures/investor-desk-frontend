@@ -1221,8 +1221,10 @@ function AdminInvestmentDetailsContent() {
                           // For compounding: compounded interest is total earnings minus current month accrual
                           const compoundedInterest = isCompounding ? Math.max(0, totalEarnings - currentMonthAccrual) : 0
                           
-                          // Total payout is the currentValue from API (principal + all earnings)
-                          const totalPayout = currentValue
+                          // Total payout calculation:
+                          // - Compounding: currentValue (principal + all compounded earnings)
+                          // - Monthly: principal + current month accrual (past earnings already paid out)
+                          const totalPayout = isCompounding ? currentValue : (principal + currentMonthAccrual)
                           
                           if (isCompounding) {
                             // Compounding investments: show principal, compounded interest, current month accrual, total
