@@ -101,7 +101,7 @@ export default function DocumentManagerSection({ user, currentUser, onUploadComp
     const { docId } = deleteModalState
     
     setDeleteModalState(prev => ({ ...prev, isLoading: true }))
-    
+
     try {
       const result = await adminService.deleteUserDocument(user.id, docId)
       

@@ -15,9 +15,9 @@
  */
 "use client"
 import Header from '../components/Header'
-import BankConnectionModal from '../components/BankConnectionModal'
+import BankConnectionModal, { usePlaidBankConnection } from '../components/BankConnectionModal'
 import { apiClient } from '../../lib/apiClient'
-import { INVESTMENTS_PAUSED } from '../../lib/featureFlags'
+import { INVESTMENTS_PAUSED, MANUAL_BANK_ENTRY_ENABLED } from '../../lib/featureFlags'
 import { jsPDF } from 'jspdf'
 import logger from '../../lib/logger'
 import {
@@ -104,6 +104,79 @@ function ClientContent() {
   const agreementStateRef = useRef(agreementState)
   const agreementBlobUrlRef = useRef(null)
   const agreementRequestIdRef = useRef(0)
+
+  // Handler for when a bank account is successfully connected via Plaid
+  const handlePlaidAccountSelected = useCallback(async (method) => {
+    logger.debug('[FinalizeInvestment] Bank account selected from Plaid:', method)
+    
+    const paymentMethod = {
+      id: method.id,
+      type: method.type || 'bank_ach',
+      display_name: method.display_name || method.bank_name || 'Bank Account',
+      bank_name: method.bank_name || method.display_name || 'Bank',
+      account_type: method.account_type || 'checking',
+      last4: method.last4 || '****',
+      status: method.status || 'ready',
+      ...method
+    }
+    
+    logger.debug('[FinalizeInvestment] Normalized payment method:', paymentMethod)
+    
+    setSelectedBankId(paymentMethod.id)
+    setSelectedFundingBankId(paymentMethod.id)
+    setSelectedPayoutBankId(paymentMethod.id)
+    setIsSavingBank(true)
+    
+    try {
+      logger.debug('[FinalizeInvestment] Refreshing payment methods list...')
+      const pmRes = await apiClient.listPaymentMethods('bank_ach')
+      const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
+      logger.debug('[FinalizeInvestment] Available payment methods:', pms.length)
+      setAvailableBanks(pms)
+    } catch (e) {
+      logger.error('[FinalizeInvestment] Failed to refresh payment methods:', e)
+      setAvailableBanks(prev => [...prev, paymentMethod])
+    } finally {
+      setIsSavingBank(false)
+      setShowBankModal(false)
+    }
+  }, [])
+
+  // Stable callbacks for Plaid hook to avoid unnecessary re-renders
+  const handlePlaidError = useCallback((err) => {
+    logger.error('[FinalizeInvestment] Plaid error:', err)
+  }, [])
+
+  const handlePlaidClose = useCallback(() => {
+    setShowBankModal(false)
+  }, [])
+
+  // Plaid hook for direct connection (when manual entry is disabled)
+  const plaid = usePlaidBankConnection({
+    onAccountSelected: handlePlaidAccountSelected,
+    onError: handlePlaidError,
+    onClose: handlePlaidClose
+  })
+
+  // Fetch Plaid token on mount when manual entry is disabled
+  useEffect(() => {
+    if (!MANUAL_BANK_ENTRY_ENABLED) {
+      plaid.fetchToken()
+    }
+  }, [plaid.fetchToken, MANUAL_BANK_ENTRY_ENABLED])
+
+  // Handler for "Connect Bank Account" button clicks
+  const handleConnectBankClick = useCallback(() => {
+    if (MANUAL_BANK_ENTRY_ENABLED) {
+      // Show modal with both options
+      setShowBankModal(true)
+    } else {
+      // Open Plaid directly
+      if (plaid.ready) {
+        plaid.open()
+      }
+    }
+  }, [plaid])
 
   useEffect(() => {
     agreementStateRef.current = agreementState
@@ -891,9 +964,10 @@ function ClientContent() {
                           <button
                             type="button"
                             className={styles.addNewBankButton}
-                            onClick={() => setShowBankModal(true)}
+                            onClick={handleConnectBankClick}
+                            disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
                           >
-                            + Add New Bank
+                            {!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : '+ Add New Bank'}
                           </button>
                         </div>
                       </>
@@ -901,10 +975,11 @@ function ClientContent() {
                       <button
                         type="button"
                         className={styles.connectBankButton}
-                        onClick={() => setShowBankModal(true)}
+                        onClick={handleConnectBankClick}
+                        disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
                       >
                         <span className={styles.connectIcon}>🏦</span>
-                        <span>Connect Bank Account</span>
+                        <span>{!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : 'Connect Bank Account'}</span>
                       </button>
                     )}
                   </div>
@@ -1037,9 +1112,10 @@ function ClientContent() {
                               <button
                                 type="button"
                                 className={styles.addNewBankButton}
-                                onClick={() => setShowBankModal(true)}
+                                onClick={handleConnectBankClick}
+                                disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
                               >
-                                + Add New Bank
+                                {!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : '+ Add New Bank'}
                               </button>
                             </div>
                           </>
@@ -1047,10 +1123,11 @@ function ClientContent() {
                           <button
                             type="button"
                             className={styles.connectBankButton}
-                            onClick={() => setShowBankModal(true)}
+                            onClick={handleConnectBankClick}
+                            disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
                           >
                             <span className={styles.connectIcon}>🏦</span>
-                            <span>Connect Payout Account</span>
+                            <span>{!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : 'Connect Payout Account'}</span>
                           </button>
                         )}
                       </div>
@@ -1343,48 +1420,14 @@ function ClientContent() {
         )}
       </div>
 
-      {/* Bank Connection Modal */}
-      <BankConnectionModal
-        isOpen={showBankModal}
-        onClose={() => !isSavingBank && setShowBankModal(false)}
-        onAccountSelected={async (method) => {
-          logger.debug('[FinalizeInvestment] Bank account selected from Plaid:', method)
-          
-          // Ensure the payment method has the expected structure
-          const paymentMethod = {
-            id: method.id,
-            type: method.type || 'bank_ach',
-            display_name: method.display_name || method.bank_name || 'Bank Account',
-            bank_name: method.bank_name || method.display_name || 'Bank',
-            account_type: method.account_type || 'checking',
-            last4: method.last4 || '****',
-            status: method.status || 'ready',
-            ...method
-          }
-          
-          logger.debug('[FinalizeInvestment] Normalized payment method:', paymentMethod)
-          
-          setSelectedBankId(paymentMethod.id)
-          setSelectedFundingBankId(paymentMethod.id)
-          setSelectedPayoutBankId(paymentMethod.id)
-          setIsSavingBank(true)
-          
-          try {
-            logger.debug('[FinalizeInvestment] Refreshing payment methods list...')
-            const pmRes = await apiClient.listPaymentMethods('bank_ach')
-            const pms = Array.isArray(pmRes?.payment_methods) ? pmRes.payment_methods : []
-            logger.debug('[FinalizeInvestment] Available payment methods:', pms.length)
-            setAvailableBanks(pms)
-          } catch (e) {
-            logger.error('[FinalizeInvestment] Failed to refresh payment methods:', e)
-            // Add the new bank to the list manually if refresh failed
-            setAvailableBanks(prev => [...prev, paymentMethod])
-          } finally {
-            setIsSavingBank(false)
-            setShowBankModal(false)
-          }
-        }}
-      />
+      {/* Bank Connection Modal - only used when manual entry is enabled */}
+      {MANUAL_BANK_ENTRY_ENABLED && (
+        <BankConnectionModal
+          isOpen={showBankModal}
+          onClose={() => !isSavingBank && setShowBankModal(false)}
+          onAccountSelected={handlePlaidAccountSelected}
+        />
+      )}
       
       {/* View All Banks Modal */}
       {showAllBanksModal && (

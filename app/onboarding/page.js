@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import Header from '../components/Header'
-import BankConnectionModal from '../components/BankConnectionModal'
+import BankConnectionModal, { usePlaidBankConnection } from '../components/BankConnectionModal'
+import { MANUAL_BANK_ENTRY_ENABLED } from '../../lib/featureFlags'
 import { formatCurrency } from '../../lib/formatters.js'
 import styles from './page.module.css'
 
@@ -244,26 +245,68 @@ function OnboardingContent() {
 
   // Handle bank connection - payment method is already created via Plaid link-success
   // We only need to update UI state here, no investment updates needed
-  const handleBankConnected = async (bankAccount) => {
+  // Wrapped in useCallback to avoid recreating on every render, which would cause
+  // usePlaidBankConnection's fetchToken to become unstable and trigger infinite loops
+  const handleBankConnected = useCallback(async (bankAccount) => {
     console.log('handleBankConnected called with:', bankAccount)
     console.log('Payment method created via Plaid link-success, updating UI state...')
     
     // Update local state to show bank is connected for all applicable investments
-    const investmentsNeeding = getInvestmentsNeedingBanks()
-    let updatedAssignments = { ...investmentBankAssignments }
+    // Inline the filter to avoid stale closure issues with getInvestmentsNeedingBanks
+    const investmentsNeeding = userData?.investments?.filter(inv => 
+      inv.status !== 'withdrawn' && 
+      inv.paymentFrequency === 'monthly'
+    ) || []
     
-    for (const inv of investmentsNeeding) {
-      updatedAssignments[inv.id] = {
-        ...(updatedAssignments[inv.id] || {}),
-        payout: bankAccount
+    // Use functional update to avoid needing investmentBankAssignments as a dependency
+    setInvestmentBankAssignments(prev => {
+      const updatedAssignments = { ...prev }
+      
+      for (const inv of investmentsNeeding) {
+        updatedAssignments[inv.id] = {
+          ...(prev[inv.id] || {}),
+          payout: bankAccount
+        }
       }
-    }
-    
-    setInvestmentBankAssignments(updatedAssignments)
-    console.log('✅ Bank account connected, UI state updated:', updatedAssignments)
+      
+      console.log('✅ Bank account connected, UI state updated:', updatedAssignments)
+      return updatedAssignments
+    })
     
     setShowBankModal(false)
-  }
+  }, [userData])
+
+  // Stable callbacks for Plaid hook to avoid unnecessary re-renders
+  const handlePlaidError = useCallback((err) => {
+    console.error('[Onboarding] Plaid error:', err)
+  }, [])
+
+  const handlePlaidClose = useCallback(() => {
+    setShowBankModal(false)
+  }, [])
+
+  // Plaid hook for direct connection (when manual entry is disabled)
+  const plaid = usePlaidBankConnection({
+    onAccountSelected: handleBankConnected,
+    onError: handlePlaidError,
+    onClose: handlePlaidClose
+  })
+
+  // Fetch Plaid token when on bank step and manual entry is disabled
+  useEffect(() => {
+    if (currentStep === ONBOARDING_STEPS.BANK && !MANUAL_BANK_ENTRY_ENABLED) {
+      plaid.fetchToken()
+    }
+  }, [currentStep, plaid.fetchToken, MANUAL_BANK_ENTRY_ENABLED])
+
+  // Handler for "Connect Payout Account" button
+  const handleConnectBankClick = useCallback(() => {
+    if (MANUAL_BANK_ENTRY_ENABLED) {
+      setShowBankModal(true)
+    } else if (plaid.ready) {
+      plaid.open()
+    }
+  }, [plaid])
   
   // Get investments that need bank accounts (only monthly payment investments)
   const getInvestmentsNeedingBanks = () => {
@@ -484,14 +527,12 @@ function OnboardingContent() {
                          {Object.values(investmentBankAssignments)[0]?.payout?.display_name || 'Bank Account'}
                        </div>
                      </div>
-                     <button 
-                       onClick={() => {
-                         setShowBankModal(true)
-                       }}
-                       style={{ marginLeft: 'auto', fontSize: '13px', color: '#059669', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                     >
-                       Change
-                     </button>
+                    <button 
+                      onClick={handleConnectBankClick}
+                      style={{ marginLeft: 'auto', fontSize: '13px', color: '#059669', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Change
+                    </button>
                    </div>
                    
                    <button 
@@ -506,18 +547,17 @@ function OnboardingContent() {
               ) : (
                 // Not Connected State
                 <button
-                  onClick={() => {
-                    setShowBankModal(true)
-                  }}
+                  onClick={handleConnectBankClick}
                   className={styles.submitButton}
                   style={{ width: '100%', marginBottom: '16px' }}
-                  disabled={isLoading}
+                  disabled={isLoading || (!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready)}
                 >
-                  Connect Payout Account
+                  {!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : 'Connect Payout Account'}
                 </button>
               )}
               
-              {showBankModal && (
+              {/* Bank Connection Modal - only used when manual entry is enabled */}
+              {MANUAL_BANK_ENTRY_ENABLED && showBankModal && (
                 <BankConnectionModal
                   isOpen={showBankModal}
                   onClose={() => {

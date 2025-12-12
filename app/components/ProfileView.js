@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
+import { MANUAL_BANK_ENTRY_ENABLED } from '../../lib/featureFlags'
 import logger from '@/lib/logger'
 import { 
   formatName, 
@@ -35,7 +36,7 @@ import {
   MIN_DOB 
 } from '@/lib/validation'
 import styles from './ProfileView.module.css'
-import BankConnectionModal from './BankConnectionModal'
+import BankConnectionModal, { usePlaidBankConnection } from './BankConnectionModal'
 
 export default function ProfileView() {
   const router = useRouter()
@@ -807,7 +808,7 @@ export default function ProfileView() {
     }
   }
 
-  const handleBankAccountAdded = async (bankAccount) => {
+  const handleBankAccountAdded = useCallback(async (bankAccount) => {
     try {
       // Refresh bank list directly
       await fetchBankAccounts()
@@ -817,7 +818,39 @@ export default function ProfileView() {
     } catch (e) {
       logger.error('Failed to refresh after adding bank account', e)
     }
-  }
+  }, [])
+
+  // Stable callbacks for Plaid hook to avoid unnecessary re-renders
+  const handlePlaidError = useCallback((err) => {
+    logger.error('[ProfileView] Plaid error:', err)
+  }, [])
+
+  const handlePlaidClose = useCallback(() => {
+    setShowBankModal(false)
+  }, [])
+
+  // Plaid hook for direct connection (when manual entry is disabled)
+  const plaid = usePlaidBankConnection({
+    onAccountSelected: handleBankAccountAdded,
+    onError: handlePlaidError,
+    onClose: handlePlaidClose
+  })
+
+  // Fetch Plaid token when on banking tab and manual entry is disabled
+  useEffect(() => {
+    if (activeTab === 'banking' && !MANUAL_BANK_ENTRY_ENABLED) {
+      plaid.fetchToken()
+    }
+  }, [activeTab, plaid.fetchToken, MANUAL_BANK_ENTRY_ENABLED])
+
+  // Handler for "Connect Bank Account" button
+  const handleConnectBankClick = useCallback(() => {
+    if (MANUAL_BANK_ENTRY_ENABLED) {
+      setShowBankModal(true)
+    } else if (plaid.ready) {
+      plaid.open()
+    }
+  }, [plaid])
 
   const handleSetDefaultBank = async (bankId) => {
     try {
@@ -1046,9 +1079,9 @@ export default function ProfileView() {
           <BankingTab
             userData={userData}
             bankAccounts={bankAccounts}
-            showBankModal={showBankModal}
-            setShowBankModal={setShowBankModal}
-            handleBankAccountAdded={handleBankAccountAdded}
+            handleConnectBankClick={handleConnectBankClick}
+            plaidReady={plaid.ready}
+            plaidLoading={plaid.isLoading}
             handleSetDefaultBank={handleSetDefaultBank}
             handleRemoveBank={handleRemoveBank}
             isRemovingBank={isRemovingBank}
@@ -1070,11 +1103,14 @@ export default function ProfileView() {
         )}
       </div>
 
-      <BankConnectionModal
-        isOpen={showBankModal}
-        onClose={() => setShowBankModal(false)}
-        onAccountSelected={handleBankAccountAdded}
-      />
+      {/* Bank Connection Modal - only used when manual entry is enabled */}
+      {MANUAL_BANK_ENTRY_ENABLED && (
+        <BankConnectionModal
+          isOpen={showBankModal}
+          onClose={() => setShowBankModal(false)}
+          onAccountSelected={handleBankAccountAdded}
+        />
+      )}
     </div>
   )
 }
@@ -1829,13 +1865,16 @@ function TrustedContactTab({ formData, errors, handleTrustedContactChange, handl
 }
 
 
-function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, handleBankAccountAdded, handleSetDefaultBank, handleRemoveBank, isRemovingBank, mounted }) {
+function BankingTab({ userData, bankAccounts, handleConnectBankClick, plaidReady, plaidLoading, handleSetDefaultBank, handleRemoveBank, isRemovingBank, mounted }) {
   // Prefer the independently fetched bankAccounts, fall back to userData.bankAccounts
   const availableBanks = Array.isArray(bankAccounts) && bankAccounts.length > 0 
     ? bankAccounts 
     : (Array.isArray(userData?.bankAccounts) ? userData.bankAccounts : [])
   
   const defaultBankId = userData?.banking?.defaultBankAccountId || null
+  
+  // Determine if button should be disabled (only when using Plaid directly and not ready)
+  const isButtonDisabled = !MANUAL_BANK_ENTRY_ENABLED && !plaidReady
 
   return (
     <div className={styles.content}>
@@ -1850,9 +1889,10 @@ function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, h
             <p>No bank accounts connected yet.</p>
             <button
               className={styles.addBankButton}
-              onClick={() => setShowBankModal(true)}
+              onClick={handleConnectBankClick}
+              disabled={isButtonDisabled}
             >
-              Add Bank Account
+              {!MANUAL_BANK_ENTRY_ENABLED && plaidLoading ? 'Loading...' : 'Add Bank Account'}
             </button>
           </div>
         ) : (
@@ -1870,9 +1910,10 @@ function BankingTab({ userData, bankAccounts, showBankModal, setShowBankModal, h
             <div className={styles.actions}>
               <button
                 className={styles.addBankButton}
-                onClick={() => setShowBankModal(true)}
+                onClick={handleConnectBankClick}
+                disabled={isButtonDisabled}
               >
-                Change Bank Account
+                {!MANUAL_BANK_ENTRY_ENABLED && plaidLoading ? 'Loading...' : 'Change Bank Account'}
               </button>
             </div>
           </>

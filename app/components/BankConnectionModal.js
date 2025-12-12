@@ -2,10 +2,191 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { apiClient } from '../../lib/apiClient'
+import { MANUAL_BANK_ENTRY_ENABLED } from '../../lib/featureFlags'
 import styles from './BankConnectionModal.module.css'
 
-// Feature flag: Set to true to enable manual bank entry option
-const ENABLE_MANUAL_BANK_ENTRY = false
+/**
+ * Generate a lightweight UUID v4-ish idempotency key
+ */
+const generateIdempotencyKey = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+/**
+ * usePlaidBankConnection - Reusable hook for Plaid bank connection
+ * 
+ * Use this hook to open Plaid directly without the modal when manual entry is disabled.
+ * 
+ * @param {Object} options
+ * @param {Function} options.onAccountSelected - Called with the payment method after successful connection
+ * @param {Function} options.onError - Called with error message if connection fails
+ * @param {Function} options.onClose - Called when the flow completes (success or user closes Plaid)
+ * @returns {Object} { open, ready, isLoading, error, fetchToken }
+ */
+export function usePlaidBankConnection({ onAccountSelected, onError, onClose }) {
+  const [linkToken, setLinkToken] = useState(null)
+  const [isFetchingToken, setIsFetchingToken] = useState(false)
+  const [error, setError] = useState('')
+
+  const fetchToken = useCallback(async () => {
+    if (linkToken || isFetchingToken) return
+    
+    try {
+      setIsFetchingToken(true)
+      setError('')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[usePlaidBankConnection] Fetching Plaid Link token...')
+      }
+      const res = await apiClient.request('/api/plaid/link-token', {
+        method: 'POST',
+        body: JSON.stringify({ use_case: 'processor', client_app: 'web' })
+      })
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[usePlaidBankConnection] Link token received')
+      }
+      setLinkToken(res.link_token)
+      return res.link_token
+    } catch (e) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[usePlaidBankConnection] Failed to fetch link token:', e)
+      }
+      const errorMsg = e?.message || 'Failed to initialize Plaid.'
+      setError(errorMsg)
+      if (onError) onError(errorMsg)
+      return null
+    } finally {
+      setIsFetchingToken(false)
+    }
+  }, [linkToken, isFetchingToken, onError])
+
+  const onPlaidSuccess = useCallback(async (public_token, metadata) => {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[usePlaidBankConnection] Plaid Link success! Processing...', {
+          institution: metadata?.institution?.name,
+          account: metadata?.account?.name
+        })
+      }
+      
+      const accountId = metadata?.account?.id
+      const institution = metadata?.institution || {}
+      const accountMask = metadata?.account?.mask
+      const accountSubtype = metadata?.account?.subtype || 'checking'
+      const accountType = accountSubtype.toLowerCase()
+      
+      let accountName = 'Checking'
+      if (accountType === 'savings') {
+        accountName = 'Savings'
+      }
+      
+      const payload = {
+        public_token,
+        account_id: accountId,
+        institution: { id: institution?.institution_id || institution?.id, name: institution?.name },
+        account_mask: accountMask,
+        account_name: accountName,
+        save_for_reuse: true,
+        idempotency_key: generateIdempotencyKey()
+      }
+      
+      let res
+      try {
+        res = await apiClient.request('/api/plaid/link-success', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+      } catch (reqErr) {
+        // Check for "existing payment method" error to implement auto-replace
+        const responseData = reqErr?.responseData || {}
+        let existingId = responseData.existing_payment_method_id
+        
+        if (!existingId && reqErr?.message && reqErr.message.includes('existing_payment_method_id')) {
+          try {
+            const match = reqErr.message.match(/'existing_payment_method_id':\s*'([^']+)'/) || 
+                          reqErr.message.match(/"existing_payment_method_id":\s*"([^"]+)"/)
+            if (match) existingId = match[1]
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+        
+        const errDetail = responseData.detail
+        if (!existingId && typeof errDetail === 'string') {
+           const match = errDetail.match(/'existing_payment_method_id':\s*'([^']+)'/) ||
+                         errDetail.match(/"existing_payment_method_id":\s*"([^"]+)"/)
+           if (match) existingId = match[1]
+        }
+
+        if (existingId) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[usePlaidBankConnection] Found existing payment method to replace:', existingId)
+          }
+          
+          try {
+            await apiClient.deletePaymentMethod(existingId)
+            res = await apiClient.request('/api/plaid/link-success', {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            })
+          } catch (retryErr) {
+            console.error('[usePlaidBankConnection] Retry failed:', retryErr)
+            throw retryErr
+          }
+        } else {
+          throw reqErr
+        }
+      }
+      
+      const method = res?.payment_method
+      if (method && typeof onAccountSelected === 'function') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[usePlaidBankConnection] Payment method created successfully:', method)
+        }
+        onAccountSelected(method)
+      }
+      if (onClose) onClose()
+    } catch (e) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[usePlaidBankConnection] Link success failed:', e)
+      }
+      const errorMsg = e?.message || 'Failed to link bank account'
+      setError(`${errorMsg}. Please try again.`)
+      if (onError) onError(`${errorMsg}. Please try again.`)
+    }
+  }, [onAccountSelected, onError, onClose])
+
+  const plaidConfig = useMemo(() => ({
+    token: linkToken,
+    onSuccess: onPlaidSuccess,
+    env: process.env.NEXT_PUBLIC_PLAID_ENV || 'sandbox',
+  }), [linkToken, onPlaidSuccess])
+
+  const { open: plaidOpen, ready } = usePlaidLink(plaidConfig)
+
+  // Wrapper that fetches token first if needed, then opens
+  const open = useCallback(async () => {
+    if (ready && linkToken) {
+      plaidOpen()
+    } else if (!linkToken && !isFetchingToken) {
+      await fetchToken()
+      // Note: plaidOpen won't be ready immediately after fetchToken
+      // The component using this hook should wait for ready state
+    }
+  }, [ready, linkToken, isFetchingToken, plaidOpen, fetchToken])
+
+  return {
+    open,
+    ready: ready && !!linkToken,
+    isLoading: isFetchingToken,
+    error,
+    fetchToken,
+    linkToken
+  }
+}
 
 /**
  * BankConnectionModal - Plaid Integration for Bank Account Connection
@@ -50,15 +231,6 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
       setTimeout(() => resetState(), 300)
     }
   }, [isOpen])
-
-  const generateIdempotencyKey = () => {
-    // Lightweight UUID v4-ish
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      const r = (Math.random() * 16) | 0
-      const v = c === 'x' ? r : (r & 0x3) | 0x8
-      return v.toString(16)
-    })
-  }
 
   const fetchLinkToken = async () => {
     try {
@@ -422,7 +594,7 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                   'Connect Bank Account'
                 )}
               </button>
-              {ENABLE_MANUAL_BANK_ENTRY && (
+              {MANUAL_BANK_ENTRY_ENABLED && (
                 <>
                   <div style={{ textAlign: 'center', color: '#6b7280' }}>or</div>
                   <button

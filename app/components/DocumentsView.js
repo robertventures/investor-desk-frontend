@@ -199,7 +199,7 @@ export default function DocumentsView() {
 
       <div className={styles.content}>
         {/* Your Documents Section - Always show */}
-        <div className={styles.documentsList}>
+          <div className={styles.documentsList}>
           <h3 className={styles.sectionTitle}>Your Documents</h3>
           {sortedDocuments.length > 0 ? (
             <div className={styles.documentsGrid}>
@@ -228,8 +228,8 @@ export default function DocumentsView() {
           ) : (
             <div className={styles.emptySection}>
               <p>No documents have been shared with you yet.</p>
-            </div>
-          )}
+          </div>
+        )}
         </div>
 
         {/* Investment Agreements Section */}
