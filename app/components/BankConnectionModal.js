@@ -4,6 +4,9 @@ import { usePlaidLink } from 'react-plaid-link'
 import { apiClient } from '../../lib/apiClient'
 import styles from './BankConnectionModal.module.css'
 
+// Feature flag: Set to true to enable manual bank entry option
+const ENABLE_MANUAL_BANK_ENTRY = false
+
 /**
  * BankConnectionModal - Plaid Integration for Bank Account Connection
  * 
@@ -419,13 +422,17 @@ export default function BankConnectionModal({ isOpen, onClose, onAccountSelected
                   'Connect Bank Account'
                 )}
               </button>
-              <div style={{ textAlign: 'center', color: '#6b7280' }}>or</div>
-              <button
-                className={styles.secondaryButton}
-                onClick={() => setShowManualEntry(true)}
-              >
-                Enter Bank Details Manually
-              </button>
+              {ENABLE_MANUAL_BANK_ENTRY && (
+                <>
+                  <div style={{ textAlign: 'center', color: '#6b7280' }}>or</div>
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={() => setShowManualEntry(true)}
+                  >
+                    Enter Bank Details Manually
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <form onSubmit={handleManualSubmit} className={styles.form}>
