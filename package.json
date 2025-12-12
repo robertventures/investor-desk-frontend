@@ -16,6 +16,7 @@
     "cookie": "^1.0.2",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.4",
     "jszip": "^3.10.1",
     "next": "^14.2.32",
     "papaparse": "^5.5.3",

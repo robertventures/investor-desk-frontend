@@ -18,6 +18,7 @@ import Header from '../components/Header'
 import BankConnectionModal from '../components/BankConnectionModal'
 import { apiClient } from '../../lib/apiClient'
 import { INVESTMENTS_PAUSED } from '../../lib/featureFlags'
+import { jsPDF } from 'jspdf'
 import logger from '../../lib/logger'
 import {
   DRAFT_PAYMENT_METHOD_KEY,
@@ -944,46 +945,43 @@ function ClientContent() {
                     className={styles.secondaryButton}
                     style={{ marginTop: '12px' }}
                     onClick={() => {
-                      const content = `Wire Instructions\n\n` +
-                        `Bank: Bank of America\n` +
-                        `Bank Location: 7950 Brier Creek Pkwy, Raleigh NC 27617\n` +
-                        `Routing for Wires: 026009593\n` +
-                        `Account Name: Robert Ventures Holdings LLC\n` +
-                        `Account #: 237047915756\n` +
-                        `RVH Address: 2810 N Church St, Num 28283, Wilmington DE 19802\n` +
-                        `Office#: 302-404-6341 - Joseph Robert\n` +
-                        `Email: ir@robertventures.com`
-                      const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Wire Instructions</title>` +
-                        `<style>body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;padding:24px;color:#111}.h{font-size:20px;font-weight:700;margin:0 0 12px;text-decoration:underline}p{margin:6px 0}</style>` +
-                        `</head><body><div class=\"h\">Wire Instructions</div>` +
-                        `<p><b>Bank:</b> Bank of America</p>` +
-                        `<p><b>Bank Location:</b> 7950 Brier Creek Pkwy, Raleigh NC 27617</p>` +
-                        `<p><b>Routing for Wires:</b> 026009593</p>` +
-                        `<p><b>Account Name:</b> Robert Ventures Holdings LLC</p>` +
-                        `<p><b>Account #:</b> 237047915756</p>` +
-                        `<p><b>RVH Address:</b> 2810 N Church St, Num 28283, Wilmington DE 19802</p>` +
-                        `<p><b>Office#:</b> 302-404-6341 - Joseph Robert</p>` +
-                        `<p><b>Email:</b> ir@robertventures.com</p>` +
-                        `</body></html>`
-                      const w = window.open('', '_blank', 'noopener,noreferrer')
-                      if (w) {
-                        w.document.open()
-                        w.document.write(html)
-                        w.document.close()
-                        w.focus()
-                        w.print()
-                      } else {
-                        // Fallback to text download
-                        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-                        const url = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = url
-                        a.download = 'wire-instructions.txt'
-                        document.body.appendChild(a)
-                        a.click()
-                        document.body.removeChild(a)
-                        URL.revokeObjectURL(url)
-                      }
+                      const doc = new jsPDF()
+                      
+                      // Title
+                      doc.setFontSize(20)
+                      doc.setFont('helvetica', 'bold')
+                      doc.text('Wire Instructions', 20, 25)
+                      
+                      // Underline
+                      doc.setLineWidth(0.5)
+                      doc.line(20, 28, 90, 28)
+                      
+                      // Content
+                      doc.setFontSize(12)
+                      let y = 45
+                      const lineHeight = 10
+                      
+                      const fields = [
+                        { label: 'Bank:', value: 'Bank of America' },
+                        { label: 'Bank Location:', value: '7950 Brier Creek Pkwy, Raleigh NC 27617' },
+                        { label: 'Routing for Wires:', value: '026009593' },
+                        { label: 'Account Name:', value: 'Robert Ventures Holdings LLC' },
+                        { label: 'Account #:', value: '237047915756' },
+                        { label: 'RVH Address:', value: '2810 N Church St, Num 28283, Wilmington DE 19802' },
+                        { label: 'Office#:', value: '302-404-6341 - Joseph Robert' },
+                        { label: 'Email:', value: 'ir@robertventures.com' }
+                      ]
+                      
+                      fields.forEach(field => {
+                        doc.setFont('helvetica', 'bold')
+                        doc.text(field.label, 20, y)
+                        doc.setFont('helvetica', 'normal')
+                        const labelWidth = doc.getTextWidth(field.label) + 3
+                        doc.text(field.value, 20 + labelWidth, y)
+                        y += lineHeight
+                      })
+                      
+                      doc.save('wire-instructions.pdf')
                     }}
                   >
                     Download PDF Instructions
