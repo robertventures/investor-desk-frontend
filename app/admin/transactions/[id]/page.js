@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
-import { fetchWithCsrf } from '../../../../lib/csrfClient'
 import AdminHeader from '../../../components/AdminHeader'
 import styles from './page.module.css'
 import { formatCurrency } from '../../../../lib/formatters.js'
@@ -170,23 +169,14 @@ export default function AdminTransactionDetailsPage() {
     setIsProcessing(true)
 
     try {
-      const res = await fetchWithCsrf('/api/admin/pending-payouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'approve',
-          userId: user.id,
-          transactionId: transaction.id
-        })
-      })
-
-      const data = await res.json()
-      if (data.success) {
+      const result = await apiClient.admin.processAchqPayment(transaction.id)
+      
+      if (result.success) {
         alert('Transaction approved and processed successfully!')
         // Reload the page to show updated status
         window.location.reload()
       } else {
-        alert(data.error || 'Failed to process transaction')
+        alert(result.error || 'Failed to process transaction')
       }
     } catch (error) {
       console.error('Error processing transaction:', error)
