@@ -171,6 +171,104 @@
   margin: 0;
 }
 
+/* Upload Section Styles */
+.uploadSection {
+  width: 100%;
+  max-width: var(--container-max-width);
+  margin-bottom: 40px;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.uploadDescription {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.uploadForm {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.fileInputWrapper {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+
+.fileInput {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fileInputLabel {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileInputLabel:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.uploadButton {
+  background: #0369a1;
+  color: #ffffff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.uploadButton:hover:not(:disabled) {
+  background: #075985;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(3, 105, 161, 0.3);
+}
+
+.uploadButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.uploadError {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 14px;
+}
+
 .emptyState {
   margin-bottom: 40px;
   max-width: 500px;
@@ -289,5 +387,22 @@
   .documentActions {
     margin-top: 12px;
     justify-content: flex-end;
+  }
+
+  .uploadSection {
+    padding: 16px;
+  }
+
+  .uploadForm {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fileInputWrapper {
+    min-width: 100%;
+  }
+
+  .uploadButton {
+    width: 100%;
   }
 }
