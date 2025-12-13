@@ -697,12 +697,15 @@ export function useAdminData() {
   }, [allTransactions, users, investmentPaymentFrequencyMap])
 
   /**
-   * Disconnected bank users - users whose bank connection is no longer healthy
+   * Disconnected bank users - users whose Plaid bank connection is no longer healthy
    * These need to reconnect their bank before we can send monthly payments
    * 
    * Only flags users who:
-   * 1. Have payment methods in the system
-   * 2. Have at least one payment method with connection_status !== 'connected'
+   * 1. Have payment methods in the system (connected via Plaid, not manual entry)
+   * 2. Have at least one payment method with connection_status === 'disconnected'
+   * 
+   * Note: Manual entry accounts and accounts with 'unknown' status are NOT flagged
+   * because they can still receive payments.
    */
   const disconnectedBankUsers = useMemo(() => {
     if (!users || users.length === 0 || Object.keys(paymentMethodsByUser).length === 0) {
@@ -727,12 +730,16 @@ export function useAdminData() {
         return
       }
       
-      // Check if any payment method has a disconnected status
-      // A user is considered disconnected if connection_status exists and is not 'connected'
+      // Check if any Plaid payment method has an explicit disconnected status
       const disconnectedMethods = paymentMethods.filter(pm => {
         const connectionStatus = pm.connection_status || pm.connectionStatus
-        // Only flag if connection_status field exists AND is not 'connected'
-        return connectionStatus && connectionStatus !== 'connected'
+        const displayName = (pm.display_name || pm.name || pm.bank_name || '').toLowerCase()
+
+        // Skip manual entry accounts - they don't have Plaid connection tracking
+        if (displayName.includes('manual entry')) return false
+
+        // Only flag explicit disconnections (do NOT treat 'unknown' as disconnected)
+        return connectionStatus === 'disconnected'
       })
       
       if (disconnectedMethods.length > 0) {
