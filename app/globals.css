@@ -1,6 +1,3 @@
-/* Import premium fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 /* Global styles for Robert Ventures Investor Desk */
 * {
   box-sizing: border-box;
@@ -12,7 +9,7 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: inherit;
   background: var(--color-app-bg);
   color: #1a1a1a;
   font-weight: 400;

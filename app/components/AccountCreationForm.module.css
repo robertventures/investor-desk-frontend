@@ -71,7 +71,6 @@
   font-weight: 500;
   color: #374151;
   margin-bottom: 6px;
-  font-family: 'Inter', sans-serif;
 }
 
 .input {
@@ -81,7 +80,6 @@
   border-radius: 6px;
   font-size: 16px;
   background: #fff;
-  font-family: 'Inter', sans-serif;
   transition: all 0.2s ease;
 }
 
@@ -132,7 +130,6 @@
   color: #dc2626;
   font-size: 14px;
   margin-top: 6px;
-  font-family: 'Inter', sans-serif;
 }
 
 .requirements {
@@ -184,7 +181,6 @@
   width: 100%;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
   transition: all 0.2s ease;
 }
 
@@ -216,7 +212,6 @@
   font-size: 14px;
   color: #6b7280;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .linkButton {
@@ -227,7 +222,6 @@
   font-weight: 500;
   cursor: pointer;
   text-decoration: underline;
-  font-family: 'Inter', sans-serif;
   transition: color 0.2s ease;
 }
 
@@ -241,7 +235,6 @@
   margin: 12px 0 0 0;
   line-height: 1.4;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .termsText .linkButton {

@@ -40,7 +40,6 @@
   font-size: 14px;
   font-weight: 500;
   color: #374151;
-  font-family: 'Inter', sans-serif;
 }
 
 .input {
@@ -48,7 +47,6 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 16px;
-  font-family: 'Inter', sans-serif;
   transition: all 0.2s ease;
   background: #ffffff;
   width: 100%;
@@ -75,7 +73,6 @@
   padding: 0 12px;
   font-size: 12px;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -115,7 +112,6 @@
 .errorText {
   font-size: 14px;
   color: #dc2626;
-  font-family: 'Inter', sans-serif;
 }
 
 .actions {
@@ -133,7 +129,6 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
 }
 
 .loginButton:hover:not(:disabled) {
@@ -164,7 +159,6 @@
   font-size: 14px;
   color: #6b7280;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .linkButton {
@@ -175,7 +169,6 @@
   font-weight: 500;
   cursor: pointer;
   text-decoration: underline;
-  font-family: 'Inter', sans-serif;
   transition: color 0.2s ease;
 }
 

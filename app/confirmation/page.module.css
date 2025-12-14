@@ -25,7 +25,6 @@
   color: #1a1a1a;
   margin: 0 0 20px 0;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .description {
@@ -33,7 +32,6 @@
   color: #6b7280;
   margin: 0;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .email {
@@ -42,7 +40,6 @@
   font-weight: 600;
   margin: 4px 0 8px 0;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .hint {
@@ -50,7 +47,6 @@
   color: #9ca3af;
   margin: 0 0 32px 0;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .codeInputContainer {
@@ -63,7 +59,6 @@
   font-weight: 500;
   color: #374151;
   margin-bottom: 8px;
-  font-family: 'Inter', sans-serif;
   text-align: center;
 }
 
@@ -84,7 +79,6 @@
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fff;
-  font-family: 'Inter', sans-serif;
   transition: all 0.2s ease;
 }
 
@@ -113,7 +107,6 @@
   font-size: 14px;
   margin: 8px 0 0 0;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .resendContainer {
@@ -126,7 +119,6 @@
   font-size: 14px;
   color: #6b7280;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .resendButton {
@@ -137,7 +129,6 @@
   font-weight: 500;
   cursor: pointer;
   text-decoration: underline;
-  font-family: 'Inter', sans-serif;
   transition: color 0.2s ease;
   padding: 0;
 }
@@ -156,7 +147,6 @@
   width: 100%;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
   transition: all 0.2s ease;
 }
 

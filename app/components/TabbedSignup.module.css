@@ -39,7 +39,6 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-family: 'Inter', sans-serif;
 }
 
 .stepCircle.completed {
@@ -53,7 +52,6 @@
   color: #1a1a1a;
   margin: 0;
   letter-spacing: -0.02em;
-  font-family: 'Inter', sans-serif;
 }
 
 .checkmark {
@@ -174,7 +172,6 @@
   color: #1a1a1a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-family: 'Inter', sans-serif;
 }
 
 .input {
@@ -183,7 +180,6 @@
   border-radius: 6px;
   font-size: 16px;
   background: #ffffff;
-  font-family: 'Inter', sans-serif;
 }
 
 .input:focus {
@@ -216,7 +212,6 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
   width: 100%;
 }
 

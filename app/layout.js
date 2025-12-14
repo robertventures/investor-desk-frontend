@@ -1,6 +1,13 @@
+import { Inter } from 'next/font/google'
 import './globals.css'
 import AuthWrapper from './components/AuthWrapper'
 import GoogleTagManager from './components/GoogleTagManager'
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+})
 
 export const metadata = {
   title: 'Robert Ventures Investor Desk',
@@ -10,7 +17,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         <GoogleTagManager />
         <AuthWrapper>
           {children}

@@ -20,7 +20,6 @@
   color: #065f46;
   font-size: 15px;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
 }
 
 /* tabs replaced by vertical steps */
@@ -36,7 +35,6 @@
   font-size: 14px;
   color: #6b7280;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .linkButton {
@@ -47,7 +45,6 @@
   font-weight: 500;
   cursor: pointer;
   text-decoration: underline;
-  font-family: 'Inter', sans-serif;
   transition: color 0.2s ease;
 }
 
@@ -60,7 +57,6 @@
   text-align: center;
   font-size: 14px;
   color: #6b7280;
-  font-family: 'Inter', sans-serif;
 }
 
 .cancelLink {
@@ -71,7 +67,6 @@
   font-weight: 400;
   cursor: pointer;
   text-decoration: underline;
-  font-family: 'Inter', sans-serif;
   transition: color 0.2s ease;
   padding: 0;
 }
@@ -123,7 +118,6 @@
   font-weight: 500;
   color: #1f2937;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 /* Pending Investment Block UI */
@@ -148,7 +142,6 @@
   font-weight: 600;
   color: #1f2937;
   margin: 0 0 16px 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .pendingBlockDescription {
@@ -156,7 +149,6 @@
   color: #4b5563;
   line-height: 1.6;
   margin: 0 0 12px 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .pendingBlockSubtext {
@@ -164,7 +156,6 @@
   color: #6b7280;
   line-height: 1.5;
   margin: 0 0 32px 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .pendingBlockButton {
@@ -177,7 +168,6 @@
   border: none;
   border-radius: 10px;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
   transition: background 0.2s ease, transform 0.1s ease;
 }
 

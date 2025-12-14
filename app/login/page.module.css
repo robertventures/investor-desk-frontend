@@ -27,14 +27,12 @@
   font-weight: 700;
   color: #1a1a1a;
   margin: 0 0 8px 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .welcomeSubtitle {
   font-size: 16px;
   color: #6b7280;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 @media (max-width: 768px) {

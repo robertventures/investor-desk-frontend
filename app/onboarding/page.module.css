@@ -32,7 +32,6 @@
   font-weight: 700;
   color: #1a1a1a;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 .subtitle {
@@ -40,7 +39,6 @@
   font-size: 16px;
   color: #6b7280;
   text-align: center;
-  font-family: 'Inter', sans-serif;
 }
 
 /* Progress Bar */
@@ -84,7 +82,6 @@
   font-weight: 600;
   margin-bottom: 8px;
   transition: all 0.3s ease;
-  font-family: 'Inter', sans-serif;
   border: 2px solid #e5e7eb;
 }
 
@@ -104,7 +101,6 @@
   font-size: 12px;
   color: #9ca3af;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
 }
 
 .step.active .stepLabel {
@@ -126,7 +122,6 @@
   border-radius: 6px;
   margin-bottom: 24px;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
 }
 
 /* Form Styles */
@@ -139,14 +134,12 @@
   font-size: 20px;
   font-weight: 600;
   color: #1a1a1a;
-  font-family: 'Inter', sans-serif;
 }
 
 .form p {
   margin: 0 0 24px 0;
   color: #6b7280;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
 }
 
 .formGroup {
@@ -159,7 +152,6 @@
   color: #374151;
   margin-bottom: 8px;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
 }
 
 .formGroup input,
@@ -170,7 +162,6 @@
   border-radius: 6px;
   font-size: 16px;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
   background: #ffffff;
 }
 
@@ -193,7 +184,6 @@
   margin-top: 6px;
   font-size: 12px;
   color: #6b7280;
-  font-family: 'Inter', sans-serif;
 }
 
 .submitButton {
@@ -207,7 +197,6 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
   margin-top: 8px;
 }
 
@@ -245,7 +234,6 @@
   font-weight: 500;
   font-size: 14px;
   transition: all 0.2s;
-  font-family: 'Inter', sans-serif;
   color: #374151;
 }
 
@@ -264,7 +252,6 @@
   text-align: center;
   padding: 40px 20px;
   color: #6b7280;
-  font-family: 'Inter', sans-serif;
 }
 
 .comingSoon p:first-child {
@@ -304,14 +291,12 @@
   font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
-  font-family: 'Inter', sans-serif;
 }
 
 .complete p {
   margin: 0 0 32px 0;
   color: #6b7280;
   font-size: 16px;
-  font-family: 'Inter', sans-serif;
 }
 
 /* Loading State */
@@ -336,7 +321,6 @@
 
 .loadingState p {
   color: #6b7280;
-  font-family: 'Inter', sans-serif;
   margin: 0;
 }
 
@@ -349,12 +333,10 @@
 .errorState h2 {
   color: #dc2626;
   margin: 0 0 16px 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .errorState p {
   color: #6b7280;
-  font-family: 'Inter', sans-serif;
   margin: 0;
 }
 
@@ -391,14 +373,12 @@
   font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
-  font-family: 'Inter', sans-serif;
 }
 
 .investmentDetails {
   margin: 0 0 8px 0;
   font-size: 14px;
   color: #6b7280;
-  font-family: 'Inter', sans-serif;
 }
 
 .bankStatusList {
@@ -410,7 +390,6 @@
 
 .bankStatus {
   font-size: 13px;
-  font-family: 'Inter', sans-serif;
 }
 
 .bankAssigned {
@@ -440,7 +419,6 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
   white-space: nowrap;
 }
 
@@ -465,7 +443,6 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
   white-space: nowrap;
 }
 
@@ -492,7 +469,6 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
   margin-top: 12px;
 }
 
@@ -577,7 +553,6 @@
   border-radius: 6px;
   font-size: 16px;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
   background: #ffffff;
   padding-right: 80px !important;
 }
@@ -618,7 +593,6 @@
 .requirements {
   margin-top: 8px;
   font-size: 12px;
-  font-family: 'Inter', sans-serif;
   line-height: 1.4;
 }
 

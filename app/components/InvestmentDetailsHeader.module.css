@@ -27,7 +27,6 @@
   cursor: pointer;
   padding: 8px 0;
   transition: color 0.2s ease;
-  font-family: 'Inter', sans-serif;
 }
 
 .backButton:hover {
@@ -49,7 +48,6 @@
   font-weight: 700;
   color: #1a1a1a;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .loading {

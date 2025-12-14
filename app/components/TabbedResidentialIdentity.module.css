@@ -25,7 +25,6 @@
   color: #1a1a1a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-family: 'Inter', sans-serif;
 }
 
 .labelRow {
@@ -57,7 +56,6 @@
   border-radius: 6px;
   font-size: 16px;
   background: #ffffff;
-  font-family: 'Inter', sans-serif;
 }
 
 /* Force consistent styling for select elements on mobile/iOS */
@@ -71,7 +69,6 @@ select.input {
   background: #ffffff !important;
   border: 2px solid #e5e7eb !important;
   color: #1a1a1a !important;
-  font-family: 'Inter', sans-serif !important;
   font-size: 16px !important;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e") !important;
   background-position: right 16px center !important;
@@ -119,7 +116,6 @@ input[type="date"].input {
   background: #ffffff !important;
   border: 2px solid #e5e7eb !important;
   color: #1a1a1a !important;
-  font-family: 'Inter', sans-serif !important;
   font-size: 16px !important;
   padding: 16px 20px !important;
   -webkit-box-shadow: none !important;
@@ -218,7 +214,6 @@ input[type="date"].input:focus-visible {
   font-weight: 600;
   color: #1a1a1a;
   margin: 0;
-  font-family: 'Inter', sans-serif;
 }
 
 .jointHoldingTypeSection {
@@ -274,7 +269,6 @@ input[type="date"].input:focus-visible {
   padding: 12px 16px;
   background: #f1f5f9;
   border-radius: 6px;
-  font-family: 'Inter', sans-serif;
   text-align: left;
   line-height: 1.5;
 }
