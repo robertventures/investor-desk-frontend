@@ -89,7 +89,6 @@ function AdminPageContent() {
     numInvestmentsMin: searchParams?.get('numInvestmentsMin') || '',
     numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
     isVerified: searchParams?.get('isVerified') || 'all',
-    passwordSet: searchParams?.get('passwordSet') || 'all',
     bankConnected: searchParams?.get('bankConnected') || 'all',
     investmentType: searchParams?.get('investmentType') || 'all'
   }), [searchParams])
@@ -136,7 +135,6 @@ function AdminPageContent() {
     if (accountFilters.numInvestmentsMin) params.set('numInvestmentsMin', accountFilters.numInvestmentsMin)
     if (accountFilters.numInvestmentsMax) params.set('numInvestmentsMax', accountFilters.numInvestmentsMax)
     if (accountFilters.isVerified !== 'all') params.set('isVerified', accountFilters.isVerified)
-    if (accountFilters.passwordSet !== 'all') params.set('passwordSet', accountFilters.passwordSet)
     if (accountFilters.bankConnected !== 'all') params.set('bankConnected', accountFilters.bankConnected)
     if (accountFilters.investmentType !== 'all') params.set('investmentType', accountFilters.investmentType)
     if (accountsPage > 1) params.set('page', String(accountsPage))
@@ -169,7 +167,6 @@ function AdminPageContent() {
       numInvestmentsMin: searchParams?.get('numInvestmentsMin') || '',
       numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
       isVerified: searchParams?.get('isVerified') || 'all',
-      passwordSet: searchParams?.get('passwordSet') || 'all',
       bankConnected: searchParams?.get('bankConnected') || 'all',
       investmentType: searchParams?.get('investmentType') || 'all'
     }
@@ -323,11 +320,6 @@ function AdminPageContent() {
       // Filter by verification status
       if (accountFilters.isVerified === 'yes' && !user.isVerified) return false
       if (accountFilters.isVerified === 'no' && user.isVerified) return false
-
-      // Filter by password set status
-      const isPasswordSet = user.onboardingStatus?.passwordSet
-      if (accountFilters.passwordSet === 'yes' && !isPasswordSet) return false
-      if (accountFilters.passwordSet === 'no' && isPasswordSet) return false
 
       // Filter by bank connected status
       // Check both onboardingStatus flag and bankAccounts array since manual entry may not update the flag
@@ -920,7 +912,6 @@ function AdminPageContent() {
                                 numInvestmentsMin: '',
                                 numInvestmentsMax: '',
                                 isVerified: 'all',
-                                passwordSet: 'all',
                                 bankConnected: 'all',
                                 investmentType: 'all'
                               })
@@ -953,19 +944,6 @@ function AdminPageContent() {
                             <option value="all">All Users</option>
                             <option value="yes">Verified</option>
                             <option value="no">Not Verified</option>
-                          </select>
-                        </div>
-
-                        <div className={styles.filterSection}>
-                          <label className={styles.filterLabel}>Password Status</label>
-                          <select
-                            className={styles.filterSelect}
-                            value={accountFilters.passwordSet}
-                            onChange={(e) => setAccountFilters({...accountFilters, passwordSet: e.target.value})}
-                          >
-                            <option value="all">All Users</option>
-                            <option value="yes">Password Set</option>
-                            <option value="no">Password Not Set</option>
                           </select>
                         </div>
 
@@ -1179,12 +1157,6 @@ function AdminPageContent() {
                             <span className={styles.statusLabel}>Verified</span>
                             <span className={`${styles.statusValue} ${user.isVerified ? styles.statusSuccess : styles.statusPending}`}>
                               {user.isVerified ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className={styles.statusItem}>
-                            <span className={styles.statusLabel}>Password</span>
-                            <span className={`${styles.statusValue} ${user.onboardingStatus?.passwordSet ? styles.statusSuccess : styles.statusPending}`}>
-                              {user.onboardingStatus?.passwordSet ? 'Set' : 'Not Set'}
                             </span>
                           </div>
                           <div className={styles.statusItem}>
