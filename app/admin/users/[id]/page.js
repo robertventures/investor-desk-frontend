@@ -2526,43 +2526,57 @@ function AdminUserDetailsContent() {
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '24px', paddingLeft: '24px', borderLeft: '1px solid #f3f4f6' }}>
-                          <button
-                            onClick={() => handleApproveInvestment(inv.id)}
-                            style={{
-                              padding: '8px 16px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              background: '#16a34a',
-                              color: 'white',
-                              fontWeight: '600',
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '24px', paddingLeft: '24px', borderLeft: '1px solid #f3f4f6', justifyContent: 'center' }}>
+                          {(inv.paymentMethod === 'wire' || inv.banking?.fundingMethod === 'wire') ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveInvestment(inv.id)}
+                                style={{
+                                  padding: '8px 16px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  background: '#16a34a',
+                                  color: 'white',
+                                  fontWeight: '600',
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  width: '100%',
+                                  minWidth: '100px',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectInvestment(inv.id)}
+                                style={{
+                                  padding: '8px 16px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #fee2e2',
+                                  background: 'white',
+                                  color: '#ef4444',
+                                  fontWeight: '600',
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  width: '100%',
+                                  minWidth: '100px',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span style={{
                               fontSize: '13px',
-                              cursor: 'pointer',
-                              width: '100%',
-                              minWidth: '100px',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectInvestment(inv.id)}
-                            style={{
-                              padding: '8px 16px',
-                              borderRadius: '6px',
-                              border: '1px solid #fee2e2',
-                              background: 'white',
-                              color: '#ef4444',
-                              fontWeight: '600',
-                              fontSize: '13px',
-                              cursor: 'pointer',
-                              width: '100%',
-                              minWidth: '100px',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            Reject
-                          </button>
+                              color: '#6b7280',
+                              fontStyle: 'italic',
+                              textAlign: 'center',
+                              padding: '8px 16px'
+                            }}>
+                              Auto-approves on settlement
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
