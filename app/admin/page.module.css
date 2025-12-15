@@ -583,6 +583,15 @@
   align-items: center;
 }
 
+.statsContainer {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 16px;
+  flex-wrap: wrap;
+}
+
 .accountStat {
   display: flex;
   flex-direction: column;
@@ -711,9 +720,8 @@
   }
 
   .accountCardHeader {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .accountBadges {
@@ -768,7 +776,9 @@
   }
   
   .onboardingStatusGrid {
+    display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
 }
 
@@ -836,8 +846,7 @@
   }
 
   .accountStat {
-    min-width: auto;
-    flex: 1;
+    align-items: flex-start;
   }
 
   .searchInput {
@@ -881,5 +890,45 @@
     left: 50%;
     right: auto;
     transform: translateX(-50%);
+  }
+
+  .accountCardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .statsContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px 8px; /* row-gap 16px, col-gap 8px */
+    padding-bottom: 12px;
+  }
+  
+  .statusItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .accountBadges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .onboardingStatusGrid {
+     grid-template-columns: 1fr 1fr;
+     width: 100%;
+  }
+
+  .statsContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px 8px; /* row-gap 16px, col-gap 8px */
+    padding-bottom: 12px;
+  }
+
+  .accountStat {
+    align-items: flex-start;
   }
 }
