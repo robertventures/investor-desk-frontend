@@ -90,6 +90,7 @@ function AdminPageContent() {
     numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
     isVerified: searchParams?.get('isVerified') || 'all',
     bankConnected: searchParams?.get('bankConnected') || 'all',
+    achStatus: searchParams?.get('achStatus') || 'all',
     investmentType: searchParams?.get('investmentType') || 'all'
   }), [searchParams])
   const initialAccountsPage = useMemo(() => Number(searchParams?.get('page')) || 1, [searchParams])
@@ -136,6 +137,7 @@ function AdminPageContent() {
     if (accountFilters.numInvestmentsMax) params.set('numInvestmentsMax', accountFilters.numInvestmentsMax)
     if (accountFilters.isVerified !== 'all') params.set('isVerified', accountFilters.isVerified)
     if (accountFilters.bankConnected !== 'all') params.set('bankConnected', accountFilters.bankConnected)
+    if (accountFilters.achStatus !== 'all') params.set('achStatus', accountFilters.achStatus)
     if (accountFilters.investmentType !== 'all') params.set('investmentType', accountFilters.investmentType)
     if (accountsPage > 1) params.set('page', String(accountsPage))
     
@@ -168,6 +170,7 @@ function AdminPageContent() {
       numInvestmentsMax: searchParams?.get('numInvestmentsMax') || '',
       isVerified: searchParams?.get('isVerified') || 'all',
       bankConnected: searchParams?.get('bankConnected') || 'all',
+      achStatus: searchParams?.get('achStatus') || 'all',
       investmentType: searchParams?.get('investmentType') || 'all'
     }
     
@@ -321,12 +324,63 @@ function AdminPageContent() {
       if (accountFilters.isVerified === 'yes' && !user.isVerified) return false
       if (accountFilters.isVerified === 'no' && user.isVerified) return false
 
-      // Filter by bank connected status
-      // Check both onboardingStatus flag and bankAccounts array since manual entry may not update the flag
-      const isBankConnected = user.onboardingStatus?.bankConnected || 
+      // Filter by bank connection type and ACH status
+      // Compute bankConnectionType and achStatus using same logic as render
+      const userPaymentData = paymentMethodsByUser[user.id.toString()]
+      const paymentMethods = userPaymentData?.paymentMethods || []
+      const hasBankAccount = user.onboardingStatus?.bankConnected || 
         (Array.isArray(user.bankAccounts) && user.bankAccounts.length > 0)
-      if (accountFilters.bankConnected === 'yes' && !isBankConnected) return false
-      if (accountFilters.bankConnected === 'no' && isBankConnected) return false
+      
+      // Compute achStatus
+      let userAchStatus = 'na'
+      if (paymentMethods.length > 0) {
+        const hasDisconnected = paymentMethods.some(pm => {
+          const connStatus = pm.connection_status || pm.connectionStatus
+          return connStatus === 'disconnected'
+        })
+        const hasConnected = paymentMethods.some(pm => {
+          const connStatus = pm.connection_status || pm.connectionStatus
+          return connStatus === 'connected'
+        })
+        
+        if (hasDisconnected) {
+          userAchStatus = 'disconnected'
+        } else if (hasConnected) {
+          userAchStatus = 'active'
+        } else {
+          const firstStatus = paymentMethods[0]?.connection_status || paymentMethods[0]?.connectionStatus
+          userAchStatus = firstStatus || 'na'
+        }
+      }
+      
+      // Compute bankConnectionType
+      let bankConnectionType = 'not_connected'
+      if (hasBankAccount && paymentMethods.length > 0) {
+        const hasManual = paymentMethods.some(pm => {
+          const creationSource = pm.creation_source || pm.creationSource
+          return creationSource === 'manual'
+        })
+        const hasPlaid = paymentMethods.some(pm => {
+          const creationSource = pm.creation_source || pm.creationSource
+          return creationSource === 'plaid' || (!creationSource && pm.type === 'bank_ach')
+        })
+        bankConnectionType = hasPlaid ? 'plaid' : hasManual ? 'manual' : 'connected'
+      } else if (hasBankAccount) {
+        bankConnectionType = 'connected'
+      }
+      
+      // Apply bank connection filter
+      if (accountFilters.bankConnected !== 'all') {
+        if (accountFilters.bankConnected === 'connected' && bankConnectionType === 'not_connected') return false
+        if (accountFilters.bankConnected === 'not_connected' && bankConnectionType !== 'not_connected') return false
+        if (accountFilters.bankConnected === 'plaid' && bankConnectionType !== 'plaid') return false
+        if (accountFilters.bankConnected === 'manual' && bankConnectionType !== 'manual') return false
+      }
+      
+      // Apply ACH status filter
+      if (accountFilters.achStatus !== 'all') {
+        if (userAchStatus !== accountFilters.achStatus) return false
+      }
 
       // Filter by investment type (paymentFrequency)
       if (accountFilters.investmentType !== 'all') {
@@ -355,7 +409,7 @@ function AdminPageContent() {
     })
     
     return filtered
-  }, [sortedAccountUsers, activeTab, accountsSubTab, accountsSearch, accountFilters, timeMachineData.appTime])
+  }, [sortedAccountUsers, activeTab, accountsSubTab, accountsSearch, accountFilters, timeMachineData.appTime, paymentMethodsByUser])
 
   // PERFORMANCE: Paginate accounts for better rendering performance
   const paginatedAccountUsers = useMemo(() => {
@@ -884,6 +938,8 @@ function AdminPageContent() {
                       accountFilters.createdDateEnd || 
                       accountFilters.numInvestmentsMin || 
                       accountFilters.numInvestmentsMax ||
+                      accountFilters.bankConnected !== 'all' ||
+                      accountFilters.achStatus !== 'all' ||
                       accountFilters.investmentType !== 'all') && 
                       <span className={styles.activeFilterBadge}>●</span>
                     }
@@ -913,6 +969,7 @@ function AdminPageContent() {
                                 numInvestmentsMax: '',
                                 isVerified: 'all',
                                 bankConnected: 'all',
+                                achStatus: 'all',
                                 investmentType: 'all'
                               })
                             }}
@@ -955,8 +1012,25 @@ function AdminPageContent() {
                             onChange={(e) => setAccountFilters({...accountFilters, bankConnected: e.target.value})}
                           >
                             <option value="all">All Users</option>
-                            <option value="yes">Bank Connected</option>
-                            <option value="no">No Bank Connected</option>
+                            <option value="plaid">Plaid</option>
+                            <option value="manual">Manual</option>
+                            <option value="connected">Connected (Any)</option>
+                            <option value="not_connected">Not Connected</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.filterSection}>
+                          <label className={styles.filterLabel}>ACH Status</label>
+                          <select
+                            className={styles.filterSelect}
+                            value={accountFilters.achStatus}
+                            onChange={(e) => setAccountFilters({...accountFilters, achStatus: e.target.value})}
+                          >
+                            <option value="all">All Users</option>
+                            <option value="active">Active</option>
+                            <option value="disconnected">Disconnected</option>
+                            <option value="unknown">Unknown</option>
+                            <option value="na">N/A</option>
                           </select>
                         </div>
 
