@@ -1106,7 +1106,7 @@ function AdminPageContent() {
                     (Array.isArray(user.bankAccounts) && user.bankAccounts.length > 0)
                   
                   // Compute ACH status from payment methods
-                  // Only shows "Disconnected" if payment method exists but connection_status !== 'connected'
+                  // Handles known statuses and passes through unrecognized statuses as-is
                   const userPaymentData = paymentMethodsByUser[user.id.toString()]
                   const paymentMethods = userPaymentData?.paymentMethods || []
                   let achStatus = 'na' // Default: no bank account or no payment methods
@@ -1115,12 +1115,41 @@ function AdminPageContent() {
                     achStatus = 'loading'
                   } else if (paymentMethods.length > 0) {
                     // User has payment methods - check their connection status
+                    // Priority: disconnected > connected > any other status from response
                     const hasDisconnected = paymentMethods.some(pm => {
                       const connStatus = pm.connection_status || pm.connectionStatus
-                      // Only flag as disconnected if connection_status exists and is not 'connected'
-                      return connStatus && connStatus !== 'connected'
+                      return connStatus === 'disconnected'
                     })
-                    achStatus = hasDisconnected ? 'disconnected' : 'active'
+                    const hasConnected = paymentMethods.some(pm => {
+                      const connStatus = pm.connection_status || pm.connectionStatus
+                      return connStatus === 'connected'
+                    })
+                    
+                    if (hasDisconnected) {
+                      achStatus = 'disconnected'
+                    } else if (hasConnected) {
+                      achStatus = 'active'
+                    } else {
+                      // Use the first payment method's status as-is (unknown, pending, error, etc.)
+                      const firstStatus = paymentMethods[0]?.connection_status || paymentMethods[0]?.connectionStatus
+                      achStatus = firstStatus || 'na'
+                    }
+                  }
+                  
+                  // Determine bank connection type (Plaid/Manual/Not Connected)
+                  let bankConnectionType = 'not_connected'
+                  if (hasBankAccount && paymentMethods.length > 0) {
+                    const hasManual = paymentMethods.some(pm => {
+                      const creationSource = pm.creation_source || pm.creationSource
+                      return creationSource === 'manual'
+                    })
+                    const hasPlaid = paymentMethods.some(pm => {
+                      const creationSource = pm.creation_source || pm.creationSource
+                      return creationSource === 'plaid' || (!creationSource && pm.type === 'bank_ach')
+                    })
+                    bankConnectionType = hasPlaid ? 'plaid' : hasManual ? 'manual' : 'connected'
+                  } else if (hasBankAccount) {
+                    bankConnectionType = 'connected' // Fallback when payment methods not loaded
                   }
                   
                   return (
@@ -1161,8 +1190,15 @@ function AdminPageContent() {
                           </div>
                           <div className={styles.statusItem}>
                             <span className={styles.statusLabel}>Bank</span>
-                            <span className={`${styles.statusValue} ${hasBankAccount ? styles.statusSuccess : styles.statusPending}`}>
-                              {hasBankAccount ? 'Connected' : 'Not Connected'}
+                            <span className={`${styles.statusValue} ${
+                              bankConnectionType === 'plaid' || bankConnectionType === 'manual' || bankConnectionType === 'connected' 
+                                ? styles.statusSuccess 
+                                : styles.statusPending
+                            }`}>
+                              {bankConnectionType === 'plaid' ? 'Plaid' :
+                               bankConnectionType === 'manual' ? 'Manual' :
+                               bankConnectionType === 'connected' ? 'Connected' :
+                               'Not Connected'}
                             </span>
                           </div>
                           <div className={styles.statusItem}>
@@ -1171,12 +1207,14 @@ function AdminPageContent() {
                               achStatus === 'active' ? styles.statusSuccess : 
                               achStatus === 'disconnected' ? styles.statusDisconnected : 
                               achStatus === 'loading' ? '' : 
+                              achStatus === 'na' ? styles.statusPending :
                               styles.statusPending
                             }`}>
                               {achStatus === 'active' ? 'Active' : 
                                achStatus === 'disconnected' ? 'Disconnected' : 
                                achStatus === 'loading' ? '...' : 
-                               'N/A'}
+                               achStatus === 'na' ? 'N/A' :
+                               achStatus.charAt(0).toUpperCase() + achStatus.slice(1)}
                             </span>
                           </div>
                         </div>
