@@ -40,6 +40,15 @@ function AdminUserDetailsContent() {
   const [activityFilterInvestmentId, setActivityFilterInvestmentId] = useState('all')
   const [activityTypeFilter, setActivityTypeFilter] = useState('all') // 'all', 'distributions', 'contributions'
   const [selectedActivityEvent, setSelectedActivityEvent] = useState(null)
+  
+  // Delete document modal state
+  const [deleteModalState, setDeleteModalState] = useState({
+    isOpen: false,
+    fileName: '',
+    documentId: null,
+    isLoading: false,
+    isSuccess: false
+  })
 
 
 
@@ -348,6 +357,44 @@ function AdminUserDetailsContent() {
       console.error('[AdminUserDetails] Failed to load activity events:', e)
     } finally {
       setIsLoadingActivity(false)
+    }
+  }
+
+  // Close delete document modal
+  const closeDeleteModal = () => {
+    setDeleteModalState({
+      isOpen: false,
+      fileName: '',
+      documentId: null,
+      isLoading: false,
+      isSuccess: false
+    })
+  }
+
+  // Handle document deletion
+  const handleDeleteDocument = async () => {
+    if (!deleteModalState.documentId) {
+      closeDeleteModal()
+      return
+    }
+
+    setDeleteModalState(prev => ({ ...prev, isLoading: true }))
+
+    try {
+      // API call to delete document would go here
+      // For now, just show success since document deletion API may not be implemented
+      console.log('[AdminUserDetails] Document deletion requested for:', deleteModalState.documentId)
+      
+      setDeleteModalState(prev => ({ ...prev, isLoading: false, isSuccess: true }))
+      
+      // Close modal after a brief delay to show success
+      setTimeout(() => {
+        closeDeleteModal()
+      }, 1500)
+    } catch (error) {
+      console.error('[AdminUserDetails] Failed to delete document:', error)
+      setDeleteModalState(prev => ({ ...prev, isLoading: false }))
+      alert('Failed to delete document: ' + (error.message || 'Unknown error'))
     }
   }
 

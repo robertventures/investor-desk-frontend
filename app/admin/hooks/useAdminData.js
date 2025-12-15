@@ -443,7 +443,13 @@ export function useAdminData() {
         })
       }
     } catch (e) {
-      logger.error('Failed to load time machine data', e)
+      // Time machine is an optional feature - 404 means it's not available in this environment
+      // Only log as info, not error, since this is expected in production
+      if (e.statusCode === 404) {
+        logger.info('[useAdminData] Time machine feature not available in this environment')
+      } else {
+        logger.error('Failed to load time machine data', e)
+      }
     }
   }
 
