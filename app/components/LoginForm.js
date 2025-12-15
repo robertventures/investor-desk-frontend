@@ -19,9 +19,11 @@ export default function LoginForm() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    // Normalize email to lowercase to prevent case-sensitivity issues
+    const normalizedValue = name === 'email' ? value.toLowerCase() : value
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: normalizedValue
     }))
     // Clear error when user starts typing
     if (errors[name]) {

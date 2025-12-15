@@ -4,7 +4,6 @@ import { formatCurrency } from '../../../lib/formatters.js'
 import { TIME_MACHINE_ENABLED } from '../../../lib/featureFlags'
 import SectionCard from './SectionCard'
 import TimeMachineTab from './TimeMachineTab'
-import DocumentManagerSection from './DocumentManagerSection'
 import styles from './OperationsTab.module.css'
 
 // Feature flag: Enable when backend endpoint is ready
@@ -192,19 +191,6 @@ export default function OperationsTab({
           )}
         </div>
       </SectionCard>
-      {/* Document Manager Section */}
-      <SectionCard title="Document Manager">
-        <div className={styles.sectionHeader}>
-          <p className={styles.sectionDescription}>
-            Send documents to users via bulk upload (ZIP) or individual upload. Manage and delete documents as needed.
-          </p>
-        </div>
-        <DocumentManagerSection 
-          currentUser={currentUser}
-          onUploadComplete={onImportComplete}
-        />
-      </SectionCard>
-
       {/* Time Machine Section */}
       {TIME_MACHINE_ENABLED && (
         <SectionCard title="Time Machine">

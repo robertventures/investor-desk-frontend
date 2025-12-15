@@ -40,157 +40,9 @@ function AdminUserDetailsContent() {
   const [activityFilterInvestmentId, setActivityFilterInvestmentId] = useState('all')
   const [activityTypeFilter, setActivityTypeFilter] = useState('all') // 'all', 'distributions', 'contributions'
   const [selectedActivityEvent, setSelectedActivityEvent] = useState(null)
-  const fileInputRef = useRef(null)
-  const documentsFileInputRef = useRef(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [userDocuments, setUserDocuments] = useState([])
-  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
-  const [isDeletingDocument, setIsDeletingDocument] = useState(null)
-  const [deleteModalState, setDeleteModalState] = useState({
-    isOpen: false,
-    docId: null,
-    fileName: '',
-    isLoading: false,
-    isSuccess: false
-  })
 
-  const loadUserDocuments = async (userId) => {
-    if (!userId) return
-    setIsLoadingDocuments(true)
-    try {
-      const result = await adminService.getUserDocuments(userId)
-      if (result.success && result.documents) {
-        setUserDocuments(result.documents)
-      } else {
-        setUserDocuments([])
-      }
-    } catch (error) {
-      console.error('Failed to load documents:', error)
-      setUserDocuments([])
-    } finally {
-      setIsLoadingDocuments(false)
-    }
-  }
 
-  const handleDocumentsUploadClick = () => {
-    if (documentsFileInputRef.current) {
-      documentsFileInputRef.current.click()
-    }
-  }
 
-  const handleDocumentsFileChange = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    if (!user || !user.id || !currentUser) {
-      alert('Missing user or admin information')
-      return
-    }
-
-    setIsUploading(true)
-    try {
-      const result = await adminService.uploadUserDocument(user.id, file)
-      
-      if (result.success) {
-        alert(`Document uploaded successfully`)
-        if (documentsFileInputRef.current) documentsFileInputRef.current.value = ''
-        // Reload documents list
-        loadUserDocuments(user.id)
-      } else {
-        alert(`Upload failed: ${result.error}`)
-      }
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert('Upload failed. Please try again.')
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const openDeleteModal = (docId, fileName) => {
-    setDeleteModalState({
-      isOpen: true,
-      docId,
-      fileName,
-      isLoading: false,
-      isSuccess: false
-    })
-  }
-
-  const closeDeleteModal = () => {
-    setDeleteModalState({
-      isOpen: false,
-      docId: null,
-      fileName: '',
-      isLoading: false,
-      isSuccess: false
-    })
-  }
-
-  const handleDeleteDocument = async () => {
-    const { docId } = deleteModalState
-    
-    setDeleteModalState(prev => ({ ...prev, isLoading: true }))
-    setIsDeletingDocument(docId)
-    
-    try {
-      const result = await adminService.deleteUserDocument(user.id, docId)
-      
-      if (result.success) {
-        // Show success state
-        setDeleteModalState(prev => ({ ...prev, isLoading: false, isSuccess: true }))
-        // Reload documents list
-        loadUserDocuments(user.id)
-      } else {
-        setDeleteModalState(prev => ({ ...prev, isLoading: false }))
-        alert(`Delete failed: ${result.error}`)
-      }
-    } catch (error) {
-      console.error('Delete error:', error)
-      setDeleteModalState(prev => ({ ...prev, isLoading: false }))
-      alert('Delete failed. Please try again.')
-    } finally {
-      setIsDeletingDocument(null)
-    }
-  }
-
-  const handleUploadClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click()
-    }
-  }
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    if (!user || !user.id || !currentUser) {
-      alert('Missing user or admin information')
-      return
-    }
-
-    setIsUploading(true)
-    try {
-      const result = await adminService.uploadUserDocument(user.id, file)
-      
-      if (result.success) {
-        alert(`Document uploaded successfully to ${user.firstName} ${user.lastName}`)
-        // Clear input
-        if (fileInputRef.current) fileInputRef.current.value = ''
-        // Also reload documents if on documents tab
-        if (activeTab === 'documents') {
-          loadUserDocuments(user.id)
-        }
-      } else {
-        alert(`Upload failed: ${result.error}`)
-      }
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert('Upload failed. Please try again.')
-    } finally {
-      setIsUploading(false)
-    }
-  }
 
   // Memoize processed activity events
   const allActivity = useMemo(() => {
@@ -423,11 +275,6 @@ function AdminUserDetailsContent() {
 
         await loadUserActivity(targetUser.id)
         
-        // Load documents if starting on documents tab
-        const initialTab = searchParams.get('tab')
-        if (initialTab === 'documents') {
-          loadUserDocuments(targetUser.id)
-        }
         
         const u = targetUser;
         setForm({
@@ -604,10 +451,6 @@ function AdminUserDetailsContent() {
       loadUserActivity(user.id)
     }
     
-    // Load documents when switching to documents tab
-    if (tab === 'documents' && user) {
-      loadUserDocuments(user.id)
-    }
   }
 
   if (isLoading) {
@@ -1108,12 +951,6 @@ function AdminUserDetailsContent() {
                   onClick={() => handleTabChange('activity')}
                 >
                   Activity
-                </button>
-                <button 
-                  className={`${styles.tabButton} ${activeTab === 'documents' ? styles.tabButtonActive : ''}`}
-                  onClick={() => handleTabChange('documents')}
-                >
-                  Documents
                 </button>
                 <button 
                   className={`${styles.tabButton} ${activeTab === 'actions' ? styles.tabButtonActive : ''}`}
@@ -2289,145 +2126,6 @@ function AdminUserDetailsContent() {
           )}
 
           {/* Actions Tab */}
-              {activeTab === 'documents' && (
-                <div className={styles.sectionCard}>
-                  <div className={styles.sectionHeader}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                      <h2 className={styles.sectionTitle}>User Documents</h2>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <button
-                          onClick={() => loadUserDocuments(user.id)}
-                          disabled={isLoadingDocuments}
-                          style={{
-                            padding: '8px 16px',
-                            background: isLoadingDocuments ? '#f3f4f6' : 'white',
-                            color: isLoadingDocuments ? '#9ca3af' : '#374151',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '6px',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            cursor: isLoadingDocuments ? 'not-allowed' : 'pointer'
-                          }}
-                        >
-                          {isLoadingDocuments ? '⟳ Loading...' : '↻ Refresh'}
-                        </button>
-                        <button
-                          onClick={handleDocumentsUploadClick}
-                          disabled={isUploading}
-                          style={{
-                            padding: '8px 16px',
-                            background: isUploading ? '#f3f4f6' : '#0369a1',
-                            color: isUploading ? '#9ca3af' : 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            cursor: isUploading ? 'not-allowed' : 'pointer'
-                          }}
-                        >
-                          {isUploading ? '⟳ Uploading...' : '📄 Upload Document'}
-                        </button>
-                        <input
-                          type="file"
-                          ref={documentsFileInputRef}
-                          style={{ display: 'none' }}
-                          accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                          onChange={handleDocumentsFileChange}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {isLoadingDocuments ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-                      Loading documents...
-                    </div>
-                  ) : userDocuments.length === 0 ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
-                      <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>No Documents</div>
-                      <div style={{ fontSize: '14px' }}>Upload a document to get started</div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {userDocuments.map(doc => (
-                        <div 
-                          key={doc.id} 
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '16px',
-                            background: '#f9fafb',
-                            borderRadius: '8px',
-                            border: '1px solid #e5e7eb'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ fontSize: '24px' }}>📄</div>
-                            <div>
-                              <div style={{ fontWeight: '500', color: '#111827', marginBottom: '4px' }}>
-                                {doc.fileName}
-                              </div>
-                              <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                                Uploaded: {(doc.createdAt || doc.uploadedAt) ? new Date(doc.createdAt || doc.uploadedAt).toLocaleString() : 'Unknown'}
-                                {doc.uploadedBy && ` by ${doc.uploadedBy}`}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const result = await adminService.getUserDocument(user.id, doc.id)
-                                  if (!result.success || !result.blob) {
-                                    alert('Failed to download document')
-                                    return
-                                  }
-                                  const url = URL.createObjectURL(result.blob)
-                                  window.open(url, '_blank')
-                                  setTimeout(() => URL.revokeObjectURL(url), 60000)
-                                } catch (error) {
-                                  console.error('View error:', error)
-                                  alert('Failed to view document')
-                                }
-                              }}
-                              style={{
-                                padding: '6px 12px',
-                                background: 'white',
-                                color: '#0369a1',
-                                border: '1px solid #0369a1',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                fontWeight: '500',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              📥 View
-                            </button>
-                            <button
-                              onClick={() => openDeleteModal(doc.id, doc.fileName)}
-                              disabled={isDeletingDocument === doc.id}
-                              style={{
-                                padding: '6px 12px',
-                                background: isDeletingDocument === doc.id ? '#f3f4f6' : 'white',
-                                color: isDeletingDocument === doc.id ? '#9ca3af' : '#dc2626',
-                                border: '1px solid #fecaca',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                fontWeight: '500',
-                                cursor: isDeletingDocument === doc.id ? 'not-allowed' : 'pointer'
-                              }}
-                            >
-                              {isDeletingDocument === doc.id ? '⟳ Deleting...' : '🗑️ Delete'}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {activeTab === 'actions' && (
             <>

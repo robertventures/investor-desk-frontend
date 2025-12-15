@@ -96,7 +96,8 @@ export default function ForgotPasswordPage() {
                 name="email"
                 value={email}
                 onChange={(e) => {
-                  setEmail(e.target.value)
+                  // Normalize email to lowercase to prevent case-sensitivity issues
+                  setEmail(e.target.value.toLowerCase())
                   setError('')
                 }}
                 className={`${styles.input} ${error ? styles.inputError : ''}`}

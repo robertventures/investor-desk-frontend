@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { apiClient } from '../../lib/apiClient'
 import styles from './DocumentsView.module.css'
 import { formatCurrency } from '../../lib/formatters.js'
@@ -10,16 +10,9 @@ export default function DocumentsView() {
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState(null)
   const [investments, setInvestments] = useState([])
-  const [userDocuments, setUserDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [agreementLoadingId, setAgreementLoadingId] = useState(null)
   
-  // Upload state
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadError, setUploadError] = useState(null)
-  const fileInputRef = useRef(null)
-
   useEffect(() => {
     setMounted(true)
     if (typeof window === 'undefined') return
@@ -42,12 +35,6 @@ export default function DocumentsView() {
           if (investmentsData.success) {
             setInvestments(investmentsData.investments || [])
           }
-
-          // Load user documents from dedicated endpoint
-          const docsData = await apiClient.getDocuments()
-          if (docsData.success && docsData.documents) {
-            setUserDocuments(docsData.documents)
-          }
         }
       } catch (error) {
         console.error('Failed to load user data:', error)
@@ -57,64 +44,6 @@ export default function DocumentsView() {
 
     loadUser()
   }, [])
-
-  // Reload documents list
-  const reloadDocuments = async () => {
-    try {
-      const docsData = await apiClient.getDocuments()
-      if (docsData.success && docsData.documents) {
-        setUserDocuments(docsData.documents)
-      }
-    } catch (error) {
-      console.error('Failed to reload documents:', error)
-    }
-  }
-
-  // Handle file selection
-  const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    setUploadError(null)
-    
-    if (file) {
-      // Validate file type (PDF only)
-      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        setUploadError('Please select a PDF file')
-        setSelectedFile(null)
-        if (fileInputRef.current) fileInputRef.current.value = ''
-        return
-      }
-      setSelectedFile(file)
-    } else {
-      setSelectedFile(null)
-    }
-  }
-
-  // Handle upload
-  const handleUpload = async () => {
-    if (!selectedFile) return
-
-    setIsUploading(true)
-    setUploadError(null)
-
-    try {
-      const result = await apiClient.uploadDocument(selectedFile)
-      
-      if (result.success) {
-        // Clear file input and selection
-        setSelectedFile(null)
-        if (fileInputRef.current) fileInputRef.current.value = ''
-        // Reload documents list
-        await reloadDocuments()
-      } else {
-        setUploadError(result.error || 'Upload failed. Please try again.')
-      }
-    } catch (error) {
-      console.error('Upload error:', error)
-      setUploadError('Upload failed. Please try again.')
-    } finally {
-      setIsUploading(false)
-    }
-  }
 
   const openAgreementData = (data) => {
     if (typeof window === 'undefined' || !data) return false
@@ -209,45 +138,6 @@ export default function DocumentsView() {
     investment.status === 'withdrawn'
   )
 
-  // Sort documents by upload date (most recent first)
-  // Backend may return createdAt instead of uploadedAt
-  const sortedDocuments = userDocuments
-    .filter(doc => doc.type === 'document' || !doc.type) // Include docs without type field
-    .sort((a, b) => new Date(b.createdAt || b.uploadedAt) - new Date(a.createdAt || a.uploadedAt))
-
-  const downloadDocument = async (docId, fileName) => {
-    try {
-      const result = await apiClient.getDocument(docId)
-      
-      if (!result.success || !result.blob) {
-        alert('Failed to download document')
-        return
-      }
-
-      // Open in new tab or download
-      const url = URL.createObjectURL(result.blob)
-      const win = window.open(url, '_blank', 'noopener,noreferrer')
-      
-      if (!win) {
-        // Fallback to download if popup blocked
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-      }
-      
-      // Cleanup URL after a delay
-      setTimeout(() => {
-        URL.revokeObjectURL(url)
-      }, 60000)
-    } catch (error) {
-      console.error('Failed to download document:', error)
-      alert('Failed to download document. Please try again.')
-    }
-  }
-
   // Prevent hydration mismatch
   if (!mounted) {
     return <div className={styles.documentsContainer}>Loading documents...</div>
@@ -261,75 +151,6 @@ export default function DocumentsView() {
       </div>
 
       <div className={styles.content}>
-        {/* Upload Document Section */}
-        <div className={styles.uploadSection}>
-          <h3 className={styles.sectionTitle}>Upload Document</h3>
-          <p className={styles.uploadDescription}>
-            Upload PDF documents to share with our team.
-          </p>
-          <div className={styles.uploadForm}>
-            <div className={styles.fileInputWrapper}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,application/pdf"
-                onChange={handleFileChange}
-                className={styles.fileInput}
-                id="document-upload"
-              />
-              <label htmlFor="document-upload" className={styles.fileInputLabel}>
-                {selectedFile ? selectedFile.name : 'Choose PDF file...'}
-              </label>
-            </div>
-            <button
-              onClick={handleUpload}
-              disabled={!selectedFile || isUploading}
-              className={styles.uploadButton}
-            >
-              {isUploading ? 'Uploading...' : 'Upload PDF'}
-            </button>
-          </div>
-          {uploadError && (
-            <div className={styles.uploadError}>
-              {uploadError}
-            </div>
-          )}
-        </div>
-
-        {/* Your Documents Section - Always show */}
-        <div className={styles.documentsList}>
-          <h3 className={styles.sectionTitle}>Your Documents</h3>
-          {sortedDocuments.length > 0 ? (
-            <div className={styles.documentsGrid}>
-              {sortedDocuments.map(doc => (
-                <div key={doc.id} className={styles.documentCard}>
-                  <div className={styles.documentIcon}>📄</div>
-                  <div className={styles.documentInfo}>
-                    <h4 className={styles.documentTitle}>
-                      {doc.fileName || 'Document'}
-                    </h4>
-                    <div className={styles.documentDetails}>
-                      <p><strong>Uploaded:</strong> {formatDateLocale(doc.createdAt || doc.uploadedAt)}</p>
-                    </div>
-                  </div>
-                  <div className={styles.documentActions}>
-                    <button
-                      className={styles.downloadButton}
-                      onClick={() => downloadDocument(doc.id, doc.fileName)}
-                    >
-                      📥 View
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className={styles.emptySection}>
-              <p>No documents have been shared with you yet.</p>
-          </div>
-        )}
-        </div>
-
         {/* Investment Agreements Section */}
         {finalizedInvestments.length > 0 ? (
           <div className={styles.documentsList}>
@@ -397,21 +218,18 @@ export default function DocumentsView() {
               })}
             </div>
           </div>
-        ) : sortedDocuments.length === 0 ? (
+        ) : (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📄</div>
             <h3 className={styles.emptyTitle}>No Documents Yet</h3>
             <p className={styles.emptyDescription}>
-              Documents will appear here once you complete an investment. This includes:
+              Documents will appear here once you complete an investment.
             </p>
             <ul className={styles.documentTypes}>
               <li>Investment Agreements</li>
-              <li>Account Statements</li>
-              <li>Important Notices</li>
-              <li>Compliance Forms</li>
             </ul>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   )

@@ -44,7 +44,9 @@ export default function AccountCreationForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    // Normalize email to lowercase to prevent case-sensitivity issues
+    const normalizedValue = name === 'email' ? value.toLowerCase() : value
+    setForm(prev => ({ ...prev, [name]: normalizedValue }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
     if (accountExistsError) setAccountExistsError('')
     if (generalError) setGeneralError('')
