@@ -733,10 +733,10 @@ export function useAdminData() {
       // Check if any Plaid payment method has an explicit disconnected status
       const disconnectedMethods = paymentMethods.filter(pm => {
         const connectionStatus = pm.connection_status || pm.connectionStatus
-        const displayName = (pm.display_name || pm.name || pm.bank_name || '').toLowerCase()
+        const creationSource = pm.creation_source || pm.creationSource
 
         // Skip manual entry accounts - they don't have Plaid connection tracking
-        if (displayName.includes('manual entry')) return false
+        if (creationSource === 'manual') return false
 
         // Only flag explicit disconnections (do NOT treat 'unknown' as disconnected)
         return connectionStatus === 'disconnected'

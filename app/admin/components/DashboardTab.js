@@ -226,37 +226,57 @@ const DashboardTab = memo(function DashboardTab({
       </div>
 
       {/* Disconnected Banks Alert Panel */}
-      {disconnectedBankUsers && disconnectedBankUsers.length > 0 && (
-        <div className={styles.disconnectedBanksPanel}>
+      {!isLoadingPaymentMethods && (
+        <div className={disconnectedBankUsers && disconnectedBankUsers.length > 0 ? styles.disconnectedBanksPanel : styles.healthyBanksPanel}>
           <div className={styles.disconnectedBanksHeader}>
-            <span className={styles.disconnectedBanksIcon}>⚠️</span>
-            <span className={styles.disconnectedBanksTitle}>
-              Disconnected Bank Accounts ({disconnectedBankUsers.length})
+            <span className={styles.disconnectedBanksIcon}>
+              {disconnectedBankUsers && disconnectedBankUsers.length > 0 ? '⚠️' : '✅'}
+            </span>
+            <span
+              className={`${styles.disconnectedBanksTitle} ${
+                disconnectedBankUsers && disconnectedBankUsers.length > 0
+                  ? styles.bankHealthTitleAlert
+                  : styles.bankHealthTitleOk
+              }`}
+            >
+              {disconnectedBankUsers && disconnectedBankUsers.length > 0 
+                ? `Disconnected Bank Accounts (${disconnectedBankUsers.length})`
+                : 'All Plaid connections are healthy'
+              }
             </span>
           </div>
-          <p className={styles.disconnectedBanksDescription}>
-            These users need to reconnect their bank account before monthly payments can be sent.
-          </p>
-          <div className={styles.disconnectedBanksList}>
-            {disconnectedBankUsers.map(user => (
-              <div key={user.id} className={styles.disconnectedBankItem}>
-                <div className={styles.disconnectedBankUserInfo}>
-                  <Link 
-                    href={`/admin/users/${user.id}`}
-                    className={styles.disconnectedBankUserEmail}
-                  >
-                    {user.email}
-                  </Link>
-                  <span className={styles.disconnectedBankUserName}>
-                    {user.firstName} {user.lastName}
-                  </span>
-                </div>
-                <span className={styles.disconnectedBankReason}>
-                  {user.connectionStatus || 'Disconnected'}
-                </span>
+          
+          {disconnectedBankUsers && disconnectedBankUsers.length > 0 ? (
+            <>
+              <p className={`${styles.disconnectedBanksDescription} ${styles.bankHealthTextAlert}`}>
+                These users need to reconnect their bank account before monthly payments can be sent.
+              </p>
+              <div className={styles.disconnectedBanksList}>
+                {disconnectedBankUsers.map(user => (
+                  <div key={user.id} className={styles.disconnectedBankItem}>
+                    <div className={styles.disconnectedBankUserInfo}>
+                      <Link 
+                        href={`/admin/users/${user.id}`}
+                        className={styles.disconnectedBankUserEmail}
+                      >
+                        {user.email}
+                      </Link>
+                      <span className={styles.disconnectedBankUserName}>
+                        {user.firstName} {user.lastName}
+                      </span>
+                    </div>
+                    <span className={styles.disconnectedBankReason}>
+                      {user.connectionStatus || 'Disconnected'}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <p className={`${styles.disconnectedBanksDescription} ${styles.bankHealthTextOk}`} style={{ marginBottom: 0 }}>
+              No disconnected bank accounts found. Monthly payments can be processed safely.
+            </p>
+          )}
         </div>
       )}
 
