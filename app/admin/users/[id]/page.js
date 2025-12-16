@@ -584,43 +584,28 @@ function AdminUserDetailsContent() {
 
   const validate = () => {
     const v = {}
-    if (!form.email.trim()) v.email = 'Required'
-    if (!form.firstName.trim() && form.accountType !== 'entity') v.firstName = 'Required'
-    if (!form.lastName.trim() && form.accountType !== 'entity') v.lastName = 'Required'
-    if (!form.phone.trim() || !isCompletePhone(form.phone)) v.phone = 'Enter full 10-digit phone'
-    if (!form.street1.trim()) v.street1 = 'Required'
-    if (!form.city.trim()) v.city = 'Required'
-    if (!form.state.trim()) v.state = 'Required'
-    if (!form.zip.trim() || form.zip.length !== 5) v.zip = 'Enter 5 digits'
-    if (!form.dob && form.accountType !== 'entity') v.dob = 'Required'
-    if (form.accountType !== 'entity' && (!form.ssn.trim() || !isCompleteSsn(form.ssn))) v.ssn = 'Enter full SSN'
+    // Admin edit: Only validate format when fields have values, don't require fields to be filled
+    // This allows admins to save partial updates without filling all fields
+    
+    // Email is the only truly required field (needed for user identification)
+    if (!form.email.trim()) v.email = 'Email is required'
+    
+    // Format validations - only check if field has a value
+    if (form.phone.trim() && !isCompletePhone(form.phone)) v.phone = 'Enter full 10-digit phone'
+    if (form.zip.trim() && form.zip.length !== 5) v.zip = 'Enter 5 digits'
+    if (form.ssn.trim() && !isCompleteSsn(form.ssn)) v.ssn = 'Enter full SSN'
 
     if (form.accountType === 'entity') {
-      if (!form.entityName.trim()) v.entityName = 'Required'
-      if (!form.entityRegistrationDate) v.entityRegistrationDate = 'Required'
-      if (!form.entityTaxId.trim()) v.entityTaxId = 'Required'
-      if (!form.authorizedRep.firstName.trim()) v['authorizedRep.firstName'] = 'Required'
-      if (!form.authorizedRep.lastName.trim()) v['authorizedRep.lastName'] = 'Required'
-      if (!form.authorizedRep.street1.trim()) v['authorizedRep.street1'] = 'Required'
-      if (!form.authorizedRep.city.trim()) v['authorizedRep.city'] = 'Required'
-      if (!form.authorizedRep.state.trim()) v['authorizedRep.state'] = 'Required'
-      if (!form.authorizedRep.zip.trim() || form.authorizedRep.zip.length !== 5) v['authorizedRep.zip'] = 'Enter 5 digits'
-      if (!form.authorizedRep.dob) v['authorizedRep.dob'] = 'Required'
-      if (!form.authorizedRep.ssn.trim() || !isCompleteSsn(form.authorizedRep.ssn)) v['authorizedRep.ssn'] = 'Enter full SSN'
+      // Format validations for authorized rep - only check if field has a value
+      if (form.authorizedRep.zip.trim() && form.authorizedRep.zip.length !== 5) v['authorizedRep.zip'] = 'Enter 5 digits'
+      if (form.authorizedRep.ssn.trim() && !isCompleteSsn(form.authorizedRep.ssn)) v['authorizedRep.ssn'] = 'Enter full SSN'
     }
 
     if (form.accountType === 'joint') {
-      if (!form.jointHoldingType.trim()) v.jointHoldingType = 'Required'
-      if (!form.jointHolder.firstName.trim()) v['jointHolder.firstName'] = 'Required'
-      if (!form.jointHolder.lastName.trim()) v['jointHolder.lastName'] = 'Required'
-      if (!form.jointHolder.email.trim()) v['jointHolder.email'] = 'Required'
-      if (!form.jointHolder.phone.trim() || !isCompletePhone(form.jointHolder.phone)) v['jointHolder.phone'] = 'Enter full 10-digit phone'
-      if (!form.jointHolder.street1.trim()) v['jointHolder.street1'] = 'Required'
-      if (!form.jointHolder.city.trim()) v['jointHolder.city'] = 'Required'
-      if (!form.jointHolder.state.trim()) v['jointHolder.state'] = 'Required'
-      if (!form.jointHolder.zip.trim() || form.jointHolder.zip.length !== 5) v['jointHolder.zip'] = 'Enter 5 digits'
-      if (!form.jointHolder.dob) v['jointHolder.dob'] = 'Required'
-      if (!form.jointHolder.ssn.trim() || !isCompleteSsn(form.jointHolder.ssn)) v['jointHolder.ssn'] = 'Enter full SSN'
+      // Format validations for joint holder - only check if field has a value
+      if (form.jointHolder.phone.trim() && !isCompletePhone(form.jointHolder.phone)) v['jointHolder.phone'] = 'Enter full 10-digit phone'
+      if (form.jointHolder.zip.trim() && form.jointHolder.zip.length !== 5) v['jointHolder.zip'] = 'Enter 5 digits'
+      if (form.jointHolder.ssn.trim() && !isCompleteSsn(form.jointHolder.ssn)) v['jointHolder.ssn'] = 'Enter full SSN'
     }
 
     setErrors(v)
