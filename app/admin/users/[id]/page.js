@@ -50,6 +50,10 @@ function AdminUserDetailsContent() {
     isSuccess: false
   })
 
+  // Document upload state
+  const fileInputRef = useRef(null)
+  const [isUploading, setIsUploading] = useState(false)
+
 
 
 
@@ -414,6 +418,38 @@ function AdminUserDetailsContent() {
       alert('An error occurred while refreshing balance')
     } finally {
       setRefreshingBalanceId(null)
+    }
+  }
+
+  // Handle document upload click - triggers file input
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  // Handle file selection for document upload
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      alert('Please select a PDF file')
+      event.target.value = ''
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      // TODO: Implement document upload API
+      console.log('[AdminUserDetails] Document upload requested:', file.name)
+      alert('Document upload functionality coming soon')
+    } catch (error) {
+      console.error('[AdminUserDetails] Failed to upload document:', error)
+      alert('Failed to upload document: ' + (error.message || 'Unknown error'))
+    } finally {
+      setIsUploading(false)
+      // Reset the file input
+      event.target.value = ''
     }
   }
 
