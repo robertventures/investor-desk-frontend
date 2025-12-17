@@ -21,6 +21,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [activityTypeFilter, setActivityTypeFilter] = useState('all')
   const itemsPerPage = 20
 
   // Extract all activity events from user transactions + investment creation events
@@ -36,7 +37,8 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
           events.push({
             id: `inv-created-${investment.id}`,
             type: 'investment_created',
-            status: investment.status === 'pending' ? 'pending' : 'completed',
+            status: investment.status === 'pending' ? 'pending' : (investment.status === 'draft' ? 'draft' : 'completed'),
+            investmentStatus: investment.status,
             userId: user.id,
             userEmail: user.email,
             userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
@@ -44,8 +46,10 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
             amount: safeAmount(investment.amount),
             date: investment.createdAt,
             displayDate: investment.createdAt,
-            title: 'Investment Created',
-            description: `Investment created for ${formatCurrency(safeAmount(investment.amount))}`
+            title: investment.status === 'draft' ? 'Draft Investment' : 'Investment Created',
+            description: investment.status === 'draft' 
+              ? `Draft investment for ${formatCurrency(safeAmount(investment.amount))}` 
+              : `Investment created for ${formatCurrency(safeAmount(investment.amount))}`
           })
         }
         
@@ -100,12 +104,91 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
     return events
   }, [users])
 
+  // Compute event counts by category for filter buttons
+  const eventCounts = useMemo(() => {
+    const counts = {
+      all: allActivity.length,
+      accounts: 0,
+      investments: 0,
+      drafts: 0,
+      pending: 0,
+      distributions: 0,
+      contributions: 0,
+      withdrawals: 0
+    }
+
+    allActivity.forEach(event => {
+      const type = event.type?.toLowerCase() || ''
+      
+      // Account created
+      if (type === 'account_created') {
+        counts.accounts++
+      }
+      // Investment events (exclude drafts - they have their own category)
+      else if ((type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft') {
+        counts.investments++
+      }
+      // Distribution events
+      else if (type === 'distribution' || type === 'monthly_distribution') {
+        counts.distributions++
+      }
+      // Contribution events
+      else if (type === 'contribution' || type === 'monthly_contribution' || type === 'monthly_compounded') {
+        counts.contributions++
+      }
+      // Withdrawal events
+      else if (type === 'withdrawal_requested' || type === 'withdrawal_notice_started' || type === 'withdrawal_approved' || type === 'withdrawal_rejected' || type === 'redemption') {
+        counts.withdrawals++
+      }
+
+      // Draft investments (investments with draft status)
+      if (event.investmentStatus === 'draft') {
+        counts.drafts++
+      }
+
+      // Pending status (cross-category)
+      if (event.status?.toLowerCase() === 'pending') {
+        counts.pending++
+      }
+    })
+
+    return counts
+  }, [allActivity])
+
+  // Filter activity by type
+  const filteredByType = useMemo(() => {
+    if (activityTypeFilter === 'all') return allActivity
+
+    return allActivity.filter(event => {
+      const type = event.type?.toLowerCase() || ''
+      
+      switch (activityTypeFilter) {
+        case 'accounts':
+          return type === 'account_created'
+        case 'investments':
+          return (type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft'
+        case 'drafts':
+          return event.investmentStatus === 'draft'
+        case 'pending':
+          return event.status?.toLowerCase() === 'pending'
+        case 'distributions':
+          return type === 'distribution' || type === 'monthly_distribution'
+        case 'contributions':
+          return type === 'contribution' || type === 'monthly_contribution' || type === 'monthly_compounded'
+        case 'withdrawals':
+          return type === 'withdrawal_requested' || type === 'withdrawal_notice_started' || type === 'withdrawal_approved' || type === 'withdrawal_rejected' || type === 'redemption'
+        default:
+          return true
+      }
+    })
+  }, [allActivity, activityTypeFilter])
+
   // Filter activity based on search term
   const filteredActivity = useMemo(() => {
-    if (!searchTerm.trim()) return allActivity
+    if (!searchTerm.trim()) return filteredByType
 
     const term = searchTerm.toLowerCase()
-    return allActivity.filter(event => {
+    return filteredByType.filter(event => {
       return (
         event.type?.toLowerCase().includes(term) ||
         event.userName?.toLowerCase().includes(term) ||
@@ -116,7 +199,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
         event.status?.toLowerCase().includes(term)
       )
     })
-  }, [allActivity, searchTerm])
+  }, [filteredByType, searchTerm])
 
   // Paginate filtered activity
   const paginatedActivity = useMemo(() => {
@@ -127,10 +210,10 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
 
   const totalPages = Math.ceil(filteredActivity.length / itemsPerPage)
 
-  // Reset to page 1 when search term changes
+  // Reset to page 1 when search term or filter changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm])
+  }, [searchTerm, activityTypeFilter])
 
   // Helper functions for display
   const getEventTitle = (eventType) => {
@@ -155,8 +238,15 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
     }
   }
 
-  // Get event metadata (icon, color)
-  const getEventMeta = (eventType) => {
+  // Get event metadata (icon, color) - takes event object to check investmentStatus
+  const getEventMeta = (event) => {
+    const eventType = typeof event === 'string' ? event : event?.type
+    
+    // Check for draft investments specifically
+    if (event?.investmentStatus === 'draft') {
+      return { icon: '📝', color: '#92400e' }
+    }
+    
     switch (eventType) {
       case 'account_created':
         return { icon: '👤', color: '#0369a1' }
@@ -202,6 +292,81 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
           disabled={isLoading}
         >
           {isLoading ? '⟳ Loading...' : '↻ Refresh'}
+        </button>
+      </div>
+
+      {/* Activity Type Filter Cards */}
+      <div className={styles.filterGrid}>
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'all' ? styles.filterCardActive : ''}`}
+          onClick={() => setActivityTypeFilter('all')}
+        >
+          <div className={styles.filterCardLabel}>All Activity</div>
+          <div className={styles.filterCardCount}>{eventCounts.all}</div>
+          <div className={styles.filterCardSubtext}>events</div>
+        </button>
+        
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'accounts' ? styles.filterCardActive : ''}`}
+          onClick={() => setActivityTypeFilter('accounts')}
+        >
+          <div className={styles.filterCardIcon}>👤</div>
+          <div className={styles.filterCardLabel}>Accounts</div>
+          <div className={styles.filterCardCount}>{eventCounts.accounts}</div>
+        </button>
+        
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'investments' ? styles.filterCardActive : ''}`}
+          onClick={() => setActivityTypeFilter('investments')}
+        >
+          <div className={styles.filterCardIcon}>🧾</div>
+          <div className={styles.filterCardLabel}>Investments</div>
+          <div className={styles.filterCardCount}>{eventCounts.investments}</div>
+        </button>
+        
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'drafts' ? styles.filterCardActive : ''} ${eventCounts.drafts > 0 ? styles.filterCardWarning : ''}`}
+          onClick={() => setActivityTypeFilter('drafts')}
+        >
+          <div className={styles.filterCardIcon}>📝</div>
+          <div className={styles.filterCardLabel}>Drafts</div>
+          <div className={styles.filterCardCount}>{eventCounts.drafts}</div>
+        </button>
+        
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'pending' ? styles.filterCardActive : ''} ${eventCounts.pending > 0 ? styles.filterCardWarning : ''}`}
+          onClick={() => setActivityTypeFilter('pending')}
+        >
+          <div className={styles.filterCardIcon}>⏳</div>
+          <div className={styles.filterCardLabel}>Pending</div>
+          <div className={styles.filterCardCount}>{eventCounts.pending}</div>
+        </button>
+        
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'distributions' ? styles.filterCardActive : ''}`}
+          onClick={() => setActivityTypeFilter('distributions')}
+        >
+          <div className={styles.filterCardIcon}>💸</div>
+          <div className={styles.filterCardLabel}>Distributions</div>
+          <div className={styles.filterCardCount}>{eventCounts.distributions}</div>
+        </button>
+        
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'contributions' ? styles.filterCardActive : ''}`}
+          onClick={() => setActivityTypeFilter('contributions')}
+        >
+          <div className={styles.filterCardIcon}>📈</div>
+          <div className={styles.filterCardLabel}>Contributions</div>
+          <div className={styles.filterCardCount}>{eventCounts.contributions}</div>
+        </button>
+        
+        <button
+          className={`${styles.filterCard} ${activityTypeFilter === 'withdrawals' ? styles.filterCardActive : ''}`}
+          onClick={() => setActivityTypeFilter('withdrawals')}
+        >
+          <div className={styles.filterCardIcon}>🏦</div>
+          <div className={styles.filterCardLabel}>Withdrawals</div>
+          <div className={styles.filterCardCount}>{eventCounts.withdrawals}</div>
         </button>
       </div>
 
@@ -256,7 +421,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
               </tr>
             ) : (
               paginatedActivity.map(event => {
-                const meta = getEventMeta(event.type)
+                const meta = getEventMeta(event)
                 const dateValue = event.displayDate || event.date
                 const date = dateValue
                   ? new Date(dateValue).toLocaleString('en-US', {

@@ -213,6 +213,11 @@
   color: var(--status-warning-color);
 }
 
+.draft {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
 .approved, .processing {
   background-color: var(--status-info-bg);
   color: var(--status-info-color);
@@ -393,5 +398,109 @@
   font-size: 12px;
   color: #6b7280;
   font-weight: 400;
+}
+
+/* Filter Cards Grid */
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+}
+
+.filterCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.filterCard:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.filterCardActive {
+  background: #e0f2fe;
+  border: 2px solid #0369a1;
+}
+
+.filterCardActive:hover {
+  background: #bae6fd;
+}
+
+.filterCardWarning {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.filterCardWarning:hover {
+  background: #fde68a;
+}
+
+.filterCardWarning.filterCardActive {
+  background: #fde68a;
+  border: 2px solid #d97706;
+}
+
+.filterCardIcon {
+  font-size: 20px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.filterCardLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.filterCardCount {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.filterCardSubtext {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Responsive Filter Grid */
+@media (max-width: 1200px) {
+  .filterGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .filterGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .filterCard {
+    padding: 12px 8px;
+  }
+  
+  .filterCardLabel {
+    font-size: 11px;
+  }
+  
+  .filterCardCount {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filterGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
