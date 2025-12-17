@@ -13,7 +13,7 @@ export default function AuthWrapper({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/login', '/forgot-password', '/password-change', '/confirmation', '/onboarding']
+  const publicRoutes = ['/', '/login', '/forgot-password', '/password-change', '/confirmation', '/onboarding', '/email-confirmation']
   
   // Routes that don't require onboarding check
   const noOnboardingCheckRoutes = ['/onboarding']
