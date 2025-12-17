@@ -124,8 +124,8 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       if (type === 'account_created') {
         counts.accounts++
       }
-      // Investment events (exclude drafts - they have their own category)
-      else if ((type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft') {
+      // Investment events (exclude drafts and pending - they have their own categories)
+      else if ((type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft' && event.investmentStatus !== 'pending') {
         counts.investments++
       }
       // Distribution events
@@ -166,7 +166,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
         case 'accounts':
           return type === 'account_created'
         case 'investments':
-          return (type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft'
+          return (type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft' && event.investmentStatus !== 'pending'
         case 'drafts':
           return event.investmentStatus === 'draft'
         case 'pending':
