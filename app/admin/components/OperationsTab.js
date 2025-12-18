@@ -1,13 +1,9 @@
-import { useState, useEffect } from 'react'
-import { apiClient } from '../../../lib/apiClient'
+import { useState } from 'react'
 import { formatCurrency } from '../../../lib/formatters.js'
 import { TIME_MACHINE_ENABLED } from '../../../lib/featureFlags'
 import SectionCard from './SectionCard'
 import TimeMachineTab from './TimeMachineTab'
 import styles from './OperationsTab.module.css'
-
-// Feature flag: Enable when backend endpoint is ready
-const MASTER_PASSWORD_ENABLED = false
 
 /**
  * Operations tab containing investor import, time machine, and withdrawals
@@ -28,93 +24,10 @@ export default function OperationsTab({
   onImportComplete,
   onToggleAutoApprove
 }) {
-  const [masterPassword, setMasterPassword] = useState(null)
-  const [masterPasswordInfo, setMasterPasswordInfo] = useState(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [copied, setCopied] = useState(false)
-  
   // Withdrawal rejection confirmation modal state
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [withdrawalToReject, setWithdrawalToReject] = useState(null)
   const [isRejecting, setIsRejecting] = useState(false)
-
-  // Fetch current master password info (only if feature is enabled)
-  useEffect(() => {
-    if (MASTER_PASSWORD_ENABLED) {
-      fetchMasterPasswordInfo()
-    }
-  }, [])
-
-  const fetchMasterPasswordInfo = async () => {
-    if (!MASTER_PASSWORD_ENABLED) return
-    
-    try {
-      const data = await apiClient.request('/api/admin/generate-master-password')
-      if (data && data.success && data.hasPassword) {
-        setMasterPasswordInfo(data)
-      }
-    } catch (error) {
-      console.error('Error fetching master password info:', error)
-    }
-  }
-
-  const handleGenerateMasterPassword = async () => {
-    if (!MASTER_PASSWORD_ENABLED) {
-      alert('Master password generation is not yet available. This feature is coming soon.')
-      return
-    }
-    
-    setIsGenerating(true)
-    setCopied(false)
-    try {
-      const data = await apiClient.request('/api/admin/generate-master-password', {
-        method: 'POST'
-      })
-      
-      if (data && data.success) {
-        setMasterPassword(data.password)
-        setMasterPasswordInfo({
-          hasPassword: true,
-          expiresAt: data.expiresAt,
-          isExpired: false
-        })
-        
-        // Auto-copy to clipboard
-        try {
-          await navigator.clipboard.writeText(data.password)
-          setCopied(true)
-        } catch (err) {
-          console.error('Failed to copy to clipboard:', err)
-        }
-      } else {
-        alert('Failed to generate master password: ' + (data.error || 'Unknown error'))
-      }
-    } catch (error) {
-      console.error('Error generating master password:', error)
-      alert('Failed to generate master password')
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
-  const copyToClipboard = async () => {
-    if (masterPassword) {
-      try {
-        await navigator.clipboard.writeText(masterPassword)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch (err) {
-        console.error('Failed to copy:', err)
-      }
-    }
-  }
-
-  const formatTimeRemaining = (ms) => {
-    if (!ms || ms <= 0) return 'Expired'
-    const minutes = Math.floor(ms / 60000)
-    const seconds = Math.floor((ms % 60000) / 1000)
-    return `${minutes}m ${seconds}s`
-  }
 
   // Open reject confirmation modal
   const handleRejectClick = (withdrawal) => {
@@ -149,48 +62,6 @@ export default function OperationsTab({
 
   return (
     <div className={styles.operationsTab}>
-      {/* Master Password Section */}
-      <SectionCard title="Master Password Generator">
-        <div className={styles.sectionHeader}>
-          <p className={styles.sectionDescription}>
-            Generate a temporary master password to access any investor account for testing. Password expires in 30 minutes.
-          </p>
-        </div>
-        <div className={styles.masterPasswordSection}>
-          <button
-            onClick={handleGenerateMasterPassword}
-            disabled={isGenerating}
-            className={styles.generateButton}
-          >
-            {isGenerating ? 'Generating...' : 'Generate Master Password'}
-          </button>
-          
-          {masterPassword && (
-            <div className={styles.masterPasswordDisplay}>
-              <div className={styles.passwordBox}>
-                <code className={styles.passwordText}>{masterPassword}</code>
-                <button 
-                  onClick={copyToClipboard}
-                  className={styles.copyButton}
-                >
-                  {copied ? '✓ Copied' : 'Copy'}
-                </button>
-              </div>
-              <p className={styles.passwordNote}>
-                ⚠️ This password can be used to login to ANY investor account. Save it securely and use within 30 minutes.
-              </p>
-            </div>
-          )}
-          
-          {masterPasswordInfo && masterPasswordInfo.hasPassword && !masterPasswordInfo.isExpired && (
-            <div className={styles.masterPasswordStatus}>
-              <p className={styles.statusText}>
-                ✓ Active master password expires in {formatTimeRemaining(masterPasswordInfo.timeRemainingMs)}
-              </p>
-            </div>
-          )}
-        </div>
-      </SectionCard>
       {/* Time Machine Section */}
       {TIME_MACHINE_ENABLED && (
         <SectionCard title="Time Machine">
