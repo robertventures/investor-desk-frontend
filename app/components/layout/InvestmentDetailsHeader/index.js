@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { apiClient } from '../../../../lib/apiClient'
 import styles from './InvestmentDetailsHeader.module.css'
 
 export default function InvestmentDetailsHeader({ investmentId }) {

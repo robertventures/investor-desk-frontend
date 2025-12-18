@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import PortfolioSummary from '@/app/components/PortfolioSummary'
+import PortfolioSummary from '@/app/components/views/PortfolioSummary'
 
 const SECTION_ROUTES = {
   portfolio: '/dashboard',

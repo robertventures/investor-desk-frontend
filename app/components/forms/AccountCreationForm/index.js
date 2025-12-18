@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient } from '../../lib/apiClient'
+import { apiClient } from '../../../../lib/apiClient'
 import styles from './AccountCreationForm.module.css'
 
 export default function AccountCreationForm() {

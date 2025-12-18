@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { apiClient } from '../../lib/apiClient'
+import { apiClient } from '../../../../lib/apiClient'
 import styles from './AdminHeader.module.css'
 
 export default function AdminHeader({ onTabChange, activeTab }) {

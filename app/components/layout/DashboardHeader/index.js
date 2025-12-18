@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { apiClient } from '@/lib/apiClient'
 import logger from '@/lib/logger'
-import { useUser } from '../contexts/UserContext'
+import { useUser } from '../../../contexts/UserContext'
 import styles from './DashboardHeader.module.css'
 
 const NAV_ITEMS = [

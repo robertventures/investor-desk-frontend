@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Header from './components/Header'
-import AccountCreationForm from './components/AccountCreationForm'
+import Header from './components/layout/Header'
+import AccountCreationForm from './components/forms/AccountCreationForm'
 import styles from './page.module.css'
 import { useUser } from './contexts/UserContext'
 

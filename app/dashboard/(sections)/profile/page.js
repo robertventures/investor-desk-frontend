@@ -1,4 +1,4 @@
-import ProfileView from '@/app/components/ProfileView'
+import ProfileView from '@/app/components/views/ProfileView'
 
 export const metadata = {
   title: 'Profile | Robert Ventures'

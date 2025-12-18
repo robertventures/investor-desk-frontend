@@ -24,6 +24,19 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
   const [activityTypeFilter, setActivityTypeFilter] = useState('all')
   const itemsPerPage = 20
 
+  // Activity tab intentionally excludes distributions & contributions since those
+  // are covered in the Transactions tab.
+  const isExcludedFromActivity = (type) => {
+    const t = (type || '').toString().toLowerCase()
+    return (
+      t === 'distribution' ||
+      t === 'monthly_distribution' ||
+      t === 'contribution' ||
+      t === 'monthly_contribution' ||
+      t === 'monthly_compounded'
+    )
+  }
+
   // Extract all activity events from user transactions + investment creation events
   const allActivity = useMemo(() => {
     const events = []
@@ -56,6 +69,8 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
         // 2. Add transaction events (distributions, contributions, etc)
         const transactions = Array.isArray(investment.transactions) ? investment.transactions : []
         transactions.forEach(tx => {
+          if (isExcludedFromActivity(tx?.type)) return
+
           events.push({
             id: tx.id,
             type: tx.type, // 'investment', 'distribution', 'contribution', 'monthly_distribution', etc.
@@ -112,8 +127,6 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       investments: 0,
       drafts: 0,
       pending: 0,
-      distributions: 0,
-      contributions: 0,
       withdrawals: 0
     }
 
@@ -127,14 +140,6 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       // Investment events (exclude drafts and pending - they have their own categories)
       else if ((type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft' && event.investmentStatus !== 'pending') {
         counts.investments++
-      }
-      // Distribution events
-      else if (type === 'distribution' || type === 'monthly_distribution') {
-        counts.distributions++
-      }
-      // Contribution events
-      else if (type === 'contribution' || type === 'monthly_contribution' || type === 'monthly_compounded') {
-        counts.contributions++
       }
       // Withdrawal events
       else if (type === 'withdrawal_requested' || type === 'withdrawal_notice_started' || type === 'withdrawal_approved' || type === 'withdrawal_rejected' || type === 'redemption') {
@@ -171,10 +176,6 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
           return event.investmentStatus === 'draft'
         case 'pending':
           return event.status?.toLowerCase() === 'pending'
-        case 'distributions':
-          return type === 'distribution' || type === 'monthly_distribution'
-        case 'contributions':
-          return type === 'contribution' || type === 'monthly_contribution' || type === 'monthly_compounded'
         case 'withdrawals':
           return type === 'withdrawal_requested' || type === 'withdrawal_notice_started' || type === 'withdrawal_approved' || type === 'withdrawal_rejected' || type === 'redemption'
         default:
@@ -224,11 +225,6 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       case 'investment_confirmed': return 'Investment Confirmed'
       case 'investment_rejected': return 'Investment Rejected'
       case 'investment': return 'Investment Transaction'
-      case 'distribution': return 'Distribution'
-      case 'monthly_distribution': return 'Distribution'
-      case 'monthly_contribution': return 'Contribution'
-      case 'contribution': return 'Contribution'
-      case 'monthly_compounded': return 'Monthly Compounded'
       case 'withdrawal_requested': return 'Withdrawal Requested'
       case 'withdrawal_notice_started': return 'Withdrawal Notice Started'
       case 'withdrawal_approved': return 'Withdrawal Processed'
@@ -260,13 +256,6 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       case 'investment_rejected':
       case 'withdrawal_rejected':
         return { icon: '❌', color: '#991b1b' }
-      case 'distribution':
-      case 'monthly_distribution':
-        return { icon: '💸', color: '#5b21b6' }
-      case 'contribution':
-      case 'monthly_contribution':
-      case 'monthly_compounded':
-        return { icon: '📈', color: '#5b21b6' }
       case 'withdrawal_requested':
       case 'withdrawal_notice_started':
       case 'redemption':
@@ -282,7 +271,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
         <div>
           <h2 className={styles.title}>Platform Activity</h2>
           <p className={styles.subtitle}>
-            All financial activity and events ({filteredActivity.length} total)
+            Platform events (excluding distributions and contributions) ({filteredActivity.length} total)
             {totalPages > 1 && ` - Page ${currentPage} of ${totalPages}`}
           </p>
         </div>
@@ -340,24 +329,6 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
           <div className={styles.filterCardIcon}>⏳</div>
           <div className={styles.filterCardLabel}>Pending</div>
           <div className={styles.filterCardCount}>{eventCounts.pending}</div>
-        </button>
-        
-        <button
-          className={`${styles.filterCard} ${activityTypeFilter === 'distributions' ? styles.filterCardActive : ''}`}
-          onClick={() => setActivityTypeFilter('distributions')}
-        >
-          <div className={styles.filterCardIcon}>💸</div>
-          <div className={styles.filterCardLabel}>Distributions</div>
-          <div className={styles.filterCardCount}>{eventCounts.distributions}</div>
-        </button>
-        
-        <button
-          className={`${styles.filterCard} ${activityTypeFilter === 'contributions' ? styles.filterCardActive : ''}`}
-          onClick={() => setActivityTypeFilter('contributions')}
-        >
-          <div className={styles.filterCardIcon}>📈</div>
-          <div className={styles.filterCardLabel}>Contributions</div>
-          <div className={styles.filterCardCount}>{eventCounts.contributions}</div>
         </button>
         
         <button
@@ -479,11 +450,10 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
                     </td>
                     <td className={styles.dateCell}>{date}</td>
                     <td className={styles.eventIdCell}>
-                      {(event.type === 'investment' || event.type === 'distribution' || event.type === 'contribution' || event.type === 'monthly_distribution' || event.type === 'monthly_compounded') && event.id && !event.id.startsWith('inv-created') ? (
-                        <code>{event.id}</code>
-                      ) : (
-                        <span>{event.id.startsWith('inv-created') || event.id.startsWith('user-created') ? '-' : event.id}</span>
-                      )}
+                      {event?.id && !event.id.startsWith('inv-created') && !event.id.startsWith('user-created')
+                        ? <code>{event.id}</code>
+                        : <span>-</span>
+                      }
                     </td>
                     <td>
                       <button

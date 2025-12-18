@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
-import AdminHeader from '../components/AdminHeader'
+import AdminHeader from '../components/layout/AdminHeader'
 import { useAdminData } from './hooks/useAdminData'
 import { useAdminMetrics } from './hooks/useAdminMetrics'
 import { adminService } from '../../lib/services/admin'

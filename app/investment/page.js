@@ -6,13 +6,13 @@ import { apiClient } from '@/lib/apiClient'
 import { INVESTMENTS_PAUSED } from '@/lib/featureFlags'
 import logger from '@/lib/logger'
 import { getInvestmentTypeLockInfo } from '@/lib/investmentAccess'
-import Header from '../components/Header'
+import Header from '../components/layout/Header'
 import { formatCurrency, formatNumber } from '@/lib/formatters.js'
 import styles from './page.module.css'
-import stepStyles from '../components/TabbedSignup.module.css'
-import TabbedInvestmentType from '../components/TabbedInvestmentType'
-import InvestmentForm from '../components/InvestmentForm'
-import TabbedResidentialIdentity from '../components/TabbedResidentialIdentity'
+import stepStyles from '../components/forms/TabbedSignup/TabbedSignup.module.css'
+import TabbedInvestmentType from '../components/forms/TabbedInvestmentType'
+import InvestmentForm from '../components/forms/InvestmentForm'
+import TabbedResidentialIdentity from '../components/forms/TabbedResidentialIdentity'
 
 const ACCOUNT_TYPE_LABELS = {
   individual: 'Individual',

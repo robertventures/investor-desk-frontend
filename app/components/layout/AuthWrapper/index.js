@@ -1,10 +1,10 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { apiClient } from '../../lib/apiClient'
-import logger from '../../lib/logger'
-import { UserProvider } from '../contexts/UserContext'
-import { useTokenRefresh } from '../../lib/hooks/useTokenRefresh'
+import { apiClient } from '../../../../lib/apiClient'
+import logger from '../../../../lib/logger'
+import { UserProvider } from '../../../contexts/UserContext'
+import { useTokenRefresh } from '../../../../lib/hooks/useTokenRefresh'
 
 export default function AuthWrapper({ children }) {
   const router = useRouter()

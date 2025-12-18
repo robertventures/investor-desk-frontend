@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useState, useMemo, memo } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '../contexts/UserContext'
-import { apiClient } from '../../lib/apiClient'
+import { useUser } from '../../../contexts/UserContext'
+import { apiClient } from '../../../../lib/apiClient'
 import styles from './TransactionsList.module.css'
-import { formatCurrency } from '../../lib/formatters.js'
-import { formatDateForDisplay } from '../../lib/dateUtils.js'
+import { formatCurrency } from '../../../../lib/formatters.js'
+import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
 
 function eventMeta(ev, { isDraftInvestment = false } = {}) {
   const normalizedStatus = (ev.status || '').toString().toLowerCase()

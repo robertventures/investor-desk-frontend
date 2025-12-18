@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient } from '../../lib/apiClient'
-import { formatCurrency } from '../../lib/formatters.js'
+import { apiClient } from '../../../../lib/apiClient'
+import { formatCurrency } from '../../../../lib/formatters.js'
 import styles from './TransactionsTable.module.css'
 
 export default function TransactionsTable() {

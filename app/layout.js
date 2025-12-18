@@ -1,7 +1,7 @@
 import { Inter } from 'next/font/google'
 import './globals.css'
-import AuthWrapper from './components/AuthWrapper'
-import GoogleTagManager from './components/GoogleTagManager'
+import AuthWrapper from './components/layout/AuthWrapper'
+import GoogleTagManager from './components/utils/GoogleTagManager'
 
 const inter = Inter({
   subsets: ['latin'],

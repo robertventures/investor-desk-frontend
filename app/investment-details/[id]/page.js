@@ -2,9 +2,9 @@
 import { useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '@/lib/apiClient'
-import DashboardHeader from '../../components/DashboardHeader'
-import InvestmentDetailsContent from '../../components/InvestmentDetailsContent'
-import FixedInvestButton from '../../components/FixedInvestButton'
+import DashboardHeader from '../../components/layout/DashboardHeader'
+import InvestmentDetailsContent from '../../components/views/InvestmentDetailsContent'
+import FixedInvestButton from '../../components/ui/FixedInvestButton'
 import styles from './page.module.css'
 
 export default function InvestmentDetailsPage() {

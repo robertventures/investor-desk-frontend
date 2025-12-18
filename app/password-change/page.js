@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
-import Header from '../components/Header'
+import Header from '../components/layout/Header'
 import styles from './page.module.css'
 
 function PasswordChangeContent() {

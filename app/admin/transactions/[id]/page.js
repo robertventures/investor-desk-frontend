@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
-import AdminHeader from '../../../components/AdminHeader'
+import AdminHeader from '../../../components/layout/AdminHeader'
 import styles from './page.module.css'
 import { formatCurrency } from '../../../../lib/formatters.js'
 import { formatDateTime } from '../../../../lib/dateUtils.js'

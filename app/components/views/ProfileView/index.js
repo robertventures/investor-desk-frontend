@@ -1,8 +1,8 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { apiClient } from '../../lib/apiClient'
-import { MANUAL_BANK_ENTRY_ENABLED } from '../../lib/featureFlags'
+import { apiClient } from '../../../../lib/apiClient'
+import { MANUAL_BANK_ENTRY_ENABLED } from '../../../../lib/featureFlags'
 import logger from '@/lib/logger'
 import { 
   formatName, 
@@ -36,7 +36,7 @@ import {
   MIN_DOB 
 } from '@/lib/validation'
 import styles from './ProfileView.module.css'
-import BankConnectionModal, { usePlaidBankConnection } from './BankConnectionModal'
+import BankConnectionModal, { usePlaidBankConnection } from '../../ui/BankConnectionModal'
 
 export default function ProfileView() {
   const router = useRouter()

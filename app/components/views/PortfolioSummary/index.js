@@ -2,11 +2,11 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { apiClient } from '../../lib/apiClient'
-import { useUser } from '../contexts/UserContext'
+import { apiClient } from '../../../../lib/apiClient'
+import { useUser } from '../../../contexts/UserContext'
 import styles from './PortfolioSummary.module.css'
-import TransactionsList from './TransactionsList'
-import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../lib/investmentCalculations.js'
+import TransactionsList from '../../ui/TransactionsList'
+import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../../../lib/investmentCalculations.js'
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {

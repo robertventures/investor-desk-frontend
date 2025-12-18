@@ -1,8 +1,8 @@
 "use client"
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
-import { apiClient } from '../../lib/apiClient'
-import { MANUAL_BANK_ENTRY_ENABLED } from '../../lib/featureFlags'
+import { apiClient } from '../../../../lib/apiClient'
+import { MANUAL_BANK_ENTRY_ENABLED } from '../../../../lib/featureFlags'
 import styles from './BankConnectionModal.module.css'
 
 /**

@@ -1,4 +1,4 @@
-import DocumentsView from '@/app/components/DocumentsView'
+import DocumentsView from '@/app/components/views/DocumentsView'
 
 export const metadata = {
   title: 'Documents | Robert Ventures'

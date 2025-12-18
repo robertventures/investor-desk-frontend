@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '../contexts/UserContext'
-import { apiClient } from '../../lib/apiClient'
+import { useUser } from '../../../contexts/UserContext'
+import { apiClient } from '../../../../lib/apiClient'
 import styles from './InvestmentDetailsContent.module.css'
-import TransactionsList from './TransactionsList'
-import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../lib/investmentCalculations.js'
+import TransactionsList from '../../ui/TransactionsList'
+import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../../../lib/investmentCalculations.js'
 
 export default function InvestmentDetailsContent({ investmentId }) {
   const router = useRouter()

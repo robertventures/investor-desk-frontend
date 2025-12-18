@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import logger from '@/lib/logger'
-import Header from '../components/Header'
+import Header from '../components/layout/Header'
 import styles from './page.module.css'
 
 export default function ConfirmationPage() {

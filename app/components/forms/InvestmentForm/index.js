@@ -1,15 +1,15 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient } from '../../lib/apiClient'
+import { apiClient } from '../../../../lib/apiClient'
 import {
   DRAFT_PAYMENT_METHOD_KEY,
   clearStoredPaymentMethod,
   determineDraftPaymentMethod,
   investmentPaymentMethodKey,
   persistDraftPaymentMethod
-} from '../../lib/paymentMethodPreferences'
-import { formatCurrency, formatNumber } from '../../lib/formatters.js'
+} from '../../../../lib/paymentMethodPreferences'
+import { formatCurrency, formatNumber } from '../../../../lib/formatters.js'
 import styles from './InvestmentForm.module.css'
 
 export default function InvestmentForm({ onCompleted, onReviewSummary, disableAuthGuard = false, accountType, initialAmount, initialPaymentFrequency, initialLockup, onValuesChange }) {

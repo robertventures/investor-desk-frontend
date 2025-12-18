@@ -1,7 +1,7 @@
 'use client'
 
-import Header from '../components/Header'
-import LoginForm from '../components/LoginForm'
+import Header from '../components/layout/Header'
+import LoginForm from '../components/forms/LoginForm'
 import styles from '../page.module.css'
 
 export default function LoginPage() {

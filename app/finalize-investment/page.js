@@ -14,8 +14,8 @@
  * Testing in sandbox mode: Set NEXT_PUBLIC_PLAID_ENV=sandbox
  */
 "use client"
-import Header from '../components/Header'
-import BankConnectionModal, { usePlaidBankConnection } from '../components/BankConnectionModal'
+import Header from '../components/layout/Header'
+import BankConnectionModal, { usePlaidBankConnection } from '../components/ui/BankConnectionModal'
 import { apiClient } from '../../lib/apiClient'
 import { INVESTMENTS_PAUSED, MANUAL_BANK_ENTRY_ENABLED } from '../../lib/featureFlags'
 import { jsPDF } from 'jspdf'

@@ -1,4 +1,4 @@
-import InvestmentsView from '@/app/components/InvestmentsView'
+import InvestmentsView from '@/app/components/views/InvestmentsView'
 
 export const metadata = {
   title: 'Investments | Robert Ventures'

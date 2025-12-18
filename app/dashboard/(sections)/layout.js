@@ -1,5 +1,5 @@
-import DashboardHeader from '@/app/components/DashboardHeader'
-import FixedInvestButton from '@/app/components/FixedInvestButton'
+import DashboardHeader from '@/app/components/layout/DashboardHeader'
+import FixedInvestButton from '@/app/components/ui/FixedInvestButton'
 import DashboardShell from '../components/DashboardShell'
 import styles from '../page.module.css'
 

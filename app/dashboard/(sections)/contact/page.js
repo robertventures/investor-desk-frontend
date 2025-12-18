@@ -1,4 +1,4 @@
-import ContactView from '@/app/components/ContactView'
+import ContactView from '@/app/components/views/ContactView'
 
 export const metadata = {
   title: 'Contact | Robert Ventures'

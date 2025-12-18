@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { useUser } from '../contexts/UserContext'
-import { apiClient } from '../../lib/apiClient'
+import { useUser } from '../../../contexts/UserContext'
+import { apiClient } from '../../../../lib/apiClient'
 import logger from '@/lib/logger'
 import styles from './ContactView.module.css'
 

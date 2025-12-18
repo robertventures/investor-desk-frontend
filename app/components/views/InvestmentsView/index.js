@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { apiClient } from '../../lib/apiClient'
-import { useUser } from '../contexts/UserContext'
-import { INVESTMENTS_PAUSED } from '../../lib/featureFlags'
+import { apiClient } from '../../../../lib/apiClient'
+import { useUser } from '../../../contexts/UserContext'
+import { INVESTMENTS_PAUSED } from '../../../../lib/featureFlags'
 import styles from './InvestmentsView.module.css'
-import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../lib/investmentCalculations.js'
+import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../../../lib/investmentCalculations.js'
 
 export default function InvestmentsView() {
   const router = useRouter()

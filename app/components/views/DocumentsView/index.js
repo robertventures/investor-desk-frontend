@@ -1,10 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { apiClient } from '../../lib/apiClient'
+import { apiClient } from '../../../../lib/apiClient'
 import styles from './DocumentsView.module.css'
-import { formatCurrency } from '../../lib/formatters.js'
-import { formatDateLocale } from '../../lib/dateUtils.js'
-import { getInvestmentStatus } from '../../lib/investmentCalculations.js'
+import { formatCurrency } from '../../../../lib/formatters.js'
+import { formatDateLocale } from '../../../../lib/dateUtils.js'
+import { getInvestmentStatus } from '../../../../lib/investmentCalculations.js'
 
 export default function DocumentsView() {
   const [mounted, setMounted] = useState(false)

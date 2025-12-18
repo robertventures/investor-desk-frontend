@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '../contexts/UserContext'
+import { useUser } from '../../../contexts/UserContext'
 import { getInvestmentTypeLockInfo } from '@/lib/investmentAccess'
 import { INVESTMENTS_PAUSED } from '@/lib/featureFlags'
 import styles from './FixedInvestButton.module.css'

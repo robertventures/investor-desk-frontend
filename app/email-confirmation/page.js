@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import logger from '@/lib/logger'
-import Header from '../components/Header'
+import Header from '../components/layout/Header'
 import styles from '../confirmation/page.module.css'
 
 function EmailConfirmationContent() {
