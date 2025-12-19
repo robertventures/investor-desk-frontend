@@ -1143,7 +1143,7 @@ function AdminUserDetailsContent() {
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   {!isEditing && (
                     <a 
-                      href={`https://clarity.microsoft.com/projects/view/iyocd8lpma/impressions?date=Last%203%20days&UserId=is%3B${id}`}
+                      href={`https://clarity.microsoft.com/projects/view/iyocd8lpma/impressions?date=Last%203%20days&customUserId=${id}`}
                       target="_blank" 
                       rel="noopener noreferrer"
                       className={styles.editButton}
