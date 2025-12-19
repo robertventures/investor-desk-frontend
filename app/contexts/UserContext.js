@@ -5,6 +5,28 @@ import logger from '@/lib/logger'
 
 const UserContext = createContext(null)
 
+/**
+ * Sets a cookie on the root domain (.robertventures.com) so it can be shared
+ * across subdomains (e.g., robertventures.com and invest.robertventures.com).
+ * This is used to identify users in Microsoft Clarity across all our properties.
+ */
+const setRootDomainCookie = (name, value, days = 365) => {
+  if (typeof document === 'undefined') return
+  
+  const date = new Date()
+  date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000))
+  const expires = `expires=${date.toUTCString()}`
+  
+  // Determine the root domain for the cookie
+  // In production: .robertventures.com (shared across subdomains)
+  // In development: use current hostname (localhost doesn't support subdomain cookies)
+  const hostname = window.location.hostname
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+  const domainAttr = isLocalhost ? '' : `;domain=.robertventures.com`
+  
+  document.cookie = `${name}=${encodeURIComponent(value)};${expires}${domainAttr};path=/;SameSite=Lax`
+}
+
 export function UserProvider({ children }) {
   // Split state to prevent circular dependency loops
   // userProfile: Identity and core user details
@@ -51,6 +73,14 @@ export function UserProvider({ children }) {
           if (data.user.email) localStorage.setItem('signupEmail', data.user.email)
         } catch (e) {
           // ignore storage errors
+        }
+
+        // Set cross-subdomain cookie for Microsoft Clarity user identification
+        // This cookie is readable by both invest.robertventures.com and robertventures.com
+        try {
+          setRootDomainCookie('rv_user_id', data.user.id, 365)
+        } catch (e) {
+          // ignore cookie errors
         }
 
         setUserProfile(data.user)
