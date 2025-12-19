@@ -7,3 +7,7 @@
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_API_URL,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_BASE_URL,NEXT_PUBLIC_PLAID_ENV,NEXT_PUBLIC_USE_SERVER_IDENTITY_DRAFTS"
 
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
