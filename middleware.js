@@ -71,8 +71,6 @@ export function middleware(request) {
       "default-src 'self'; " +
       scriptSrc +
       "style-src 'self' 'unsafe-inline' 'unsafe-hashes' https://fonts.googleapis.com https://cdn.plaid.com; " +
-      "style-src-attr 'self' 'unsafe-inline' 'unsafe-hashes'; " +
-      "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.plaid.com; " +
       "img-src 'self' data: https: blob:; " +
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.plaid.com; " +
       `connect-src ${connectSrc}; ` +

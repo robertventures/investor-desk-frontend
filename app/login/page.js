@@ -2,7 +2,7 @@
 
 import Header from '../components/layout/Header'
 import LoginForm from '../components/forms/LoginForm'
-import styles from '../page.module.css'
+import styles from './page.module.css'
 
 export default function LoginPage() {
   return (
