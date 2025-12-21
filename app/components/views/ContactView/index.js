@@ -8,10 +8,10 @@ import styles from './ContactView.module.css'
 // Category options with display labels and API values
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Select a category' },
-  { value: 'investments', label: 'Investment Question' },
-  { value: 'withdrawals', label: 'Payment/Distribution Question' },
-  { value: 'account', label: 'Account Issue' },
-  { value: 'other', label: 'General Inquiry / Other' }
+  { value: 'Investment Question', label: 'Investment Question' },
+  { value: 'Payment/Distribution Question', label: 'Payment/Distribution Question' },
+  { value: 'Account Issue', label: 'Account Issue' },
+  { value: 'General Inquiry / Other', label: 'General Inquiry / Other' }
 ]
 
 // Priority options matching API enum (low, medium, high)

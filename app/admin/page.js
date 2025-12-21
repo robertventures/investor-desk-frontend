@@ -91,7 +91,9 @@ function AdminPageContent() {
     isVerified: searchParams?.get('isVerified') || 'all',
     bankConnected: searchParams?.get('bankConnected') || 'all',
     achStatus: searchParams?.get('achStatus') || 'all',
-    investmentType: searchParams?.get('investmentType') || 'all'
+    investmentType: searchParams?.get('investmentType') || 'all',
+    accountType: searchParams?.get('accountType') || 'all',
+    profileStatus: searchParams?.get('profileStatus') || 'all'
   }), [searchParams])
   const initialAccountsPage = useMemo(() => Number(searchParams?.get('page')) || 1, [searchParams])
   
@@ -139,6 +141,8 @@ function AdminPageContent() {
     if (accountFilters.bankConnected !== 'all') params.set('bankConnected', accountFilters.bankConnected)
     if (accountFilters.achStatus !== 'all') params.set('achStatus', accountFilters.achStatus)
     if (accountFilters.investmentType !== 'all') params.set('investmentType', accountFilters.investmentType)
+    if (accountFilters.accountType !== 'all') params.set('accountType', accountFilters.accountType)
+    if (accountFilters.profileStatus !== 'all') params.set('profileStatus', accountFilters.profileStatus)
     if (accountsPage > 1) params.set('page', String(accountsPage))
     
     // Use replace to avoid polluting browser history with every filter change
@@ -171,7 +175,9 @@ function AdminPageContent() {
       isVerified: searchParams?.get('isVerified') || 'all',
       bankConnected: searchParams?.get('bankConnected') || 'all',
       achStatus: searchParams?.get('achStatus') || 'all',
-      investmentType: searchParams?.get('investmentType') || 'all'
+      investmentType: searchParams?.get('investmentType') || 'all',
+      accountType: searchParams?.get('accountType') || 'all',
+      profileStatus: searchParams?.get('profileStatus') || 'all'
     }
     
     // Only update state if URL values differ from current state (avoid infinite loops)
@@ -390,6 +396,24 @@ function AdminPageContent() {
         if (accountFilters.investmentType === 'compounding' && (!hasCompounding || hasMonthly)) return false
         if (accountFilters.investmentType === 'monthly' && (!hasMonthly || hasCompounding)) return false
         if (accountFilters.investmentType === 'both' && (!hasCompounding || !hasMonthly)) return false
+      }
+
+      // Filter by account type (individual, joint, entity, ira/sdira)
+      if (accountFilters.accountType !== 'all') {
+        const userAccountType = user.accountType || ''
+        // Handle "sdira" filter matching "ira" in database
+        if (accountFilters.accountType === 'sdira') {
+          if (userAccountType !== 'ira' && userAccountType !== 'sdira') return false
+        } else {
+          if (userAccountType !== accountFilters.accountType) return false
+        }
+      }
+
+      // Filter by profile status (complete/incomplete)
+      if (accountFilters.profileStatus !== 'all') {
+        const profileComplete = isProfileComplete(user)
+        if (accountFilters.profileStatus === 'complete' && !profileComplete) return false
+        if (accountFilters.profileStatus === 'incomplete' && profileComplete) return false
       }
       
       // Filter by created date (prefer displayCreatedAt, fallback to createdAt)
@@ -940,7 +964,9 @@ function AdminPageContent() {
                       accountFilters.numInvestmentsMax ||
                       accountFilters.bankConnected !== 'all' ||
                       accountFilters.achStatus !== 'all' ||
-                      accountFilters.investmentType !== 'all') && 
+                      accountFilters.investmentType !== 'all' ||
+                      accountFilters.accountType !== 'all' ||
+                      accountFilters.profileStatus !== 'all') && 
                       <span className={styles.activeFilterBadge}>●</span>
                     }
                   </button>
@@ -970,7 +996,9 @@ function AdminPageContent() {
                                 isVerified: 'all',
                                 bankConnected: 'all',
                                 achStatus: 'all',
-                                investmentType: 'all'
+                                investmentType: 'all',
+                                accountType: 'all',
+                                profileStatus: 'all'
                               })
                             }}
                           >
@@ -1045,6 +1073,34 @@ function AdminPageContent() {
                             <option value="compounding">Compounding Only</option>
                             <option value="monthly">Monthly Only</option>
                             <option value="both">Both Types</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.filterSection}>
+                          <label className={styles.filterLabel}>Account Type</label>
+                          <select
+                            className={styles.filterSelect}
+                            value={accountFilters.accountType}
+                            onChange={(e) => setAccountFilters({...accountFilters, accountType: e.target.value})}
+                          >
+                            <option value="all">All Account Types</option>
+                            <option value="individual">Individual</option>
+                            <option value="joint">Joint</option>
+                            <option value="sdira">SDIRA</option>
+                            <option value="entity">Entity</option>
+                          </select>
+                        </div>
+
+                        <div className={styles.filterSection}>
+                          <label className={styles.filterLabel}>Profile Status</label>
+                          <select
+                            className={styles.filterSelect}
+                            value={accountFilters.profileStatus}
+                            onChange={(e) => setAccountFilters({...accountFilters, profileStatus: e.target.value})}
+                          >
+                            <option value="all">All Profiles</option>
+                            <option value="complete">Profile Complete</option>
+                            <option value="incomplete">Profile Incomplete</option>
                           </select>
                         </div>
 
