@@ -12,8 +12,14 @@ export default function Home() {
   const { userData, loading } = useUser()
   
   useEffect(() => {
+    // DEBUG LOGS
+    console.log('[Home] Page loaded')
+    console.log('[Home] Loading:', loading)
+    console.log('[Home] User data:', userData ? 'exists' : 'null')
+    
     if (loading) return
     if (userData) {
+      console.log('[Home] User authenticated, redirecting...')
       if (userData.isAdmin) router.push('/admin')
       else router.push('/dashboard')
     }

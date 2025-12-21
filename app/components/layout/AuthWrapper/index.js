@@ -41,8 +41,15 @@ export default function AuthWrapper({ children }) {
     
     const checkAuth = async () => {
       try {
+        // DEBUG LOGS
+        console.log('[AuthWrapper] Checking auth for path:', pathname)
+        console.log('[AuthWrapper] Is Public Route:', isPublicRoute)
+        console.log('[AuthWrapper] Public routes list:', publicRoutes)
+        
         apiClient.ensureTokensLoaded()
         let hasToken = apiClient.isAuthenticated()
+        
+        console.log('[AuthWrapper] Has token:', hasToken)
 
         // Attempt to refresh access token if only refresh token is present
         if (!hasToken && apiClient.refreshToken) {

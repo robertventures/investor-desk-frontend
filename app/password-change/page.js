@@ -22,10 +22,20 @@ function PasswordChangeContent() {
 
   useEffect(() => {
     const tokenParam = searchParams.get('token')
+    
+    // DEBUG LOGS
+    console.log('[PasswordChange] Page mounted')
+    console.log('[PasswordChange] Full URL:', typeof window !== 'undefined' ? window.location.href : 'SSR')
+    console.log('[PasswordChange] Search params:', searchParams.toString())
+    console.log('[PasswordChange] Token found:', tokenParam)
+    
     if (!tokenParam) {
+      console.log('[PasswordChange] ❌ No token found, redirecting to /login')
       router.push('/login')
       return
     }
+    
+    console.log('[PasswordChange] ✅ Token valid, setting token:', tokenParam)
     setToken(tokenParam)
   }, [searchParams, router])
 
@@ -75,20 +85,24 @@ function PasswordChangeContent() {
     setIsLoading(true)
 
     try {
+      console.log('[PasswordChange] Submitting password reset with token:', token)
       const data = await apiClient.resetPassword(token, formData.password)
+      console.log('[PasswordChange] Reset password response:', data)
 
       if (data && data.success) {
+        console.log('[PasswordChange] ✅ Password reset successful')
         setResetSuccess(true)
         // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push('/login')
         }, 3000)
       } else {
+        console.log('[PasswordChange] ❌ Password reset failed:', data?.error)
         setErrors({ general: data?.error || 'Failed to reset password' })
       }
     } catch (err) {
-      console.error('Password reset error:', err)
-      setErrors({ general: 'An error occurred. Please try again.' })
+      console.error('[PasswordChange] ❌ Password reset error:', err)
+      setErrors({ general: err.message || 'An error occurred. Please try again.' })
     } finally {
       setIsLoading(false)
     }
@@ -120,6 +134,23 @@ function PasswordChangeContent() {
       <Header />
       
       <div className={styles.container}>
+        {/* Debug Panel - visible in production for testing */}
+        <div style={{
+          background: '#f0f0f0',
+          border: '2px solid #333',
+          padding: '12px',
+          marginBottom: '20px',
+          borderRadius: '8px',
+          fontFamily: 'monospace',
+          fontSize: '12px'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>🔧 Debug Info:</div>
+          <div>Token received: <strong>{token || 'NULL/EMPTY'}</strong></div>
+          <div>Token length: <strong>{token?.length || 0}</strong> characters</div>
+          <div>Page loaded: <strong>✅ YES</strong></div>
+          <div>Full URL: <strong>{typeof window !== 'undefined' ? window.location.href : 'Loading...'}</strong></div>
+        </div>
+        
         <div className={styles.card}>
           <h1 className={styles.title}>Create New Password</h1>
           <p className={styles.description}>
