@@ -318,8 +318,16 @@ const DashboardTab = memo(function DashboardTab({
                         {inv.lockupPeriod === '1-year' ? '1-Year' : '3-Year'} Lockup
                       </span>
                       <span className={styles.pendingItemDivider}>•</span>
+                      <span className={`${styles.pendingItemPaymentFrequency} ${inv.paymentFrequency === 'compounding' ? styles.compoundingPayment : styles.monthlyPayment}`}>
+                        {inv.paymentFrequency === 'compounding' ? '📈 Compounding' : '📅 Monthly'}
+                      </span>
+                      <span className={styles.pendingItemDivider}>•</span>
                       <span className={`${styles.pendingItemPaymentMethod} ${inv.paymentMethod === 'wire' ? styles.wirePayment : styles.achPayment}`}>
                         {inv.paymentMethod === 'wire' ? '🏦 Wire Transfer' : '🔄 ACH Transfer'}
+                      </span>
+                      <span className={styles.pendingItemDivider}>•</span>
+                      <span className={styles.pendingItemDate}>
+                        {inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : '-'}
                       </span>
                     </div>
                   </div>
