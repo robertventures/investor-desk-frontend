@@ -372,8 +372,12 @@ export function useAdminData() {
             const submittedAt = event.transaction?.submitted_at || event.submitted_at || event.submittedAt || null
             const receivedAt = event.transaction?.received_at || event.received_at || event.receivedAt || null
             
+            // Get the actual transaction ID (integer) for API calls
+            // The event.id is a string humanId, but API endpoints need the numeric transaction.id
+            const transactionId = event.transaction?.id || event.transaction_id || null
+            
             return {
-              id: event.id,
+              id: transactionId,
               type: event.activity_type || event.type || event.activityType || 'distribution',
               amount: amount,
               status: status,
