@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '../../lib/apiClient'
 import logger from '@/lib/logger'
+import { triggerAccountCreated } from '../../lib/webhooks'
 import Header from '../components/layout/Header'
 import styles from '../confirmation/page.module.css'
 
@@ -79,6 +80,13 @@ function EmailConfirmationContent() {
           // Clear pending registration data
           localStorage.removeItem('pendingRegistration')
           localStorage.removeItem('pendingUserId')
+        }
+
+        // Trigger account-created webhook (fire and forget - don't block redirect)
+        if (data.user?.email) {
+          triggerAccountCreated(data.user.email).catch((err) => {
+            logger.warn('Account created webhook failed:', err)
+          })
         }
 
         logger.log('Account confirmed via email link, redirecting to investment page')

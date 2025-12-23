@@ -13,6 +13,7 @@ import DistributionsTab from './components/DistributionsTab'
 import { calculateInvestmentValue } from '../../lib/investmentCalculations.js'
 import { formatDateForDisplay } from '../../lib/dateUtils.js'
 import { formatCurrency } from '../../lib/formatters.js'
+import { triggerInvestmentComplete } from '../../lib/webhooks'
 import styles from './page.module.css'
 
 /**
@@ -516,6 +517,20 @@ function AdminPageContent() {
         alert(data.error || 'Failed to confirm investment')
         return
       }
+      
+      // Trigger investment-complete webhook (fire and forget)
+      const investment = allInvestments.find(inv => inv.id === investmentId)
+      if (investment?.user?.email) {
+        triggerInvestmentComplete({
+          email: investment.user.email,
+          phone: investment.user.phone || investment.user.phoneNumber || null,
+          firstName: investment.user.firstName || investment.user.first_name || null,
+          lastName: investment.user.lastName || investment.user.last_name || null,
+        }).catch((err) => {
+          console.warn('Investment complete webhook failed:', err)
+        })
+      }
+      
       await refreshUsers(true)  // Force refresh to bypass cache
     } catch (e) {
       console.error('Confirm failed', e)

@@ -10,6 +10,7 @@ import {
   persistDraftPaymentMethod
 } from '../../../../lib/paymentMethodPreferences'
 import { formatCurrency, formatNumber } from '../../../../lib/formatters.js'
+import { triggerInvestmentDraft } from '../../../../lib/webhooks'
 import styles from './InvestmentForm.module.css'
 
 export default function InvestmentForm({ onCompleted, onReviewSummary, disableAuthGuard = false, accountType, initialAmount, initialPaymentFrequency, initialLockup, onValuesChange }) {
@@ -272,6 +273,18 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
                 draftPaymentMethod
               )
               clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
+              
+              // Trigger investment-draft webhook (fire and forget)
+              apiClient.getCurrentUser().then((userData) => {
+                if (userData?.user?.email) {
+                  triggerInvestmentDraft({
+                    email: userData.user.email,
+                    phone: userData.user.phone || userData.user.phoneNumber || null,
+                    firstName: userData.user.firstName || userData.user.first_name || null,
+                    lastName: userData.user.lastName || userData.user.last_name || null,
+                  }).catch(() => {})
+                }
+              }).catch(() => {})
             }
             notifyCompletion(data.investment?.id, lockupPeriod)
             return
@@ -303,6 +316,18 @@ export default function InvestmentForm({ onCompleted, onReviewSummary, disableAu
             draftPaymentMethod
           )
           clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
+          
+          // Trigger investment-draft webhook (fire and forget)
+          apiClient.getCurrentUser().then((userData) => {
+            if (userData?.user?.email) {
+              triggerInvestmentDraft({
+                email: userData.user.email,
+                phone: userData.user.phone || userData.user.phoneNumber || null,
+                firstName: userData.user.firstName || userData.user.first_name || null,
+                lastName: userData.user.lastName || userData.user.last_name || null,
+              }).catch(() => {})
+            }
+          }).catch(() => {})
         }
         notifyCompletion(data.investment?.id, lockupPeriod)
       }
