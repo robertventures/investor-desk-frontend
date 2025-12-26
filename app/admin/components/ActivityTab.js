@@ -22,6 +22,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [activityTypeFilter, setActivityTypeFilter] = useState('all')
+  const [selectedEvent, setSelectedEvent] = useState(null)
   const itemsPerPage = 20
 
   // Activity tab intentionally excludes distributions & contributions since those
@@ -137,8 +138,8 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
       if (type === 'account_created') {
         counts.accounts++
       }
-      // Investment events (exclude drafts and pending - they have their own categories)
-      else if ((type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft' && event.investmentStatus !== 'pending') {
+      // Investment events (exclude drafts, pending, and cancelled - they have their own categories or shouldn't appear)
+      else if ((type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft' && event.investmentStatus !== 'pending' && event.investmentStatus !== 'cancelled') {
         counts.investments++
       }
       // Withdrawal events
@@ -171,7 +172,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
         case 'accounts':
           return type === 'account_created'
         case 'investments':
-          return (type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft' && event.investmentStatus !== 'pending'
+          return (type === 'investment_created' || type === 'investment_submitted' || type === 'investment' || type === 'investment_confirmed' || type === 'investment_rejected') && event.investmentStatus !== 'draft' && event.investmentStatus !== 'pending' && event.investmentStatus !== 'cancelled'
         case 'drafts':
           return event.investmentStatus === 'draft'
         case 'pending':
@@ -372,7 +373,7 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
               <th>Email</th>
               <th>Investment ID</th>
               <th>Amount</th>
-              <th>Date</th>
+              <th>Date Created</th>
               <th>Event ID</th>
               <th>Actions</th>
             </tr>
@@ -406,7 +407,12 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
                   : '-'
                 
                 return (
-                  <tr key={event.id} className={styles.eventRow}>
+                  <tr 
+                    key={event.id} 
+                    className={styles.eventRow}
+                    onClick={() => setSelectedEvent(event)}
+                    title="Click to view raw event data"
+                  >
                     <td>
                       <div className={styles.eventCell}>
                         <span className={styles.eventIcon} style={{ color: meta.color }}>
@@ -423,7 +429,10 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
                     <td>
                       <button
                         className={styles.linkButton}
-                        onClick={() => router.push(`/admin/users/${event.userId}`)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/admin/users/${event.userId}`)
+                        }}
                       >
                         {event.userName}
                       </button>
@@ -433,7 +442,10 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
                       {event.investmentId ? (
                         <button
                           className={styles.linkButton}
-                          onClick={() => router.push(`/admin/investments/${event.investmentId}`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/admin/investments/${event.investmentId}`)
+                          }}
                         >
                           {event.investmentId}
                         </button>
@@ -458,7 +470,10 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
                     <td>
                       <button
                         className={styles.viewButton}
-                        onClick={() => router.push(`/admin/users/${event.userId}`)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/admin/users/${event.userId}`)
+                        }}
                       >
                         View User
                       </button>
@@ -494,6 +509,31 @@ export default function ActivityTab({ users, isLoading, onRefresh }) {
           >
             Next →
           </button>
+        </div>
+      )}
+
+      {/* Raw Event Data Modal */}
+      {selectedEvent && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedEvent(null)}>
+          <div className={styles.eventDetailModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.eventDetailHeader}>
+              <h2 className={styles.eventDetailTitle}>
+                Event Details: {selectedEvent.id}
+              </h2>
+              <button 
+                className={styles.closeButton}
+                onClick={() => setSelectedEvent(null)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.eventDetailBody}>
+              <pre className={styles.jsonPre}>
+                {JSON.stringify(selectedEvent, null, 2)}
+              </pre>
+            </div>
+          </div>
         </div>
       )}
     </div>
