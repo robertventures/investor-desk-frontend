@@ -660,19 +660,23 @@ function ClientContent() {
     clearStoredPaymentMethod(DRAFT_PAYMENT_METHOD_KEY)
   }, [fundingMethod, investment?.id])
 
-  // Force wire transfer for SDIRA accounts (must be declared before any conditional return)
-  useEffect(() => {
-    if ((investment?.accountType || user?.accountType) === 'sdira' && fundingMethod !== 'wire-transfer') {
-      setFundingMethod('wire-transfer')
-    }
-  }, [investment?.accountType, user?.accountType, fundingMethod])
-
   // Force wire transfer for investments above $100,000
   useEffect(() => {
     if (investment?.amount > 100000 && fundingMethod !== 'wire-transfer') {
       setFundingMethod('wire-transfer')
     }
   }, [investment?.amount, fundingMethod])
+
+  // Force ACH for non-IRA investments under $100k (wire transfer not allowed)
+  useEffect(() => {
+    const acctType = investment?.accountType || user?.accountType
+    const isIra = acctType === 'sdira' || acctType === 'ira'
+    const isOver100k = investment?.amount > 100000
+    // If wire is not allowed and user somehow has wire selected, switch to ACH
+    if (!isIra && !isOver100k && fundingMethod === 'wire-transfer') {
+      setFundingMethod('bank-transfer')
+    }
+  }, [investment?.accountType, user?.accountType, investment?.amount, fundingMethod])
 
   // Clear validation errors when relevant inputs change
   useEffect(() => {
@@ -711,7 +715,8 @@ function ClientContent() {
   // Prevent hydration mismatch
   if (!mounted || !user) return <div className={styles.loading}>Loading...</div>
 
-  const isSdira = (investment?.accountType || user?.accountType) === 'sdira'
+  const accountType = investment?.accountType || user?.accountType
+  const isSdira = accountType === 'sdira' || accountType === 'ira'
   const requiresWireTransfer = investment?.amount > 100000
   const agreementExpiresDisplay = (() => {
     if (!agreementData?.expires_at) return ''
@@ -888,7 +893,8 @@ function ClientContent() {
             </p>
           </div>
           <div className={styles.radioGroup}>
-            {!isSdira && !requiresWireTransfer && (
+            {/* Bank Transfer option - shown for SDIRA (any amount) or non-SDIRA under $100k */}
+            {(isSdira || !requiresWireTransfer) && (
               <div 
                 className={styles.radioOption}
                 onClick={(e) => {
@@ -987,156 +993,159 @@ function ClientContent() {
                 )}
               </div>
             )}
-            <div 
-              className={styles.radioOption}
-              onClick={(e) => {
-                // Only trigger if not clicking on nested buttons
-                if (!e.target.closest('button')) {
-                  setFundingMethod('wire-transfer')
-                }
-              }}
-            >
-              <label>
-                <input
-                  type="radio"
-                  name="funding"
-                  value="wire-transfer"
-                  checked={fundingMethod === 'wire-transfer'}
-                  onChange={() => setFundingMethod('wire-transfer')}
-                />
-                <span>Wire Transfer</span>
-              </label>
-                  {fundingMethod === 'wire-transfer' && (
-                <div>
-                  <div className={styles.wireRow}><b>Bank:</b> Bank of America</div>
-                  <div className={styles.wireRow}><b>Bank Location:</b> 7950 Brier Creek Pkwy, Raleigh NC 27617</div>
-                  <div className={styles.wireRow}><b>Routing for Wires:</b> 026009593</div>
-                  <div className={styles.wireRow}><b>Account Name:</b> Robert Ventures Holdings LLC</div>
-                  <div className={styles.wireRow}><b>Account #:</b> 237047915756</div>
-                  <div className={styles.wireRow}><b>RVH Address:</b> 2810 N Church St, Num 28283, Wilmington DE 19802</div>
-                  <div className={styles.wireRow}><b>Office#:</b> 302-404-6341 - Joseph Robert</div>
-                  <div className={styles.wireRow}><b>Email:</b> ir@robertventures.com</div>
-                  <button
-                    type="button"
-                    className={styles.secondaryButton}
-                    style={{ marginTop: '12px' }}
-                    onClick={() => {
-                      const doc = new jsPDF()
-                      
-                      // Title
-                      doc.setFontSize(20)
-                      doc.setFont('helvetica', 'bold')
-                      doc.text('Wire Instructions', 20, 25)
-                      
-                      // Underline
-                      doc.setLineWidth(0.5)
-                      doc.line(20, 28, 90, 28)
-                      
-                      // Content
-                      doc.setFontSize(12)
-                      let y = 45
-                      const lineHeight = 10
-                      
-                      const fields = [
-                        { label: 'Bank:', value: 'Bank of America' },
-                        { label: 'Bank Location:', value: '7950 Brier Creek Pkwy, Raleigh NC 27617' },
-                        { label: 'Routing for Wires:', value: '026009593' },
-                        { label: 'Account Name:', value: 'Robert Ventures Holdings LLC' },
-                        { label: 'Account #:', value: '237047915756' },
-                        { label: 'RVH Address:', value: '2810 N Church St, Num 28283, Wilmington DE 19802' },
-                        { label: 'Office#:', value: '302-404-6341 - Joseph Robert' },
-                        { label: 'Email:', value: 'ir@robertventures.com' }
-                      ]
-                      
-                      fields.forEach(field => {
+            {/* Wire Transfer option - only shown for SDIRA accounts or investments over $100k */}
+            {(isSdira || requiresWireTransfer) && (
+              <div 
+                className={styles.radioOption}
+                onClick={(e) => {
+                  // Only trigger if not clicking on nested buttons
+                  if (!e.target.closest('button')) {
+                    setFundingMethod('wire-transfer')
+                  }
+                }}
+              >
+                <label>
+                  <input
+                    type="radio"
+                    name="funding"
+                    value="wire-transfer"
+                    checked={fundingMethod === 'wire-transfer'}
+                    onChange={() => setFundingMethod('wire-transfer')}
+                  />
+                  <span>Wire Transfer</span>
+                </label>
+                    {fundingMethod === 'wire-transfer' && (
+                  <div>
+                    <div className={styles.wireRow}><b>Bank:</b> Bank of America</div>
+                    <div className={styles.wireRow}><b>Bank Location:</b> 7950 Brier Creek Pkwy, Raleigh NC 27617</div>
+                    <div className={styles.wireRow}><b>Routing for Wires:</b> 026009593</div>
+                    <div className={styles.wireRow}><b>Account Name:</b> Robert Ventures Holdings LLC</div>
+                    <div className={styles.wireRow}><b>Account #:</b> 237047915756</div>
+                    <div className={styles.wireRow}><b>RVH Address:</b> 2810 N Church St, Num 28283, Wilmington DE 19802</div>
+                    <div className={styles.wireRow}><b>Office#:</b> 302-404-6341 - Joseph Robert</div>
+                    <div className={styles.wireRow}><b>Email:</b> ir@robertventures.com</div>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      style={{ marginTop: '12px' }}
+                      onClick={() => {
+                        const doc = new jsPDF()
+                        
+                        // Title
+                        doc.setFontSize(20)
                         doc.setFont('helvetica', 'bold')
-                        doc.text(field.label, 20, y)
-                        doc.setFont('helvetica', 'normal')
-                        const labelWidth = doc.getTextWidth(field.label) + 3
-                        doc.text(field.value, 20 + labelWidth, y)
-                        y += lineHeight
-                      })
-                      
-                      doc.save('wire-instructions.pdf')
-                    }}
-                  >
-                    Download PDF Instructions
-                  </button>
-                  
-                  {/* Payout Bank Selection for Wire Transfer with Monthly Payments */}
-                  {investment?.paymentFrequency === 'monthly' && (
-                    <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' }}>
-                      <div className={styles.groupTitle} style={{ marginBottom: '8px' }}>Payout Account</div>
-                      <p className={styles.fundingDescription} style={{ marginBottom: '16px' }}>
-                        Select the bank account where you&apos;d like to receive your monthly earnings
-                      </p>
-                      <div className={styles.bankConnectionSection}>
-                        {availableBanks.length > 0 ? (
-                          <>
-                            <div className={styles.savedBanksGrid}>
-                              {availableBanks.slice(0, 2).map((bank) => (
-                                <div
-                                  key={bank.id}
-                                  className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
-                                  onClick={() => setSelectedPayoutBankId(bank.id)}
-                                >
-                                  <div className={styles.savedBankLeft}>
-                                    <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
-                                      {bank.bankLogo || '🏦'}
-                                    </span>
-                                    <div className={styles.savedBankDetails}>
-                                      <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
-                                      <div className={styles.savedBankAccount}>
-                                        {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
+                        doc.text('Wire Instructions', 20, 25)
+                        
+                        // Underline
+                        doc.setLineWidth(0.5)
+                        doc.line(20, 28, 90, 28)
+                        
+                        // Content
+                        doc.setFontSize(12)
+                        let y = 45
+                        const lineHeight = 10
+                        
+                        const fields = [
+                          { label: 'Bank:', value: 'Bank of America' },
+                          { label: 'Bank Location:', value: '7950 Brier Creek Pkwy, Raleigh NC 27617' },
+                          { label: 'Routing for Wires:', value: '026009593' },
+                          { label: 'Account Name:', value: 'Robert Ventures Holdings LLC' },
+                          { label: 'Account #:', value: '237047915756' },
+                          { label: 'RVH Address:', value: '2810 N Church St, Num 28283, Wilmington DE 19802' },
+                          { label: 'Office#:', value: '302-404-6341 - Joseph Robert' },
+                          { label: 'Email:', value: 'ir@robertventures.com' }
+                        ]
+                        
+                        fields.forEach(field => {
+                          doc.setFont('helvetica', 'bold')
+                          doc.text(field.label, 20, y)
+                          doc.setFont('helvetica', 'normal')
+                          const labelWidth = doc.getTextWidth(field.label) + 3
+                          doc.text(field.value, 20 + labelWidth, y)
+                          y += lineHeight
+                        })
+                        
+                        doc.save('wire-instructions.pdf')
+                      }}
+                    >
+                      Download PDF Instructions
+                    </button>
+                    
+                    {/* Payout Bank Selection for Wire Transfer with Monthly Payments */}
+                    {investment?.paymentFrequency === 'monthly' && (
+                      <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' }}>
+                        <div className={styles.groupTitle} style={{ marginBottom: '8px' }}>Payout Account</div>
+                        <p className={styles.fundingDescription} style={{ marginBottom: '16px' }}>
+                          Select the bank account where you&apos;d like to receive your monthly earnings
+                        </p>
+                        <div className={styles.bankConnectionSection}>
+                          {availableBanks.length > 0 ? (
+                            <>
+                              <div className={styles.savedBanksGrid}>
+                                {availableBanks.slice(0, 2).map((bank) => (
+                                  <div
+                                    key={bank.id}
+                                    className={`${styles.savedBankCard} ${selectedPayoutBankId === bank.id ? styles.selectedBankCard : ''}`}
+                                    onClick={() => setSelectedPayoutBankId(bank.id)}
+                                  >
+                                    <div className={styles.savedBankLeft}>
+                                      <span className={styles.savedBankLogo} style={{ backgroundColor: bank.bankColor ? bank.bankColor + '20' : '#e5e7eb' }}>
+                                        {bank.bankLogo || '🏦'}
+                                      </span>
+                                      <div className={styles.savedBankDetails}>
+                                        <div className={styles.savedBankName}>{bank.display_name || bank.nickname || bank.bank_name || bank.bankName || 'Bank Account'}</div>
+                                        <div className={styles.savedBankAccount}>
+                                          {(bank.account_type || bank.accountType || 'Account').toString().charAt(0).toUpperCase() + (bank.account_type || bank.accountType || 'Account').toString().slice(1)} •••• {bank.last4 || '****'}
+                                        </div>
                                       </div>
                                     </div>
+                                    {selectedPayoutBankId === bank.id && (
+                                      <span className={styles.selectedCheck}>✓</span>
+                                    )}
                                   </div>
-                                  {selectedPayoutBankId === bank.id && (
-                                    <span className={styles.selectedCheck}>✓</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                            <div className={styles.bankActionButtons}>
-                              {availableBanks.length > 2 && (
+                                ))}
+                              </div>
+                              <div className={styles.bankActionButtons}>
+                                {availableBanks.length > 2 && (
+                                  <button
+                                    type="button"
+                                    className={styles.viewAllBanksButton}
+                                    onClick={() => {
+                                      setBankSelectionMode('payout')
+                                      setShowAllBanksModal(true)
+                                    }}
+                                  >
+                                    View All Banks ({availableBanks.length})
+                                  </button>
+                                )}
                                 <button
                                   type="button"
-                                  className={styles.viewAllBanksButton}
-                                  onClick={() => {
-                                    setBankSelectionMode('payout')
-                                    setShowAllBanksModal(true)
-                                  }}
+                                  className={styles.addNewBankButton}
+                                  onClick={handleConnectBankClick}
+                                  disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
                                 >
-                                  View All Banks ({availableBanks.length})
+                                  {!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : '+ Add New Bank'}
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                className={styles.addNewBankButton}
-                                onClick={handleConnectBankClick}
-                                disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
-                              >
-                                {!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : '+ Add New Bank'}
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className={styles.connectBankButton}
-                            onClick={handleConnectBankClick}
-                            disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
-                          >
-                            <span className={styles.connectIcon}>🏦</span>
-                            <span>{!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : 'Connect Payout Account'}</span>
-                          </button>
-                        )}
+                              </div>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.connectBankButton}
+                              onClick={handleConnectBankClick}
+                              disabled={!MANUAL_BANK_ENTRY_ENABLED && !plaid.ready}
+                            >
+                              <span className={styles.connectIcon}>🏦</span>
+                              <span>{!MANUAL_BANK_ENTRY_ENABLED && plaid.isLoading ? 'Loading...' : 'Connect Payout Account'}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Section>
