@@ -795,7 +795,98 @@ export default function ProfileView() {
       // Only send fields supported by the backend ProfileUpdateRequest
       const data = await apiClient.updateUser(userId, payload)
       if (data.success && data.user) {
-        setUserData(data.user)
+        // Merge the response with existing userData to preserve fields not returned by backend
+        const mergedUser = {
+          ...userData,
+          ...data.user,
+          // Preserve nested objects by merging them properly
+          address: {
+            ...(userData?.address || {}),
+            ...(data.user.address || {})
+          },
+          entity: {
+            ...(userData?.entity || {}),
+            ...(data.user.entity || {}),
+            address: {
+              ...(userData?.entity?.address || {}),
+              ...(data.user.entity?.address || {})
+            }
+          },
+          jointHolder: {
+            ...(userData?.jointHolder || {}),
+            ...(data.user.jointHolder || {}),
+            address: {
+              ...(userData?.jointHolder?.address || {}),
+              ...(data.user.jointHolder?.address || {})
+            }
+          },
+          trustedContact: {
+            ...(userData?.trustedContact || {}),
+            ...(data.user.trustedContact || {})
+          },
+          // Preserve investments array
+          investments: data.user.investments || userData?.investments || []
+        }
+        
+        setUserData(mergedUser)
+        
+        // Also update addressForm to keep it in sync for the missing fields check
+        if (activeTab === 'primary-holder' && mergedUser.address) {
+          setAddressForm({
+            street1: mergedUser.address.street1 || '',
+            street2: mergedUser.address.street2 || '',
+            city: mergedUser.address.city || '',
+            state: mergedUser.address.state || '',
+            zip: mergedUser.address.zip || '',
+            country: mergedUser.address.country || 'United States'
+          })
+        }
+        
+        // Sync formData for joint holder tab to update missing fields check
+        if (activeTab === 'joint-holder' && mergedUser.jointHolder) {
+          setFormData(prev => ({
+            ...prev,
+            jointHoldingType: mergedUser.jointHoldingType || prev.jointHoldingType || '',
+            jointHolder: {
+              firstName: mergedUser.jointHolder.firstName || '',
+              lastName: mergedUser.jointHolder.lastName || '',
+              email: mergedUser.jointHolder.email || '',
+              phone: formatPhone(mergedUser.jointHolder.phone || ''),
+              dob: mergedUser.jointHolder.dob || '',
+              ssn: mergedUser.jointHolder.ssn || '',
+              address: {
+                street1: mergedUser.jointHolder.address?.street1 || '',
+                street2: mergedUser.jointHolder.address?.street2 || '',
+                city: mergedUser.jointHolder.address?.city || '',
+                state: mergedUser.jointHolder.address?.state || '',
+                zip: mergedUser.jointHolder.address?.zip || '',
+                country: mergedUser.jointHolder.address?.country || 'United States'
+              }
+            }
+          }))
+        }
+        
+        // Sync formData for entity tab to update missing fields check
+        if (activeTab === 'entity-info' && mergedUser.entity) {
+          setFormData(prev => ({
+            ...prev,
+            entity: {
+              name: mergedUser.entity.name || '',
+              title: mergedUser.entity.title || '',
+              registrationDate: mergedUser.entity.registrationDate || mergedUser.entity.formationDate || '',
+              taxId: mergedUser.entity.taxId || '',
+              address: {
+                street1: mergedUser.entity.address?.street1 || '',
+                street2: mergedUser.entity.address?.street2 || '',
+                city: mergedUser.entity.address?.city || '',
+                state: mergedUser.entity.address?.state || '',
+                zip: mergedUser.entity.address?.zip || '',
+                country: mergedUser.entity.address?.country || 'United States'
+              }
+            }
+          }))
+        }
+        
         setSaveSuccess(true)
         return true
       }
@@ -1024,6 +1115,7 @@ export default function ProfileView() {
         {activeTab === 'joint-holder' && showJointSection && (
           <JointHolderTab
             formData={formData}
+            userData={userData}
             errors={errors}
             showJointSSN={showJointSSN}
             setShowJointSSN={setShowJointSSN}
@@ -1115,8 +1207,41 @@ export default function ProfileView() {
   )
 }
 
+// Helper function to check if a field value is missing/empty
+const isFieldEmpty = (value) => {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'string') return value.trim() === ''
+  return false
+}
+
 // Individual Tab Components
 function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, setShowSSN, maskSSN, handleChange, handleEntityChange, addressForm, setAddressForm, handleAddressFormChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, hasInvestments, shouldDisableFields, isEntityView, formatPhone }) {
+  // Check for missing fields that can be edited even with active investments
+  // Use userData for fields that were originally loaded from the server
+  const missingFields = {
+    firstName: isFieldEmpty(userData?.firstName),
+    lastName: isFieldEmpty(userData?.lastName),
+    email: isFieldEmpty(userData?.email),
+    phoneNumber: isFieldEmpty(userData?.phoneNumber) && isFieldEmpty(userData?.phone),
+    dob: isFieldEmpty(userData?.dob),
+    ssn: isFieldEmpty(userData?.ssn),
+    street1: isFieldEmpty(userData?.address?.street1),
+    street2: isFieldEmpty(userData?.address?.street2), // Optional but editable
+    city: isFieldEmpty(userData?.address?.city),
+    state: isFieldEmpty(userData?.address?.state),
+    zip: isFieldEmpty(userData?.address?.zip),
+  }
+  
+  // Check if there are any missing/editable fields (including optional street2)
+  const hasMissingFields = Object.values(missingFields).some(v => v)
+  
+  // A field should be disabled only if:
+  // - User has investments AND the field already has data (not missing)
+  const shouldDisableField = (fieldName) => {
+    if (!hasInvestments) return false // No investments = all fields editable
+    return !missingFields[fieldName] // Has investments but field is missing = editable
+  }
+
   return (
     <div className={styles.content}>
       {/* Identity Section */}
@@ -1127,33 +1252,39 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
             </h2>
         </div>
         
-        {hasInvestments && (
+        {hasInvestments && !hasMissingFields && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Your profile information is locked because you have pending or active investments.
+          </p>
+        )}
+        
+        {hasInvestments && hasMissingFields && (
+          <p style={{ fontSize: '14px', color: '#2563eb', marginBottom: '16px', fontWeight: '500' }}>
+            ℹ️ Some of your profile information is missing. You can fill in the empty fields below and save your changes.
           </p>
         )}
 
         <div className={styles.subCard}>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
-              <label className={styles.label}>First Name</label>
+              <label className={styles.label}>First Name {missingFields.firstName && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input 
                 className={`${styles.input} ${errors.firstName ? styles.inputError : ''}`} 
                 name="firstName" 
                 value={formData.firstName} 
                 onChange={handleChange} 
-                disabled={shouldDisableFields} 
+                disabled={shouldDisableField('firstName')} 
                 maxLength={100} 
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Last Name</label>
+              <label className={styles.label}>Last Name {missingFields.lastName && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input 
                 className={`${styles.input} ${errors.lastName ? styles.inputError : ''}`} 
                 name="lastName" 
                 value={formData.lastName} 
                 onChange={handleChange} 
-                disabled={shouldDisableFields} 
+                disabled={shouldDisableField('lastName')} 
                 maxLength={100} 
               />
             </div>
@@ -1172,7 +1303,7 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
               </div>
             )}
             <div className={styles.field}>
-              <label className={styles.label}>Date of Birth</label>
+              <label className={styles.label}>Date of Birth {missingFields.dob && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input
                 className={`${styles.input} ${errors.dob ? styles.inputError : ''}`}
                 type="date"
@@ -1181,12 +1312,12 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
                 onChange={handleChange}
                 min={MIN_DOB}
                 max={maxDob}
-                disabled={shouldDisableFields}
+                disabled={shouldDisableField('dob')}
               />
               {errors.dob && <span className={styles.errorText}>{errors.dob}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Social Security Number</label>
+              <label className={styles.label}>Social Security Number {missingFields.ssn && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <div className={styles.inputWrapper}>
                 {/* Only mask SSN if it was loaded from server (matches userData) AND showSSN is false */}
                 {(() => {
@@ -1201,7 +1332,7 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
                       name="ssn" 
                       value={maskSSN(formData.ssn)} 
                       readOnly
-                      disabled={shouldDisableFields}
+                      disabled={shouldDisableField('ssn')}
                       maxLength={11}
                     />
                   ) : (
@@ -1213,7 +1344,7 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
                       onChange={handleChange} 
                       placeholder="123-45-6789"
                       inputMode="numeric"
-                      disabled={shouldDisableFields}
+                      disabled={shouldDisableField('ssn')}
                       maxLength={11}
                     />
                   )
@@ -1225,7 +1356,7 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
                     className={styles.toggleButton}
                     onClick={() => setShowSSN(!showSSN)}
                     aria-label={showSSN ? 'Hide SSN' : 'Show SSN'}
-                    disabled={shouldDisableFields} 
+                    disabled={shouldDisableField('ssn')} 
                   >
                     {showSSN ? 'Hide' : 'Show'}
                   </button>
@@ -1246,17 +1377,17 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
           <h3 className={styles.subSectionTitle}>Contact Details</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
-              <label className={styles.label}>Email</label>
+              <label className={styles.label}>Email {missingFields.email && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input 
                 className={`${styles.input} ${errors.email ? styles.inputError : ''}`} 
                 name="email" 
                 value={formData.email} 
                 onChange={handleChange}
-                disabled={shouldDisableFields} 
+                disabled={shouldDisableField('email')} 
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Phone</label>
+              <label className={styles.label}>Phone {missingFields.phoneNumber && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input 
                 className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`} 
                 type="tel" 
@@ -1264,7 +1395,7 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
                 value={formData.phoneNumber} 
                 onChange={handleChange} 
                 placeholder="(555) 555-5555" 
-                disabled={shouldDisableFields} 
+                disabled={shouldDisableField('phoneNumber')} 
                 maxLength={30} 
               />
             </div>
@@ -1275,51 +1406,51 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
           <h3 className={styles.subSectionTitle}>Primary Address</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
-              <label className={styles.label}>Street Address 1</label>
+              <label className={styles.label}>Street Address 1 {missingFields.street1 && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input
                 className={`${styles.input} ${errors.addressStreet1 ? styles.inputError : ''}`}
                 name="street1"
                 value={addressForm.street1}
                 onChange={handleAddressFormChange}
                 placeholder="123 Main St"
-                disabled={shouldDisableFields}
+                disabled={shouldDisableField('street1')}
                 maxLength={200}
               />
               {errors.addressStreet1 && <span className={styles.errorText}>{errors.addressStreet1}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Street Address 2</label>
+              <label className={styles.label}>Street Address 2 {missingFields.street2 && hasInvestments && <span style={{color: '#6b7280', fontSize: '11px'}}>(Optional)</span>}</label>
               <input
                 className={styles.input}
                 name="street2"
                 value={addressForm.street2}
                 onChange={handleAddressFormChange}
                 placeholder="Apt, Suite, etc. (Optional)"
-                disabled={shouldDisableFields}
+                disabled={shouldDisableField('street2')}
                 maxLength={200}
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>City</label>
+              <label className={styles.label}>City {missingFields.city && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input
                 className={`${styles.input} ${errors.addressCity ? styles.inputError : ''}`}
                 name="city"
                 value={addressForm.city}
                 onChange={handleAddressFormChange}
                 placeholder="New York"
-                disabled={shouldDisableFields}
+                disabled={shouldDisableField('city')}
                 maxLength={100}
               />
               {errors.addressCity && <span className={styles.errorText}>{errors.addressCity}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>State</label>
+              <label className={styles.label}>State {missingFields.state && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <select
                 className={`${styles.input} ${errors.addressState ? styles.inputError : ''}`}
                 name="state"
                 value={addressForm.state}
                 onChange={handleAddressFormChange}
-                disabled={shouldDisableFields}
+                disabled={shouldDisableField('state')}
               >
                 <option value="">Select state</option>
                 {US_STATES.map(s => (
@@ -1329,14 +1460,14 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
               {errors.addressState && <span className={styles.errorText}>{errors.addressState}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>ZIP Code</label>
+              <label className={styles.label}>ZIP Code {missingFields.zip && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <input
                 className={`${styles.input} ${errors.addressZip ? styles.inputError : ''}`}
                 name="zip"
                 value={addressForm.zip}
                 onChange={handleAddressFormChange}
                 placeholder="10001"
-                disabled={shouldDisableFields}
+                disabled={shouldDisableField('zip')}
                 inputMode="numeric"
                 maxLength={5}
               />
@@ -1355,7 +1486,8 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
         </div>
       </section>
 
-      {!shouldDisableFields && (
+      {/* Show save button if no investments OR if there are missing fields to fill */}
+      {(!hasInvestments || hasMissingFields) && (
         <div className={styles.actions}>
           <button
             className={styles.saveButton}
@@ -1371,14 +1503,45 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
   )
 }
 
-function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskSSN, handleJointHolderChange, handleJointAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, hasInvestments, shouldDisableFields }) {
+function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskSSN, handleJointHolderChange, handleJointAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, hasInvestments, shouldDisableFields, userData }) {
+  // Check for missing joint holder fields - use userData to check original server values
+  const jointUserData = userData?.jointHolder
+  const missingJointFields = {
+    jointHoldingType: isFieldEmpty(userData?.jointHoldingType),
+    firstName: isFieldEmpty(jointUserData?.firstName),
+    lastName: isFieldEmpty(jointUserData?.lastName),
+    email: isFieldEmpty(jointUserData?.email),
+    phone: isFieldEmpty(jointUserData?.phone),
+    dob: isFieldEmpty(jointUserData?.dob),
+    ssn: isFieldEmpty(jointUserData?.ssn),
+    street1: isFieldEmpty(jointUserData?.address?.street1),
+    street2: isFieldEmpty(jointUserData?.address?.street2), // Optional but editable
+    city: isFieldEmpty(jointUserData?.address?.city),
+    state: isFieldEmpty(jointUserData?.address?.state),
+    zip: isFieldEmpty(jointUserData?.address?.zip),
+  }
+  
+  const hasMissingJointFields = Object.values(missingJointFields).some(v => v)
+  
+  // A field should be disabled only if user has investments AND field is not missing
+  const shouldDisableJointField = (fieldName) => {
+    if (!hasInvestments) return false
+    return !missingJointFields[fieldName]
+  }
+
   return (
     <div className={styles.content}>
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Joint Holder</h2>
-        {hasInvestments && (
+        {hasInvestments && !hasMissingJointFields && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Joint holder information is locked because you have pending or active investments.
+          </p>
+        )}
+        
+        {hasInvestments && hasMissingJointFields && (
+          <p style={{ fontSize: '14px', color: '#2563eb', marginBottom: '16px', fontWeight: '500' }}>
+            ℹ️ Some joint holder information is missing. You can fill in the empty fields below and save your changes.
           </p>
         )}
 
@@ -1386,13 +1549,13 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <h3 className={styles.subSectionTitle}>Joint Details</h3>
           <div className={styles.compactGrid}>
             <div className={`${styles.field} ${styles.fullRow}`}>
-              <label className={styles.label}>Joint Holder Relationship</label>
+              <label className={styles.label}>Joint Holder Relationship {missingJointFields.jointHoldingType && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <select
                 className={`${styles.input} ${errors.jointHoldingType ? styles.inputError : ''}`}
                 name="jointHoldingType"
                 value={formData.jointHoldingType || ''}
                 onChange={handleJointHolderChange}
-                disabled={shouldDisableFields}
+                disabled={shouldDisableJointField('jointHoldingType')}
               >
                 <option value="">Select relationship to primary holder</option>
                 <option value="spouse">Spouse</option>
@@ -1409,20 +1572,20 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <h3 className={styles.subSectionTitle}>Personal Information</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
-              <label className={styles.label}>First Name</label>
-              <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} disabled={shouldDisableFields} maxLength={100} />
+              <label className={styles.label}>First Name {missingJointFields.firstName && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointFirstName ? styles.inputError : ''}`} name="firstName" value={formData.jointHolder?.firstName || ''} onChange={handleJointHolderChange} disabled={shouldDisableJointField('firstName')} maxLength={100} />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Last Name</label>
-              <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} disabled={shouldDisableFields} maxLength={100} />
+              <label className={styles.label}>Last Name {missingJointFields.lastName && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointLastName ? styles.inputError : ''}`} name="lastName" value={formData.jointHolder?.lastName || ''} onChange={handleJointHolderChange} disabled={shouldDisableJointField('lastName')} maxLength={100} />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Date of Birth</label>
-              <input className={`${styles.input} ${errors.jointDob ? styles.inputError : ''}`} type="date" name="dob" value={formData.jointHolder?.dob || ''} onChange={handleJointHolderChange} min={MIN_DOB} max={maxDob} disabled={shouldDisableFields} />
+              <label className={styles.label}>Date of Birth {missingJointFields.dob && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointDob ? styles.inputError : ''}`} type="date" name="dob" value={formData.jointHolder?.dob || ''} onChange={handleJointHolderChange} min={MIN_DOB} max={maxDob} disabled={shouldDisableJointField('dob')} />
               {errors.jointDob && <span className={styles.errorText}>{errors.jointDob}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Social Security Number</label>
+              <label className={styles.label}>Social Security Number {missingJointFields.ssn && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
               <div className={styles.inputWrapper}>
                 <input 
                   className={`${styles.input} ${styles.inputWithToggle} ${errors.jointSsn ? styles.inputError : ''}`}
@@ -1430,8 +1593,8 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                   name="ssn" 
                   value={showJointSSN ? (formData.jointHolder?.ssn || '') : maskSSN(formData.jointHolder?.ssn || '')} 
                   onChange={handleJointHolderChange}
-                  readOnly={!showJointSSN || hasInvestments}
-                  disabled={shouldDisableFields}
+                  readOnly={!showJointSSN && !missingJointFields.ssn}
+                  disabled={shouldDisableJointField('ssn')}
                   placeholder="123-45-6789"
                   maxLength={30}
                 />
@@ -1440,7 +1603,7 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
                   className={styles.toggleButton}
                   onClick={() => setShowJointSSN(!showJointSSN)}
                   aria-label={showJointSSN ? 'Hide SSN' : 'Show SSN'}
-                  disabled={shouldDisableFields}
+                  disabled={shouldDisableJointField('ssn')}
                 >
                   {showJointSSN ? 'Hide' : 'Show'}
                 </button>
@@ -1453,12 +1616,12 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <h3 className={styles.subSectionTitle}>Contact Information</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
-              <label className={styles.label}>Email</label>
-              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} disabled={shouldDisableFields} maxLength={255} />
+              <label className={styles.label}>Email {missingJointFields.email && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointEmail ? styles.inputError : ''}`} name="email" value={formData.jointHolder?.email || ''} onChange={handleJointHolderChange} disabled={shouldDisableJointField('email')} maxLength={255} />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Phone</label>
-              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" disabled={shouldDisableFields} maxLength={30} />
+              <label className={styles.label}>Phone {missingJointFields.phone && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointPhone ? styles.inputError : ''}`} type="tel" name="phone" value={formData.jointHolder?.phone || ''} onChange={handleJointHolderChange} placeholder="(555) 555-5555" disabled={shouldDisableJointField('phone')} maxLength={30} />
             </div>
           </div>
         </div>
@@ -1471,22 +1634,22 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
           <h3 className={styles.subSectionTitle}>Legal Address</h3>
           <div className={styles.compactGrid}>
             <div className={styles.field}>
-              <label className={styles.label}>Street Address 1</label>
-              <input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} placeholder="123 Main St" disabled={shouldDisableFields} maxLength={200} />
+              <label className={styles.label}>Street Address 1 {missingJointFields.street1 && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointStreet1 ? styles.inputError : ''}`} name="street1" value={formData.jointHolder?.address?.street1 || ''} onChange={handleJointAddressChange} placeholder="123 Main St" disabled={shouldDisableJointField('street1')} maxLength={200} />
               {errors.jointStreet1 && <span className={styles.errorText}>{errors.jointStreet1}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Street Address 2</label>
-              <input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} placeholder="Apt, Suite, etc. (Optional)" disabled={shouldDisableFields} maxLength={200} />
+              <label className={styles.label}>Street Address 2 {missingJointFields.street2 && hasInvestments && <span style={{color: '#6b7280', fontSize: '11px'}}>(Optional)</span>}</label>
+              <input className={styles.input} name="street2" value={formData.jointHolder?.address?.street2 || ''} onChange={handleJointAddressChange} placeholder="Apt, Suite, etc. (Optional)" disabled={shouldDisableJointField('street2')} maxLength={200} />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>City</label>
-              <input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} placeholder="New York" disabled={shouldDisableFields} maxLength={100} />
+              <label className={styles.label}>City {missingJointFields.city && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointCity ? styles.inputError : ''}`} name="city" value={formData.jointHolder?.address?.city || ''} onChange={handleJointAddressChange} placeholder="New York" disabled={shouldDisableJointField('city')} maxLength={100} />
               {errors.jointCity && <span className={styles.errorText}>{errors.jointCity}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>State</label>
-              <select className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} disabled={shouldDisableFields}>
+              <label className={styles.label}>State {missingJointFields.state && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <select className={`${styles.input} ${errors.jointState ? styles.inputError : ''}`} name="state" value={formData.jointHolder?.address?.state || ''} onChange={handleJointAddressChange} disabled={shouldDisableJointField('state')}>
                 <option value="">Select state</option>
                 {US_STATES.map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -1495,8 +1658,8 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
               {errors.jointState && <span className={styles.errorText}>{errors.jointState}</span>}
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>ZIP Code</label>
-              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" disabled={shouldDisableFields} inputMode="numeric" maxLength={5} />
+              <label className={styles.label}>ZIP Code {missingJointFields.zip && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
+              <input className={`${styles.input} ${errors.jointZip ? styles.inputError : ''}`} name="zip" value={formData.jointHolder?.address?.zip || ''} onChange={handleJointAddressChange} placeholder="10001" disabled={shouldDisableJointField('zip')} inputMode="numeric" maxLength={5} />
               {errors.jointZip && <span className={styles.errorText}>{errors.jointZip}</span>}
             </div>
             <div className={styles.field}>
@@ -1507,21 +1670,45 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
         </div>
       </section>
 
-      <div className={styles.actions}>
-        <button
-          className={styles.saveButton}
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Saving...' : 'Save Changes'}
-        </button>
-        {saveSuccess && <span className={styles.success}>Saved!</span>}
-      </div>
+      {/* Show save button if no investments OR if there are missing fields */}
+      {(!hasInvestments || hasMissingJointFields) && (
+        <div className={styles.actions}>
+          <button
+            className={styles.saveButton}
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+          {saveSuccess && <span className={styles.success}>Saved!</span>}
+        </div>
+      )}
     </div>
   )
 }
 
 function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, maskSSN, handleEntityChange, handleEntityAddressChange, handleSave, isSaving, saveSuccess, MIN_DOB, maxDob, maxToday, entityLocked, hasInvestments }) {
+  // Check for missing entity fields - use userData to check original server values
+  const entityUserData = userData?.entity
+  const missingEntityFields = {
+    name: isFieldEmpty(entityUserData?.name),
+    registrationDate: isFieldEmpty(entityUserData?.registrationDate) && isFieldEmpty(entityUserData?.formationDate),
+    taxId: isFieldEmpty(entityUserData?.taxId),
+    street1: isFieldEmpty(entityUserData?.address?.street1),
+    street2: isFieldEmpty(entityUserData?.address?.street2), // Optional but editable
+    city: isFieldEmpty(entityUserData?.address?.city),
+    state: isFieldEmpty(entityUserData?.address?.state),
+    zip: isFieldEmpty(entityUserData?.address?.zip),
+  }
+  
+  const hasMissingEntityFields = Object.values(missingEntityFields).some(v => v)
+  
+  // A field should be disabled only if entity is locked AND field is not missing
+  const shouldDisableEntityField = (fieldName) => {
+    if (!entityLocked) return false
+    return !missingEntityFields[fieldName]
+  }
+
   return (
     <div className={styles.content}>
       <section className={styles.section}>
@@ -1529,27 +1716,33 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
         <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
           Information about the entity associated with your investments. Note: Different LLCs require separate accounts with different email addresses.
         </p>
-        {hasInvestments && (
+        {hasInvestments && !hasMissingEntityFields && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Entity information is locked because you have pending or active investments.
           </p>
         )}
+        
+        {hasInvestments && hasMissingEntityFields && (
+          <p style={{ fontSize: '14px', color: '#2563eb', marginBottom: '16px', fontWeight: '500' }}>
+            ℹ️ Some entity information is missing. You can fill in the empty fields below and save your changes.
+          </p>
+        )}
         <div className={styles.compactGrid}>
           <div className={styles.field}>
-            <label className={styles.label}>Entity Name</label>
+            <label className={styles.label}>Entity Name {missingEntityFields.name && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
             <input
               className={`${styles.input} ${errors.entityName ? styles.inputError : ''}`}
               type="text"
               name="name"
               value={formData.entity?.name || ''}
               onChange={handleEntityChange}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('name')}
               maxLength={150}
             />
             {errors.entityName && <span className={styles.errorText}>{errors.entityName}</span>}
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>Formation Date</label>
+            <label className={styles.label}>Formation Date {missingEntityFields.registrationDate && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
             <input
               className={`${styles.input} ${errors.entityRegistrationDate ? styles.inputError : ''}`}
               type="date"
@@ -1558,19 +1751,19 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
               onChange={handleEntityChange}
               min={MIN_DOB}
               max={maxToday}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('registrationDate')}
             />
             {errors.entityRegistrationDate && <span className={styles.errorText}>{errors.entityRegistrationDate}</span>}
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>EIN / Tax ID</label>
+            <label className={styles.label}>EIN / Tax ID {missingEntityFields.taxId && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
             <input
               className={`${styles.input} ${errors.entityTaxId ? styles.inputError : ''}`}
               type="text"
               name="taxId"
               value={formData.entity?.taxId || ''}
               onChange={handleEntityChange}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('taxId')}
               maxLength={30}
             />
             {errors.entityTaxId && <span className={styles.errorText}>{errors.entityTaxId}</span>}
@@ -1578,51 +1771,51 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
         </div>
         <div className={styles.compactGrid}>
           <div className={styles.field}>
-            <label className={styles.label}>Street Address 1</label>
+            <label className={styles.label}>Street Address 1 {missingEntityFields.street1 && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
             <input
               className={`${styles.input} ${errors.entityStreet1 ? styles.inputError : ''}`}
               type="text"
               name="street1"
               value={formData.entity?.address?.street1 || ''}
               onChange={handleEntityAddressChange}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('street1')}
               maxLength={200}
             />
             {errors.entityStreet1 && <span className={styles.errorText}>{errors.entityStreet1}</span>}
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>Street Address 2</label>
+            <label className={styles.label}>Street Address 2 {missingEntityFields.street2 && hasInvestments && <span style={{color: '#6b7280', fontSize: '11px'}}>(Optional)</span>}</label>
             <input
               className={styles.input}
               type="text"
               name="street2"
               value={formData.entity?.address?.street2 || ''}
               onChange={handleEntityAddressChange}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('street2')}
               maxLength={200}
             />
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>City</label>
+            <label className={styles.label}>City {missingEntityFields.city && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
             <input
               className={`${styles.input} ${errors.entityCity ? styles.inputError : ''}`}
               type="text"
               name="city"
               value={formData.entity?.address?.city || ''}
               onChange={handleEntityAddressChange}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('city')}
               maxLength={100}
             />
             {errors.entityCity && <span className={styles.errorText}>{errors.entityCity}</span>}
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>State</label>
+            <label className={styles.label}>State {missingEntityFields.state && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
             <select
               className={`${styles.input} ${errors.entityState ? styles.inputError : ''}`}
               name="state"
               value={formData.entity?.address?.state || ''}
               onChange={handleEntityAddressChange}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('state')}
             >
               <option value="">Select state</option>
               {US_STATES.map(s => (
@@ -1632,14 +1825,14 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
             {errors.entityState && <span className={styles.errorText}>{errors.entityState}</span>}
           </div>
           <div className={styles.field}>
-            <label className={styles.label}>ZIP Code</label>
+            <label className={styles.label}>ZIP Code {missingEntityFields.zip && hasInvestments && <span style={{color: '#2563eb', fontSize: '11px'}}>(Required)</span>}</label>
             <input
               className={`${styles.input} ${errors.entityZip ? styles.inputError : ''}`}
               type="text"
               name="zip"
               value={formData.entity?.address?.zip || ''}
               onChange={handleEntityAddressChange}
-              disabled={entityLocked}
+              disabled={shouldDisableEntityField('zip')}
               inputMode="numeric"
               maxLength={5}
             />
@@ -1659,16 +1852,19 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
         </div>
       </section>
 
-      <div className={styles.actions}>
-        <button
-          className={styles.saveButton}
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? 'Saving...' : 'Save Changes'}
-        </button>
-        {saveSuccess && <span className={styles.success}>Saved!</span>}
-      </div>
+      {/* Show save button if entity is not locked OR if there are missing fields */}
+      {(!entityLocked || hasMissingEntityFields) && (
+        <div className={styles.actions}>
+          <button
+            className={styles.saveButton}
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+          {saveSuccess && <span className={styles.success}>Saved!</span>}
+        </div>
+      )}
     </div>
   )
 }
