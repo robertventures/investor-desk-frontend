@@ -204,6 +204,18 @@ function AdminUserDetailsContent() {
       state: '',
       zip: '',
       country: 'United States'
+    },
+    // IRA Custodian fields (stored in entity object on backend)
+    custodian: {
+      name: '',
+      taxId: '',
+      phone: '',
+      street1: '',
+      street2: '',
+      city: '',
+      state: '',
+      zip: '',
+      country: 'United States'
     }
   })
   const [errors, setErrors] = useState({})
@@ -336,6 +348,18 @@ function AdminUserDetailsContent() {
               state: u.accountType === 'entity' ? (u.address?.state || '') : (u.authorizedRepresentative?.address?.state || ''),
               zip: u.accountType === 'entity' ? (u.address?.zip || '') : (u.authorizedRepresentative?.address?.zip || ''),
               country: u.accountType === 'entity' ? (u.address?.country || 'United States') : (u.authorizedRepresentative?.address?.country || 'United States')
+            },
+            // IRA Custodian data (from entity object when accountType is 'ira')
+            custodian: {
+              name: u.accountType === 'ira' ? (u.entity?.name || '') : '',
+              taxId: u.accountType === 'ira' ? (u.entity?.taxId || '') : '',
+              phone: u.accountType === 'ira' ? (u.entity?.phone || '') : '',
+              street1: u.accountType === 'ira' ? (u.entity?.address?.street1 || '') : '',
+              street2: u.accountType === 'ira' ? (u.entity?.address?.street2 || '') : '',
+              city: u.accountType === 'ira' ? (u.entity?.address?.city || '') : '',
+              state: u.accountType === 'ira' ? (u.entity?.address?.state || '') : '',
+              zip: u.accountType === 'ira' ? (u.entity?.address?.zip || '') : '',
+              country: u.accountType === 'ira' ? (u.entity?.address?.country || 'United States') : 'United States'
             }
           })
       } catch (e) {
@@ -588,17 +612,23 @@ function AdminUserDetailsContent() {
       if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
       return
     }
+    if (name.startsWith('custodian.')) {
+      const field = name.replace('custodian.', '')
+      setForm(prev => ({ ...prev, custodian: { ...prev.custodian, [field]: value } }))
+      if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
+      return
+    }
     setForm(prev => ({ ...prev, [name]: value }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
   }
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    if (name === 'zip' || name === 'jointHolder.zip' || name === 'authorizedRep.zip') {
+    if (name === 'zip' || name === 'jointHolder.zip' || name === 'authorizedRep.zip' || name === 'custodian.zip') {
       setField(name, formatZip(value))
       return
     }
-    if (name === 'phone' || name === 'jointHolder.phone') {
+    if (name === 'phone' || name === 'jointHolder.phone' || name === 'custodian.phone') {
       setField(name, formatPhone(value))
       return
     }
@@ -606,11 +636,11 @@ function AdminUserDetailsContent() {
       setField(name, formatSsn(value))
       return
     }
-    if (name === 'city' || name === 'jointHolder.city' || name === 'authorizedRep.city') {
+    if (name === 'city' || name === 'jointHolder.city' || name === 'authorizedRep.city' || name === 'custodian.city') {
       setField(name, formatCity(value))
       return
     }
-    if (name === 'entityName') {
+    if (name === 'entityName' || name === 'custodian.name') {
       setField(name, formatEntityName(value))
       return
     }
@@ -622,7 +652,8 @@ function AdminUserDetailsContent() {
     }
     if (name === 'street1' || name === 'street2' || 
         name === 'jointHolder.street1' || name === 'jointHolder.street2' ||
-        name === 'authorizedRep.street1' || name === 'authorizedRep.street2') {
+        name === 'authorizedRep.street1' || name === 'authorizedRep.street2' ||
+        name === 'custodian.street1' || name === 'custodian.street2') {
       setField(name, formatStreet(value))
       return
     }
@@ -711,6 +742,18 @@ function AdminUserDetailsContent() {
         state: u.accountType === 'entity' ? (u.address?.state || '') : (u.authorizedRepresentative?.address?.state || ''),
         zip: u.accountType === 'entity' ? (u.address?.zip || '') : (u.authorizedRepresentative?.address?.zip || ''),
         country: u.accountType === 'entity' ? (u.address?.country || 'United States') : (u.authorizedRepresentative?.address?.country || 'United States')
+      },
+      // IRA Custodian data (from entity object when accountType is 'ira')
+      custodian: {
+        name: u.accountType === 'ira' ? (u.entity?.name || '') : '',
+        taxId: u.accountType === 'ira' ? (u.entity?.taxId || '') : '',
+        phone: u.accountType === 'ira' ? (u.entity?.phone || '') : '',
+        street1: u.accountType === 'ira' ? (u.entity?.address?.street1 || '') : '',
+        street2: u.accountType === 'ira' ? (u.entity?.address?.street2 || '') : '',
+        city: u.accountType === 'ira' ? (u.entity?.address?.city || '') : '',
+        state: u.accountType === 'ira' ? (u.entity?.address?.state || '') : '',
+        zip: u.accountType === 'ira' ? (u.entity?.address?.zip || '') : '',
+        country: u.accountType === 'ira' ? (u.entity?.address?.country || 'United States') : 'United States'
       }
     })
     setErrors({})
@@ -787,6 +830,39 @@ function AdminUserDetailsContent() {
               state: form.jointHolder.state,
               zip: form.jointHolder.zip,
               country: form.jointHolder.country
+            }
+          }
+        }
+      } else if (form.accountType === 'ira') {
+        // For IRA accounts, top-level fields are the individual investor
+        // The entity object contains the IRA custodian details
+        payload = {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          phone: normalizePhoneForDB(form.phone || ''),
+          dob: form.dob,
+          ssn: form.ssn,
+          address: {
+            street1: form.street1,
+            street2: form.street2,
+            city: form.city,
+            state: form.state,
+            zip: form.zip,
+            country: form.country
+          },
+          // IRA Custodian data stored in entity object
+          entity: {
+            name: form.custodian.name,
+            taxId: form.custodian.taxId,
+            phone: form.custodian.phone,
+            address: {
+              street1: form.custodian.street1,
+              street2: form.custodian.street2,
+              city: form.custodian.city,
+              state: form.custodian.state,
+              zip: form.custodian.zip,
+              country: form.custodian.country
             }
           }
         }
@@ -1184,7 +1260,11 @@ function AdminUserDetailsContent() {
               </div>
                 </div>
             <div className={styles.grid}>
-              <div><b>Account Type:</b> {form.accountType || '-'}</div>
+              <div><b>Account Type:</b> {(() => {
+                if (!form.accountType) return '-';
+                if (form.accountType === 'ira') return 'SDIRA';
+                return form.accountType.charAt(0).toUpperCase() + form.accountType.slice(1);
+              })()}</div>
               <div>
                 <b>Verified:</b> {user.isVerified ? 'Yes' : 'No'}
               </div>
@@ -1296,6 +1376,63 @@ function AdminUserDetailsContent() {
                 </div>
               </div>
               
+            {/* IRA Custodian Information Subsection */}
+            {form.accountType === 'ira' && (
+              <>
+                <div className={styles.sectionHeader} style={{ marginTop: '32px', borderTop: '1px solid #e5e7eb', paddingTop: '24px' }}>
+                  <h3 className={styles.sectionTitle} style={{ fontSize: '18px', color: '#6b7280' }}>IRA Custodian Information</h3>
+                </div>
+                <div className={styles.grid}>
+                  <div>
+                    <label><b>Custodian Name</b></label>
+                    <input name="custodian.name" value={form.custodian.name} onChange={handleChange} disabled={!isEditing} />
+                    {errors['custodian.name'] && <div className={styles.muted}>{errors['custodian.name']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Custodian Tax ID (EIN)</b></label>
+                    <input name="custodian.taxId" value={form.custodian.taxId} onChange={handleChange} placeholder="12-3456789" disabled={!isEditing} />
+                    {errors['custodian.taxId'] && <div className={styles.muted}>{errors['custodian.taxId']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Custodian Phone</b></label>
+                    <input name="custodian.phone" value={form.custodian.phone} onChange={handleChange} placeholder="(555) 555-5555" disabled={!isEditing} />
+                    {errors['custodian.phone'] && <div className={styles.muted}>{errors['custodian.phone']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Custodian Street Address</b></label>
+                    <input name="custodian.street1" value={form.custodian.street1} onChange={handleChange} disabled={!isEditing} />
+                    {errors['custodian.street1'] && <div className={styles.muted}>{errors['custodian.street1']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Apt or Unit</b></label>
+                    <input name="custodian.street2" value={form.custodian.street2} onChange={handleChange} disabled={!isEditing} />
+                  </div>
+                  <div>
+                    <label><b>City</b></label>
+                    <input name="custodian.city" value={form.custodian.city} onChange={handleChange} disabled={!isEditing} />
+                    {errors['custodian.city'] && <div className={styles.muted}>{errors['custodian.city']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Zip</b></label>
+                    <input name="custodian.zip" value={form.custodian.zip} onChange={handleChange} disabled={!isEditing} />
+                    {errors['custodian.zip'] && <div className={styles.muted}>{errors['custodian.zip']}</div>}
+                  </div>
+                  <div>
+                    <label><b>State</b></label>
+                    <select name="custodian.state" value={form.custodian.state} onChange={handleChange} disabled={!isEditing}>
+                      <option value="">Select state</option>
+                      {US_STATES.map(s => (<option key={s} value={s}>{s}</option>))}
+                    </select>
+                    {errors['custodian.state'] && <div className={styles.muted}>{errors['custodian.state']}</div>}
+                  </div>
+                  <div>
+                    <label><b>Country</b></label>
+                    <input name="custodian.country" value={form.custodian.country} readOnly disabled />
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Entity Information Subsection */}
             {form.accountType === 'entity' && (
               <>
@@ -1596,13 +1733,14 @@ function AdminUserDetailsContent() {
                           <span style={{ color: '#111827', marginLeft: '4px', fontWeight: '500' }}>
                             {(() => {
                               // Derive investment type from user profile data
-                              // Investment objects don't have accountType - it's stored on the user
+                              // Prioritize explicit accountType before inferring from entity/joint data
                               const type = inv.accountType || 
+                                user.accountType ||
                                 (inv.entity || user.entity ? 'entity' : null) ||
                                 (inv.jointHoldingType || user.jointHoldingType ? 'joint' : null) ||
-                                user.accountType ||
                                 'individual';
-                              // Capitalize first letter for display
+                              // Display "SDIRA" for IRA accounts, capitalize others
+                              if (type === 'ira') return 'SDIRA';
                               return type.charAt(0).toUpperCase() + type.slice(1);
                             })()}
                           </span>

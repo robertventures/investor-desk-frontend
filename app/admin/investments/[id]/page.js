@@ -362,7 +362,8 @@ function AdminInvestmentDetailsContent() {
 
     // Account type must match user's account type
     if (user.accountType && form.accountType !== user.accountType) {
-      return `Account type must be ${user.accountType} for this user`
+      const displayType = user.accountType === 'ira' ? 'SDIRA' : user.accountType.charAt(0).toUpperCase() + user.accountType.slice(1)
+      return `Account type must be ${displayType} for this user`
     }
 
     return null // No errors
@@ -747,7 +748,7 @@ function AdminInvestmentDetailsContent() {
                 </select>
                 {isEditing && user?.accountType && form.accountType !== user.accountType && (
                   <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>
-                    ⚠️ User&apos;s account type is {user.accountType}
+                    ⚠️ User&apos;s account type is {user.accountType === 'ira' ? 'SDIRA' : user.accountType.charAt(0).toUpperCase() + user.accountType.slice(1)}
                   </div>
                 )}
               </div>
