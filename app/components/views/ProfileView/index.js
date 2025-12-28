@@ -1232,8 +1232,13 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
     zip: isFieldEmpty(userData?.address?.zip),
   }
   
-  // Check if there are any missing/editable fields (including optional street2)
+  // Check if there are any missing/editable fields (including optional street2) - for save button
   const hasMissingFields = Object.values(missingFields).some(v => v)
+  
+  // Check if there are any missing REQUIRED fields - for showing the info message
+  const hasMissingRequiredFields = missingFields.firstName || missingFields.lastName || 
+    missingFields.email || missingFields.phoneNumber || missingFields.dob || missingFields.ssn ||
+    missingFields.street1 || missingFields.city || missingFields.state || missingFields.zip
   
   // A field should be disabled only if:
   // - User has investments AND the field already has data (not missing)
@@ -1252,13 +1257,13 @@ function PrimaryHolderTab({ formData, setFormData, userData, errors, showSSN, se
             </h2>
         </div>
         
-        {hasInvestments && !hasMissingFields && (
+        {hasInvestments && !hasMissingRequiredFields && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Your profile information is locked because you have pending or active investments.
           </p>
         )}
         
-        {hasInvestments && hasMissingFields && (
+        {hasInvestments && hasMissingRequiredFields && (
           <p style={{ fontSize: '14px', color: '#2563eb', marginBottom: '16px', fontWeight: '500' }}>
             ℹ️ Some of your profile information is missing. You can fill in the empty fields below and save your changes.
           </p>
@@ -1521,7 +1526,14 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
     zip: isFieldEmpty(jointUserData?.address?.zip),
   }
   
+  // For save button - includes optional fields
   const hasMissingJointFields = Object.values(missingJointFields).some(v => v)
+  
+  // For info message - only required fields (excludes street2)
+  const hasMissingRequiredJointFields = missingJointFields.jointHoldingType || missingJointFields.firstName ||
+    missingJointFields.lastName || missingJointFields.email || missingJointFields.phone ||
+    missingJointFields.dob || missingJointFields.ssn || missingJointFields.street1 ||
+    missingJointFields.city || missingJointFields.state || missingJointFields.zip
   
   // A field should be disabled only if user has investments AND field is not missing
   const shouldDisableJointField = (fieldName) => {
@@ -1533,13 +1545,13 @@ function JointHolderTab({ formData, errors, showJointSSN, setShowJointSSN, maskS
     <div className={styles.content}>
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Joint Holder</h2>
-        {hasInvestments && !hasMissingJointFields && (
+        {hasInvestments && !hasMissingRequiredJointFields && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Joint holder information is locked because you have pending or active investments.
           </p>
         )}
         
-        {hasInvestments && hasMissingJointFields && (
+        {hasInvestments && hasMissingRequiredJointFields && (
           <p style={{ fontSize: '14px', color: '#2563eb', marginBottom: '16px', fontWeight: '500' }}>
             ℹ️ Some joint holder information is missing. You can fill in the empty fields below and save your changes.
           </p>
@@ -1701,7 +1713,13 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
     zip: isFieldEmpty(entityUserData?.address?.zip),
   }
   
+  // For save button - includes optional fields
   const hasMissingEntityFields = Object.values(missingEntityFields).some(v => v)
+  
+  // For info message - only required fields (excludes street2)
+  const hasMissingRequiredEntityFields = missingEntityFields.name || missingEntityFields.registrationDate ||
+    missingEntityFields.taxId || missingEntityFields.street1 || missingEntityFields.city ||
+    missingEntityFields.state || missingEntityFields.zip
   
   // A field should be disabled only if entity is locked AND field is not missing
   const shouldDisableEntityField = (fieldName) => {
@@ -1716,13 +1734,13 @@ function EntityInfoTab({ formData, userData, errors, showRepSSN, setShowRepSSN, 
         <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
           Information about the entity associated with your investments. Note: Different LLCs require separate accounts with different email addresses.
         </p>
-        {hasInvestments && !hasMissingEntityFields && (
+        {hasInvestments && !hasMissingRequiredEntityFields && (
           <p style={{ fontSize: '14px', color: '#d97706', marginBottom: '16px', fontWeight: '500' }}>
             ⚠️ Entity information is locked because you have pending or active investments.
           </p>
         )}
         
-        {hasInvestments && hasMissingEntityFields && (
+        {hasInvestments && hasMissingRequiredEntityFields && (
           <p style={{ fontSize: '14px', color: '#2563eb', marginBottom: '16px', fontWeight: '500' }}>
             ℹ️ Some entity information is missing. You can fill in the empty fields below and save your changes.
           </p>
