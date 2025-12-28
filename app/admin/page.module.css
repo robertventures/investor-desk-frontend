@@ -507,6 +507,41 @@
   color: #64748b;
 }
 
+.accountEmailRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copyEmailBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.copyEmailBtn:hover {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.copyEmailBtn:active {
+  transform: scale(0.95);
+}
+
+.copyEmailBtn.copied {
+  color: #22c55e;
+}
+
 .accountEmail {
   font-size: 18px;
   font-weight: 600;

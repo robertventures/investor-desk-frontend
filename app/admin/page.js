@@ -76,6 +76,20 @@ function AdminPageContent() {
   const [savingId, setSavingId] = useState(null)
   const [isDeletingAccounts, setIsDeletingAccounts] = useState(false)
   const [isSeedingAccounts, setIsSeedingAccounts] = useState(false)
+  const [copiedEmail, setCopiedEmail] = useState(null)
+
+  // Handle copy email to clipboard
+  const handleCopyEmail = async (e, email) => {
+    e.stopPropagation() // Prevent card click navigation
+    if (!email) return
+    try {
+      await navigator.clipboard.writeText(email)
+      setCopiedEmail(email)
+      setTimeout(() => setCopiedEmail(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy email:', err)
+    }
+  }
   
   // Initialize account filters from URL search params for persistence across navigation
   const initialAccountsSearch = useMemo(() => searchParams?.get('search') || '', [searchParams])
@@ -1319,7 +1333,25 @@ function AdminPageContent() {
                         </div>
                       </div>
                       <div className={styles.accountCardBody}>
-                        <div className={styles.accountEmail}>{user.email || '-'}</div>
+                        <div className={styles.accountEmailRow}>
+                          <div className={styles.accountEmail}>{user.email || '-'}</div>
+                          <button
+                            className={`${styles.copyEmailBtn} ${copiedEmail === user.email ? styles.copied : ''}`}
+                            onClick={(e) => handleCopyEmail(e, user.email)}
+                            title={copiedEmail === user.email ? 'Copied!' : 'Copy email'}
+                          >
+                            {copiedEmail === user.email ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                              </svg>
+                            ) : (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                              </svg>
+                            )}
+                          </button>
+                        </div>
                         <div className={styles.accountName}>{user.firstName || '-'} {user.lastName || ''}</div>
                         {user.accountType === 'joint' && user.jointHolder?.email && (
                           <div className={styles.accountJointEmail}>Joint: {user.jointHolder.email}</div>
