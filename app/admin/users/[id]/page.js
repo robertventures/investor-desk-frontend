@@ -1373,12 +1373,12 @@ function AdminUserDetailsContent() {
                 </div>
                 <div className={styles.grid}>
                   <div>
-                    <label><b>Custodian Name</b></label>
+                    <label><b>Account Name</b></label>
                     <input name="custodian.name" value={form.custodian.name} onChange={handleChange} disabled={!isEditing} />
                     {errors['custodian.name'] && <div className={styles.muted}>{errors['custodian.name']}</div>}
                   </div>
                   <div>
-                    <label><b>Custodian Tax ID (EIN)</b></label>
+                    <label><b>IRA Tax ID</b></label>
                     <input name="custodian.taxId" value={form.custodian.taxId} onChange={handleChange} placeholder="12-3456789" disabled={!isEditing} />
                     {errors['custodian.taxId'] && <div className={styles.muted}>{errors['custodian.taxId']}</div>}
                   </div>
