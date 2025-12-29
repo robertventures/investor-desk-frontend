@@ -8,7 +8,6 @@ import { calculateInvestmentValue } from '../../../../lib/investmentCalculations
 import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
 import { maskSSN, formatCurrency } from '../../../../lib/formatters.js'
 import { normalizePhoneForDB } from '../../../../lib/validation'
-import { triggerInvestmentComplete } from '../../../../lib/webhooks'
 import styles from './page.module.css'
 import { useUser } from '@/app/contexts/UserContext'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -499,16 +498,6 @@ function AdminUserDetailsContent() {
         alert('Failed to approve investment: ' + (res.error || 'Unknown error'))
         const freshUser = await adminService.getUser(id)
         if (freshUser.success) setUser(freshUser.user)
-      } else {
-        // Trigger investment-complete webhook (fire and forget)
-        triggerInvestmentComplete({
-          email: user.email,
-          phone: user.phone || user.phoneNumber || null,
-          firstName: user.firstName || user.first_name || null,
-          lastName: user.lastName || user.last_name || null,
-        }).catch((err) => {
-          console.warn('Investment complete webhook failed:', err)
-        })
       }
     } catch (error) {
       console.error('Failed to approve investment:', error)

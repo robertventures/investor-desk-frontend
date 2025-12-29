@@ -28,7 +28,6 @@ import {
   persistDraftPaymentMethod,
   readStoredPaymentMethod
 } from '../../lib/paymentMethodPreferences'
-import { triggerInvestmentPending } from '../../lib/webhooks'
 import styles from './page.module.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -1360,16 +1359,6 @@ function ClientContent() {
                 return
               }
               logger.info('Investment submitted successfully! Status changed to PENDING.')
-
-              // Trigger investment-pending webhook (fire and forget)
-              triggerInvestmentPending({
-                email: user.email,
-                phone: user.phone || user.phoneNumber || null,
-                firstName: user.firstName || user.first_name || null,
-                lastName: user.lastName || user.last_name || null,
-              }).catch((err) => {
-                logger.warn('Investment pending webhook failed:', err)
-              })
 
               // If funding was initiated via submit, update the state
               if (submitResponse.investment?.funding) {
