@@ -227,10 +227,10 @@ function AdminInvestmentDetailsContent() {
                 || null
               
               // Extract date fields for the three date columns:
-              // - createdAt: When the transaction record was created
+              // - createdAt: When the activity event was created (use activity event's createdAt first)
               // - submittedAt: When the payment was submitted for processing
               // - receivedAt: When the payment was received by the investor
-              const createdAt = event.transaction?.created_at || event.created_at || event.createdAt || null
+              const createdAt = event.createdAt || event.created_at || event.transaction?.created_at || null
               const submittedAt = event.transaction?.submitted_at || event.submitted_at || event.submittedAt || null
               const receivedAt = event.transaction?.received_at || event.received_at || event.receivedAt || null
               const eventDate = event.event_date || event.eventDate || null
