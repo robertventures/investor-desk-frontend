@@ -240,38 +240,6 @@ export default function InvestmentDetailsContent({ investmentId }) {
 
   return (
     <div className={styles.content}>
-      {/* Investment Identifiers */}
-      <div className={styles.identifierSection}>
-        <div className={styles.identifierItem}>
-          <span className={styles.identifierLabel}>ID</span>
-          <div className={styles.identifierWithCopy}>
-            <span className={styles.identifierValue}>{investmentId}</span>
-            <button 
-              onClick={() => copyToClipboard(investmentId)}
-              className={styles.copyButton}
-            >
-              📋
-            </button>
-          </div>
-        </div>
-        <div className={styles.identifierItem}>
-          <span className={styles.identifierLabel}>CONTACT ID</span>
-          <div className={styles.identifierWithCopy}>
-            <span className={styles.identifierValue}>{userData.id}</span>
-            <button 
-              onClick={() => copyToClipboard(userData.id)}
-              className={styles.copyButton}
-            >
-              📋
-            </button>
-          </div>
-        </div>
-        <div className={styles.identifierItem}>
-          <span className={styles.identifierLabel}>SIGNATURE DATE</span>
-          <span className={styles.identifierValue}>{formatDate(investmentData.confirmedAt)}</span>
-        </div>
-      </div>
-
       {/* Tabs - Always show Investment Info and Activity; include Withdrawal when available */}
       <div className={styles.tabs}>
         <button 

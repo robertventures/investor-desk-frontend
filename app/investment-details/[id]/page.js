@@ -61,7 +61,7 @@ export default function InvestmentDetailsPage() {
           </button>
           <div className={styles.titleSection}>
             <div className={styles.icon}>📈</div>
-            <h1 className={styles.title}>INVESTMENT DETAILS</h1>
+            <h1 className={styles.title}>INVESTMENT {id}</h1>
           </div>
         </div>
         <InvestmentDetailsContent investmentId={id} />

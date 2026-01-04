@@ -99,6 +99,7 @@
   color: #1a1a1a;
   margin: var(--space-6) 0 var(--space-4) 0;
 }
+
 .transactionsWrapper {
   margin-top: var(--space-6);
 }
@@ -106,7 +107,7 @@
 .investmentsList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 16px;
 }
 
 .investmentCard {
@@ -114,12 +115,12 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 20px 24px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   min-height: 100px;
 }
 
@@ -166,6 +167,8 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
 }
 
 .compactMetric {
@@ -182,17 +185,15 @@
 }
 
 .compactLabel {
-  font-size: 12px;
-  color: var(--color-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .compactValue {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #111827;
 }
 
 /* Right-aligned action area (e.g., Resume / Delete) */
@@ -216,14 +217,9 @@
 }
 
 .investmentBadge {
-  display: inline-block;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
+  color: #111827;
 }
 
 .statusBadge {
@@ -252,16 +248,39 @@
   color: #0c4a6e;
 }
 
-/* Draft status badge (yellow like locked) */
+/* Draft status badge (blue to differentiate from locked) */
 .statusBadge.draft {
-  background: #fef3c7;
-  color: #92400e;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .viewDetails {
   font-size: 14px;
-  color: var(--color-accent);
+  color: #2563eb;
   font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.viewDetails:hover {
+  color: #1d4ed8;
+}
+
+.deleteDraftBtn {
+  background: none;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteDraftBtn:hover {
+  background: #ef4444;
+  color: white;
 }
 
 @media (max-width: 1024px) {
@@ -283,6 +302,10 @@
   .portfolioTitle {
     font-size: 22px;
   }
+  .investmentsTitle {
+    font-size: 22px;
+    margin: var(--space-4) 0 var(--space-3) 0;
+  }
   .metricValue {
     font-size: 20px;
   }
@@ -293,8 +316,8 @@
   }
   
   .investmentCard {
-    padding: 16px 20px;
-    gap: 10px;
+    padding: 20px;
+    gap: 0;
   }
   
   .cardRow {
@@ -308,49 +331,67 @@
     margin: 0 12px;
   }
   
-  .cardActions {
-    align-items: center;
-  }
-  
-  /* Improve mobile layout for investment card bottom row */
-  .cardBottom {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .cardBottom .compactMetric {
-    flex: 1 1 100%;
-  }
-  /* Make Investment ID span full width */
-  .cardBottom .compactMetric:first-child {
-    flex-basis: 100%;
-  }
-  /* Ensure long IDs wrap nicely on small screens */
-  .cardBottom .compactMetric:first-child .compactValue {
-    word-break: break-all;
-  }
-  /* Move View Details to its own line and align right */
-  .viewDetails {
-    width: 100%;
-    text-align: right;
-  }
   /* Keep header row so status badge stays on the right */
   .cardTop {
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-start;
     gap: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
   }
+  
   .statusBadge {
-    align-self: auto;
-    margin-top: 2px;
+    align-self: flex-start;
+    margin-top: 0;
   }
+  
+  /* Improve mobile layout for investment card bottom row */
+  .cardBottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid #f0f0f0;
+  }
+  
+  .cardBottom .compactMetric {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 0;
+  }
+  
+  .cardBottom .compactMetric:first-of-type {
+    padding-top: 0;
+  }
+  
+  .cardBottom .compactMetric:last-of-type {
+    padding-bottom: 0;
+  }
+  
+  /* Ensure long IDs wrap nicely on small screens */
+  .cardBottom .compactMetric .compactValue {
+    word-break: break-all;
+    text-align: right;
+  }
+  
   /* Actions area on mobile */
   .cardActions {
     width: 100%;
     justify-content: space-between;
     margin-left: 0;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid #f0f0f0;
   }
+  
+  /* When only one action (no delete button), align to the right */
+  .cardActions:not(:has(.deleteDraftBtn)) {
+    justify-content: flex-end;
+  }
+  
   .cardActions .viewDetails {
     width: auto;
     text-align: right;

@@ -1,0 +1,223 @@
+.investmentCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100px;
+}
+
+.investmentCard:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.cardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.amountLabel {
+  font-size: 12px;
+  color: var(--color-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.investmentAmount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.investmentType {
+  font-size: 14px;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.cardMiddle {
+  display: flex;
+  gap: 48px;
+  width: 100%;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.compactMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.compactLabel {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.compactValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Right-aligned action area (e.g., Resume / Delete) */
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.statusBadge {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.statusBadge.locked {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge.available {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Withdrawn status badge (blue) */
+.statusBadge.withdrawn {
+  background: #e0f2fe;
+  color: #0c4a6e;
+}
+
+/* Draft status badge (blue to differentiate from locked) */
+.statusBadge.draft {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.viewDetails {
+  font-size: 14px;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.viewDetails:hover {
+  color: #1d4ed8;
+}
+
+.deleteDraftBtn {
+  background: none;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteDraftBtn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .investmentCard {
+    padding: 20px;
+    gap: 0;
+  }
+  
+  /* Keep header row so status badge stays on the right */
+  .cardTop {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+  
+  .statusBadge {
+    align-self: flex-start;
+    margin-top: 0;
+  }
+  
+  /* Metrics row on mobile */
+  .cardMiddle {
+    flex-direction: column;
+    gap: 0;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid #f0f0f0;
+  }
+  
+  .cardMiddle .compactMetric {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 0;
+  }
+  
+  .cardMiddle .compactMetric:first-of-type {
+    padding-top: 0;
+  }
+  
+  .cardMiddle .compactMetric:last-of-type {
+    padding-bottom: 0;
+  }
+  
+  /* Ensure long values wrap nicely on small screens */
+  .cardMiddle .compactMetric .compactValue {
+    word-break: break-all;
+    text-align: right;
+  }
+  
+  /* Actions area on mobile */
+  .cardActions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 16px;
+  }
+  
+  /* When only one action (no delete button), align to the right */
+  .cardActions:not(:has(.deleteDraftBtn)) {
+    justify-content: flex-end;
+  }
+  
+  .cardActions .viewDetails {
+    width: auto;
+    text-align: right;
+  }
+}

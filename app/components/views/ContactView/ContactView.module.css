@@ -224,6 +224,10 @@
     padding: 20px;
   }
 
+  .title {
+    font-size: 22px;
+  }
+
   .fieldGrid {
     grid-template-columns: 1fr;
     gap: 16px;

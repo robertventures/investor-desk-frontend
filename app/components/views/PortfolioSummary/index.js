@@ -6,6 +6,7 @@ import { apiClient } from '../../../../lib/apiClient'
 import { useUser } from '../../../contexts/UserContext'
 import styles from './PortfolioSummary.module.css'
 import TransactionsList from '../../ui/TransactionsList'
+import InvestmentCard from '../../ui/InvestmentCard'
 import { calculateInvestmentValue, formatCurrency, formatDate, getInvestmentStatus } from '../../../../lib/investmentCalculations.js'
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -438,6 +439,22 @@ export default function PortfolioSummary() {
         </div>
       </div>
       
+      {/* Investments Section */}
+      {portfolioData.investments.length > 0 && (
+        <div className={styles.investmentsSection}>
+          <h2 className={styles.investmentsTitle}>YOUR INVESTMENTS</h2>
+          <div className={styles.investmentsList}>
+            {portfolioData.investments.map(inv => (
+              <InvestmentCard 
+                key={inv.id} 
+                investment={inv} 
+                onDelete={() => refreshUser && refreshUser()}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Activity embedded on main dashboard with pagination */}
       <div className={styles.transactionsWrapper}>
         <h2 className={styles.investmentsTitle}>ACTIVITY</h2>

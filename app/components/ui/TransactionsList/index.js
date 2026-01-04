@@ -2,7 +2,6 @@
 import { useEffect, useState, useMemo, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '../../../contexts/UserContext'
-import { apiClient } from '../../../../lib/apiClient'
 import styles from './TransactionsList.module.css'
 import { formatCurrency } from '../../../../lib/formatters.js'
 import { formatDateForDisplay } from '../../../../lib/dateUtils.js'
@@ -71,7 +70,7 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
   const itemsPerPage = 5
   
   // PERFORMANCE FIX: Use UserContext instead of fetching user data again
-  const { userData: user, loading, refreshUser, loadInvestments, loadActivity } = useUser()
+  const { userData: user, loading } = useUser()
 
   useEffect(() => {
     setMounted(true)
@@ -200,56 +199,6 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
 
           const meta = eventMeta(ev, { isDraftInvestment })
           
-          const handleResumeDraft = (e) => {
-            e.stopPropagation()
-            if (ev.investmentId) {
-              try {
-                localStorage.setItem('currentInvestmentId', String(ev.investmentId))
-              } catch {}
-              router.push('/investment')
-            }
-          }
-          
-          const handleDeleteDraft = async (e) => {
-            e.stopPropagation()
-            if (!confirm('Delete this draft? This cannot be undone.')) return
-            if (!ev.investmentId) return
-            
-            try {
-              if (typeof window === 'undefined') return
-              
-              const userId = localStorage.getItem('currentUserId')
-              if (!userId) {
-                alert('User session not found')
-                return
-              }
-              
-              const data = await apiClient.deleteInvestment(userId, ev.investmentId)
-              if (!data.success) {
-                alert(data.error || 'Failed to delete draft')
-                return
-              }
-              
-              // Clear from localStorage if this was the current investment
-              const currentInvestmentId = localStorage.getItem('currentInvestmentId')
-              if (currentInvestmentId === String(ev.investmentId)) {
-                localStorage.removeItem('currentInvestmentId')
-              }
-              
-              // Reload only investments and activity data (not full user profile)
-              // This prevents a full page rerender and is more efficient
-              if (loadInvestments && loadActivity) {
-                await Promise.all([loadInvestments(), loadActivity()])
-              } else if (refreshUser) {
-                // Fallback to full refresh if lazy loaders not available
-                await refreshUser()
-              }
-            } catch (e) {
-              console.error('Failed to delete draft', e)
-              alert('Failed to delete draft')
-            }
-          }
-          
           return (
             <div className={styles.event} key={ev.id} onClick={() => { if (expandable) setExpandedId(prev => prev === ev.id ? null : ev.id) }} style={{ cursor: expandable ? 'pointer' : 'default' }}>
               <div className={`${styles.icon} ${meta.iconClass}`}>{meta.icon}</div>
@@ -290,21 +239,6 @@ const TransactionsList = memo(function TransactionsList({ limit = null, showView
                   <div className={`${styles.amount} ${amountClass}`}>
                     {formatCurrency(ev.amount || 0)}
                   </div>
-                )}
-                {isDraftInvestment && (
-                  <>
-                    <div className={styles.resumeDraft} onClick={handleResumeDraft}>
-                      Resume Draft →
-                    </div>
-                    {isExpanded && (
-                      <button
-                        className={styles.deleteDraft}
-                        onClick={handleDeleteDraft}
-                      >
-                        Delete Draft
-                      </button>
-                    )}
-                  </>
                 )}
               </div>
             </div>
