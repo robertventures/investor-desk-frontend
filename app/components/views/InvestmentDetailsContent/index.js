@@ -140,14 +140,7 @@ export default function InvestmentDetailsContent({ investmentId }) {
     setShowWithdrawConfirm(false)
     
     try {
-      const res = await fetch('/api/withdrawals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userData.id, investmentId: investmentData.id }),
-        credentials: 'include'
-      })
-      
-      const data = await res.json()
+      const data = await apiClient.requestWithdrawal(investmentData.id)
       
       if (data.success) {
         const wd = data.withdrawal

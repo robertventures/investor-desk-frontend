@@ -11,7 +11,7 @@ export default function InvestmentsView() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
-  const { userData, refreshUser } = useUser()
+  const { userData, refreshUser, loadInvestments } = useUser()
   const [portfolioData, setPortfolioData] = useState({
     investments: []
   })
@@ -145,6 +145,13 @@ export default function InvestmentsView() {
     }
   }, [searchParams, userData, refreshUser])
 
+  // Handler for when a draft is deleted - refresh investments data
+  const handleDraftDeleted = useCallback(async () => {
+    // Refresh investments from API - this updates the context
+    // and triggers loadData via the userData dependency
+    await loadInvestments()
+  }, [loadInvestments])
+
   useEffect(() => {
     setMounted(true)
     loadData()
@@ -191,7 +198,7 @@ export default function InvestmentsView() {
               <InvestmentCard 
                 key={inv.id} 
                 investment={inv} 
-                onDelete={loadData}
+                onDelete={handleDraftDeleted}
               />
             ))}
           </div>
