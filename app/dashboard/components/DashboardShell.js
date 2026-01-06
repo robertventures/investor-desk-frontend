@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useUser } from '@/app/contexts/UserContext'
+import BankReconnectOverlay from '@/app/components/ui/BankReconnectOverlay'
 import styles from '../page.module.css'
 
 const SECTION_ROUTES = {
@@ -17,9 +18,12 @@ export default function DashboardShell({ children }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { userData, loading, loadInvestments, loadActivity } = useUser()
+  const { userData, loading, loadInvestments, loadActivity, refreshUser } = useUser()
   const [ready, setReady] = useState(false)
   const hasRedirectedRef = useRef(false)
+  
+  // Bank reconnection overlay - controlled by backend-provided hasBankConnectionIssue field
+  const [showBankReconnectOverlay, setShowBankReconnectOverlay] = useState(false)
 
   // Backward compatibility for legacy query parameters (?section=profile&tab=banking)
   useEffect(() => {
@@ -95,6 +99,45 @@ export default function DashboardShell({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, userData?.id])
 
+  // Sync bank reconnection overlay with backend-provided hasBankConnectionIssue field
+  // Opens overlay when issue detected, closes when resolved (e.g., after refreshUser)
+  // Note: We intentionally exclude `userData` from deps to prevent reopening after user dismisses
+  useEffect(() => {
+    if (!ready || !userData) return
+    
+    if (userData.hasBankConnectionIssue) {
+      console.log('[DashboardShell] Bank connection issue detected:', userData.disconnectedBankName)
+      setShowBankReconnectOverlay(true)
+    } else {
+      // Close overlay if issue has been resolved (e.g., after successful reconnection)
+      setShowBankReconnectOverlay(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, userData?.hasBankConnectionIssue])
+  
+  // Handler for dismissing the overlay without reconnecting
+  const handleDismissOverlay = useCallback(() => {
+    console.log('[DashboardShell] User dismissed bank reconnection overlay')
+    setShowBankReconnectOverlay(false)
+  }, [])
+
+  // Handler for successful bank reconnection
+  const handleBankReconnected = useCallback(async (method) => {
+    console.log('[DashboardShell] Bank reconnected successfully:', method)
+    
+    // Refresh user data to get updated hasBankConnectionIssue from backend
+    try {
+      await refreshUser?.()
+      // The overlay will automatically close when userData.hasBankConnectionIssue becomes false
+      // But we also close it immediately for better UX
+      setShowBankReconnectOverlay(false)
+    } catch (err) {
+      console.error('[DashboardShell] Failed to refresh user after reconnection:', err)
+      // Assume success and close overlay anyway
+      setShowBankReconnectOverlay(false)
+    }
+  }, [refreshUser])
+
   if (!ready || loading) {
     return (
       <div className={styles.main}>
@@ -105,5 +148,15 @@ export default function DashboardShell({ children }) {
     )
   }
 
-  return children
+  return (
+    <>
+      {children}
+      <BankReconnectOverlay
+        isOpen={showBankReconnectOverlay}
+        onReconnected={handleBankReconnected}
+        onDismiss={handleDismissOverlay}
+        bankName={userData?.disconnectedBankName}
+      />
+    </>
+  )
 }
