@@ -569,6 +569,9 @@ export function useAdminData() {
       
       const response = await adminService.getDisconnectedPaymentMethods()
       
+      // Debug: Log the raw backend response
+      logger.log('[DisconnectedBanks] Backend response from /api/admin/payment-methods/disconnected:', response)
+      
       if (response.success) {
         // Group by user_id since a user might have multiple disconnected payment methods
         const userMap = new Map()

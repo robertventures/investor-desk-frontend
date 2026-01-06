@@ -5,10 +5,38 @@ import { useRouter } from 'next/navigation'
 import { apiClient } from '../../../../lib/apiClient'
 import styles from './AccountCreationForm.module.css'
 
+// Format phone number as (XXX) XXX-XXXX for display
+const formatPhone = (value = '') => {
+  const digits = value.replace(/\D/g, '').slice(0, 10)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
+// Normalize phone number to E.164 format for database storage (+1XXXXXXXXXX)
+const normalizePhoneForDB = (value = '') => {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length === 10) {
+    return `+1${digits}`
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+${digits}`
+  }
+  return value
+}
+
+// Validate US phone number (10 digits, area code starts with 2-9)
+const isValidUSPhone = (value = '') => {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length !== 10) return false
+  return /^[2-9][0-9]{9}$/.test(digits)
+}
+
 export default function AccountCreationForm() {
   const router = useRouter()
   const [form, setForm] = useState({
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: ''
   })
@@ -44,8 +72,15 @@ export default function AccountCreationForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    let normalizedValue = value
+    
     // Normalize email to lowercase to prevent case-sensitivity issues
-    const normalizedValue = name === 'email' ? value.toLowerCase() : value
+    if (name === 'email') {
+      normalizedValue = value.toLowerCase()
+    } else if (name === 'phoneNumber') {
+      normalizedValue = formatPhone(value)
+    }
+    
     setForm(prev => ({ ...prev, [name]: normalizedValue }))
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }))
     if (accountExistsError) setAccountExistsError('')
@@ -55,6 +90,11 @@ export default function AccountCreationForm() {
   const validate = () => {
     const newErrors = {}
     if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.email = 'Invalid email'
+    if (!form.phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required'
+    } else if (!isValidUSPhone(form.phoneNumber)) {
+      newErrors.phoneNumber = 'Please enter a valid 10-digit US phone number'
+    }
     if (!isPasswordValid) newErrors.password = 'Password does not meet requirements'
     if (form.confirmPassword !== form.password) newErrors.confirmPassword = 'Passwords do not match'
     setErrors(newErrors)
@@ -73,7 +113,8 @@ export default function AccountCreationForm() {
     
     try {
       // Register as pending user (not added to database yet)
-      const data = await apiClient.registerPending(form.email, form.password)
+      const phoneForDB = normalizePhoneForDB(form.phoneNumber)
+      const data = await apiClient.registerPending(form.email, form.password, phoneForDB)
 
       if (data && data.success) {
         // Store email and user ID for confirmation page
@@ -138,7 +179,20 @@ export default function AccountCreationForm() {
           {errors.email && <span className={styles.error}>{errors.email}</span>}
         </div>
 
-        
+        <div className={styles.field}> 
+          <label className={styles.label}>Phone Number</label>
+          <input
+            type="tel"
+            name="phoneNumber"
+            value={form.phoneNumber}
+            onChange={handleChange}
+            className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`}
+            placeholder="(555) 555-5555"
+            autoComplete="tel"
+            maxLength={14}
+          />
+          {errors.phoneNumber && <span className={styles.error}>{errors.phoneNumber}</span>}
+        </div>
 
         <div className={styles.field}> 
           <label className={styles.label}>Password</label>

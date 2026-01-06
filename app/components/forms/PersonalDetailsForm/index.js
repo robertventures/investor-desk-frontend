@@ -7,32 +7,11 @@ import styles from './PersonalDetailsForm.module.css'
 // Names: Allow only letters, spaces, hyphens, apostrophes, and periods
 const formatName = (value = '') => value.replace(/[^a-zA-Z\s'\-\.]/g, '')
 
-// Format phone number as (XXX) XXX-XXXX for display
-const formatPhone = (value = '') => {
-  const digits = value.replace(/\D/g, '').slice(0, 10)
-  if (digits.length <= 3) return digits
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-}
-
-// Normalize phone number to E.164 format for database storage (+1XXXXXXXXXX)
-const normalizePhoneForDB = (value = '') => {
-  const digits = value.replace(/\D/g, '')
-  if (digits.length === 10) {
-    return `+1${digits}`
-  }
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`
-  }
-  return value // Return original if format is unexpected
-}
-
 export default function PersonalDetailsForm() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     firstName: '',
-    lastName: '',
-    phoneNumber: ''
+    lastName: ''
   })
   const [errors, setErrors] = useState({})
 
@@ -42,8 +21,6 @@ export default function PersonalDetailsForm() {
     
     if (name === 'firstName' || name === 'lastName') {
       formattedValue = formatName(value)
-    } else if (name === 'phoneNumber') {
-      formattedValue = formatPhone(value)
     }
     
     setFormData(prev => ({
@@ -71,15 +48,6 @@ export default function PersonalDetailsForm() {
       newErrors.lastName = 'Last name is required'
     }
     
-    if (!formData.phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required'
-    } else {
-      const digits = formData.phoneNumber.replace(/\D/g, '')
-      if (digits.length !== 10) {
-        newErrors.phoneNumber = 'Please enter a valid 10-digit US phone number'
-      }
-    }
-    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -104,8 +72,7 @@ export default function PersonalDetailsForm() {
         
         const updateData = {
           firstName: formData.firstName,
-          lastName: formData.lastName,
-          phoneNumber: normalizePhoneForDB(formData.phoneNumber)
+          lastName: formData.lastName
         }
         
         // Update existing user in database via Next.js API route
@@ -173,25 +140,6 @@ export default function PersonalDetailsForm() {
             />
             {errors.lastName && (
               <span className={styles.errorMessage}>{errors.lastName}</span>
-            )}
-          </div>
-
-          <div className={styles.fieldGroup}>
-            <label htmlFor="phoneNumber" className={styles.fieldLabel}>
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              id="phoneNumber"
-              name="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={handleInputChange}
-              placeholder="Enter your phone number"
-              className={`${styles.fieldInput} ${errors.phoneNumber ? styles.fieldInputError : ''}`}
-              maxLength={30}
-            />
-            {errors.phoneNumber && (
-              <span className={styles.errorMessage}>{errors.phoneNumber}</span>
             )}
           </div>
         </div>
