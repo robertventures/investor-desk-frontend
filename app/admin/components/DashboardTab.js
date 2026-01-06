@@ -7,6 +7,31 @@ import styles from './DashboardTab.module.css'
 import { formatCurrency } from '../../../lib/formatters.js'
 
 /**
+ * Map Plaid error codes to human-readable explanations
+ */
+const ERROR_CODE_MESSAGES = {
+  ITEM_LOGIN_REQUIRED: 'Bank login expired - needs re-authentication',
+  OAUTH_INVALID_TOKEN: 'OAuth token invalid - needs reconnection',
+  OAUTH_CONSENT_EXPIRED: 'Bank consent expired - needs renewal',
+  OAUTH_USER_REVOKED: 'User revoked access in bank settings',
+  ITEM_NOT_FOUND: 'Bank connection not found',
+  ACCESS_NOT_GRANTED: 'Access permissions not granted',
+  INSTITUTION_NOT_RESPONDING: 'Bank temporarily unavailable',
+  INSTITUTION_DOWN: 'Bank experiencing outage',
+}
+
+/**
+ * Get human-readable reason for disconnection
+ */
+const getDisconnectionReason = (errorCode, status) => {
+  if (errorCode && ERROR_CODE_MESSAGES[errorCode]) {
+    return ERROR_CODE_MESSAGES[errorCode]
+  }
+  // Fallback to status or generic message
+  return status || 'disconnected'
+}
+
+/**
  * Main dashboard tab showing overview metrics and payout status
  * PERFORMANCE: Memoized to prevent unnecessary re-renders
  */
@@ -275,9 +300,16 @@ const DashboardTab = memo(function DashboardTab({
                         {user.firstName} {user.lastName}
                       </span>
                     </div>
-                    <span className={styles.disconnectedBankReason}>
-                      {user.connectionStatus || 'disconnected'}
-                    </span>
+                    <div className={styles.disconnectedBankReasonContainer}>
+                      <span className={styles.disconnectedBankReason}>
+                        {getDisconnectionReason(user.connectionErrorCode, user.connectionStatus)}
+                      </span>
+                      {user.connectionErrorCode && (
+                        <span className={styles.disconnectedBankErrorCode}>
+                          {user.connectionErrorCode}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
