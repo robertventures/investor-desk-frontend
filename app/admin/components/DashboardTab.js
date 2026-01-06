@@ -24,9 +24,10 @@ const DashboardTab = memo(function DashboardTab({
   monitoredPayouts,
   onRefreshTransactions,
   isLoadingTransactions,
-  // Disconnected bank accounts
+  // Disconnected bank accounts (users who cannot receive payments)
   disconnectedBankUsers,
-  isLoadingPaymentMethods
+  isLoadingDisconnectedBanks,
+  onRefreshDisconnectedBanks
 }) {
   const router = useRouter()
 
@@ -226,7 +227,7 @@ const DashboardTab = memo(function DashboardTab({
       </div>
 
       {/* Disconnected Banks Alert Panel */}
-      {!isLoadingPaymentMethods && (
+      {!isLoadingDisconnectedBanks && (
         <div className={disconnectedBankUsers && disconnectedBankUsers.length > 0 ? styles.disconnectedBanksPanel : styles.healthyBanksPanel}>
           <div className={styles.disconnectedBanksHeader}>
             <span className={styles.disconnectedBanksIcon}>
@@ -240,16 +241,25 @@ const DashboardTab = memo(function DashboardTab({
               }`}
             >
               {disconnectedBankUsers && disconnectedBankUsers.length > 0 
-                ? `Disconnected Bank Accounts (${disconnectedBankUsers.length})`
-                : 'All Plaid connections are healthy'
+                ? `Cannot Process Payments (${disconnectedBankUsers.length} user${disconnectedBankUsers.length !== 1 ? 's' : ''})`
+                : 'All bank connections healthy'
               }
             </span>
+            {onRefreshDisconnectedBanks && (
+              <button 
+                className={styles.refreshDisconnectedBanksButton}
+                onClick={() => onRefreshDisconnectedBanks(true)}
+                title="Refresh disconnected banks list"
+              >
+                ↻
+              </button>
+            )}
           </div>
           
           {disconnectedBankUsers && disconnectedBankUsers.length > 0 ? (
             <>
               <p className={`${styles.disconnectedBanksDescription} ${styles.bankHealthTextAlert}`}>
-                These users need to reconnect their bank account before monthly payments can be sent.
+                These users have broken bank connections. Monthly payments cannot be sent until they reconnect.
               </p>
               <div className={styles.disconnectedBanksList}>
                 {disconnectedBankUsers.map(user => (
@@ -259,14 +269,14 @@ const DashboardTab = memo(function DashboardTab({
                         href={`/admin/users/${user.id}`}
                         className={styles.disconnectedBankUserEmail}
                       >
-                        {user.email}
+                        {user.email || `User #${user.id}`}
                       </Link>
                       <span className={styles.disconnectedBankUserName}>
                         {user.firstName} {user.lastName}
                       </span>
                     </div>
                     <span className={styles.disconnectedBankReason}>
-                      {user.connectionStatus || 'Disconnected'}
+                      {user.connectionStatus || 'disconnected'}
                     </span>
                   </div>
                 ))}
@@ -274,14 +284,14 @@ const DashboardTab = memo(function DashboardTab({
             </>
           ) : (
             <p className={`${styles.disconnectedBanksDescription} ${styles.bankHealthTextOk}`} style={{ marginBottom: 0 }}>
-              No disconnected bank accounts found. Monthly payments can be processed safely.
+              All bank connections are working. Monthly payments can be processed.
             </p>
           )}
         </div>
       )}
 
-      {/* Loading state for payment methods */}
-      {isLoadingPaymentMethods && (
+      {/* Loading state for disconnected banks check */}
+      {isLoadingDisconnectedBanks && (
         <div className={styles.loadingPaymentMethods}>
           Checking bank connection status...
         </div>

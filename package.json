@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --test",
-    "sync-api": "curl -s https://backend-9r5h.onrender.com/openapi.json | npx json > docs/openapi.json",
-    "generate-types": "npx openapi-typescript docs/openapi.json -o lib/apiTypes.ts",
-    "update-api": "npm run sync-api && npm run generate-types"
+    "sync-api": "curl -sf https://backend-9r5h.onrender.com/openapi.json | python3 -m json.tool > docs/openapi.json",
+    "generate-api-docs": "node scripts/generate-api-docs.js",
+    "update-api": "npm run sync-api && npm run generate-api-docs"
   },
   "dependencies": {
     "cookie": "^1.0.2",
@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "eslint": "^8.0.0",
-    "eslint-config-next": "^14.2.32",
-    "openapi-typescript": "^7.10.1"
+    "eslint-config-next": "^14.2.32"
   }
 }

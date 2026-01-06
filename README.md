@@ -105,13 +105,16 @@ investor-desk-frontend/
 ## Backend API Integration
 
 This frontend connects to the Robert Ventures backend API at:
-**https://api.dev.robertventures.barva.dev**
+**https://backend-9r5h.onrender.com**
 
 ### API Documentation
 
-- **OpenAPI Spec**: Stored in `docs/openapi.json`
-- **Live Swagger UI**: https://api.dev.robertventures.barva.dev/docs
-- **TypeScript Types**: Auto-generated in `lib/apiTypes.ts`
+| File | Purpose |
+|------|---------|
+| `docs/API_REFERENCE.md` | **Single AI-optimized reference** (~600 lines, ~6K tokens) |
+| `docs/openapi.json` | Source spec for regeneration |
+
+**Live Swagger UI**: https://backend-9r5h.onrender.com/docs
 
 ### Staying in Sync
 
@@ -121,15 +124,24 @@ To update with the latest backend changes:
 npm run update-api
 ```
 
-This command:
-1. Fetches the latest OpenAPI spec from the backend
-2. Generates TypeScript types automatically
-3. Updates `docs/openapi.json` and `lib/apiTypes.ts`
+This downloads the OpenAPI spec and generates AI-optimized documentation.
 
-Run this when:
-- Starting new features
-- Backend team notifies you of API changes
-- TypeScript shows type errors (might indicate API changes)
+### AI-Optimized Documentation
+
+One file contains everything AI needs:
+
+```
+docs/API_REFERENCE.md  →  ~6K tokens  (100 endpoints with schemas)
+```
+
+**Format**: Compact notation with `*` = required, `?` = optional:
+```
+POST /api/auth/token
+Body: { email*: string, password*: string }
+Response: { access_token, refresh_token, token_type }
+```
+
+**Tell AI**: "Check `docs/API_REFERENCE.md` and implement [feature]"
 
 ## Authentication Flow
 

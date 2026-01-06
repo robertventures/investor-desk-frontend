@@ -12,6 +12,7 @@ const CACHE_KEY_PAYOUTS = 'admin_payouts_cache'
 const CACHE_KEY_ACTIVITY = 'admin_activity_cache'
 const CACHE_KEY_TRANSACTIONS = 'admin_transactions_cache'
 const CACHE_KEY_PAYMENT_METHODS = 'admin_payment_methods_cache'
+const CACHE_KEY_DISCONNECTED_BANKS = 'admin_disconnected_banks_cache'
 
 /**
  * Helper to determine if a user has a bank account connected
@@ -58,6 +59,10 @@ export function useAdminData() {
   // Payment methods state for ACH connection status tracking
   const [paymentMethodsByUser, setPaymentMethodsByUser] = useState({})
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false)
+  
+  // Disconnected bank users - users who cannot receive payments (from dedicated backend endpoint)
+  const [disconnectedBankUsers, setDisconnectedBankUsers] = useState([])
+  const [isLoadingDisconnectedBanks, setIsLoadingDisconnectedBanks] = useState(false)
   
   // Helper to get cached data if still valid
   const getCachedData = (key) => {
@@ -166,7 +171,8 @@ export function useAdminData() {
           loadWithdrawals(),
           loadActivityEvents(),
           loadAllTransactions(),
-          loadTimeMachine()
+          loadTimeMachine(),
+          loadDisconnectedBankUsers()
         ])
       } catch (e) {
         logger.error('Failed to load admin data', e)
@@ -465,6 +471,7 @@ export function useAdminData() {
     clearCache(CACHE_KEY_ACTIVITY)
     clearCache(CACHE_KEY_TRANSACTIONS)
     clearCache(CACHE_KEY_PAYMENT_METHODS)
+    clearCache(CACHE_KEY_DISCONNECTED_BANKS)
   }
 
   /**
@@ -534,6 +541,83 @@ export function useAdminData() {
       return {}
     } finally {
       setIsLoadingPaymentMethods(false)
+    }
+  }
+
+  /**
+   * Load disconnected bank users from the dedicated backend endpoint.
+   * This is the authoritative source for users who cannot receive payments.
+   * The backend determines which users have broken bank connections that prevent payments.
+   */
+  const loadDisconnectedBankUsers = async (forceRefresh = false) => {
+    try {
+      // Check cache first unless forcing refresh
+      if (!forceRefresh) {
+        const cached = getCachedData(CACHE_KEY_DISCONNECTED_BANKS)
+        if (cached) {
+          logger.log('📦 Using cached disconnected banks data')
+          setDisconnectedBankUsers(cached)
+          return cached
+        }
+      }
+      
+      if (forceRefresh) {
+        clearCache(CACHE_KEY_DISCONNECTED_BANKS)
+      }
+      
+      setIsLoadingDisconnectedBanks(true)
+      
+      const response = await adminService.getDisconnectedPaymentMethods()
+      
+      if (response.success) {
+        // Group by user_id since a user might have multiple disconnected payment methods
+        const userMap = new Map()
+        
+        response.disconnectedPaymentMethods.forEach(pm => {
+          const userId = pm.user_id?.toString()
+          if (!userId) return
+          
+          if (!userMap.has(userId)) {
+            userMap.set(userId, {
+              id: userId,
+              email: null, // Will be enriched if user data is available
+              firstName: null,
+              lastName: null,
+              connectionStatus: pm.connection_status || 'disconnected',
+              connectionErrorCode: pm.connection_error_code,
+              connectionCheckedAt: pm.connection_checked_at,
+              disconnectedMethods: []
+            })
+          }
+          
+          userMap.get(userId).disconnectedMethods.push({
+            id: pm.id,
+            displayName: pm.display_name,
+            bankName: pm.bank_name,
+            accountType: pm.account_type,
+            last4: pm.last4,
+            creationSource: pm.creation_source,
+            connectionStatus: pm.connection_status,
+            connectionErrorCode: pm.connection_error_code
+          })
+        })
+        
+        const disconnectedList = Array.from(userMap.values())
+        logger.log(`✓ Loaded ${disconnectedList.length} users with disconnected banks`)
+        
+        setDisconnectedBankUsers(disconnectedList)
+        setCachedData(CACHE_KEY_DISCONNECTED_BANKS, disconnectedList)
+        
+        return disconnectedList
+      } else {
+        logger.error('Failed to load disconnected banks:', response.error)
+        return []
+      }
+    } catch (e) {
+      logger.error('Failed to load disconnected bank users', e)
+      return []
+    } finally {
+      setIsLoadingDisconnectedBanks(false)
     }
   }
 
@@ -707,64 +791,35 @@ export function useAdminData() {
   }, [allTransactions, users, investmentPaymentFrequencyMap])
 
   /**
-   * Disconnected bank users - users whose Plaid bank connection is no longer healthy
-   * These need to reconnect their bank before we can send monthly payments
-   * 
-   * Only flags users who:
-   * 1. Have payment methods in the system (connected via Plaid, not manual entry)
-   * 2. Have at least one payment method with connection_status === 'disconnected'
-   * 
-   * Note: Manual entry accounts and accounts with 'unknown' status are NOT flagged
-   * because they can still receive payments.
+   * Enrich disconnected bank users with user data (email, name) from the users list
+   * The backend endpoint only returns payment method data, not full user details
    */
-  const disconnectedBankUsers = useMemo(() => {
-    if (!users || users.length === 0 || Object.keys(paymentMethodsByUser).length === 0) {
+  const enrichedDisconnectedBankUsers = useMemo(() => {
+    if (!disconnectedBankUsers || disconnectedBankUsers.length === 0) {
       return []
     }
     
-    const disconnected = []
-    
+    // Build user lookup map
+    const userMap = new Map()
     users.forEach(user => {
-      const userId = user.id.toString()
-      const userPaymentData = paymentMethodsByUser[userId]
-      
-      // Skip users without fetched payment data
-      if (!userPaymentData) {
-        return
-      }
-      
-      const paymentMethods = userPaymentData.paymentMethods || []
-      
-      // Skip users with no payment methods - they simply haven't connected a bank
-      if (paymentMethods.length === 0) {
-        return
-      }
-      
-      // Check if any Plaid payment method has an explicit disconnected status
-      const disconnectedMethods = paymentMethods.filter(pm => {
-        const connectionStatus = pm.connection_status || pm.connectionStatus
-        const creationSource = pm.creation_source || pm.creationSource
-
-        // Skip manual entry accounts - they don't have Plaid connection tracking
-        if (creationSource === 'manual') return false
-
-        // Only flag explicit disconnections (do NOT treat 'unknown' as disconnected)
-        return connectionStatus === 'disconnected'
-      })
-      
-      if (disconnectedMethods.length > 0) {
-        disconnected.push({
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          connectionStatus: disconnectedMethods[0]?.connection_status || disconnectedMethods[0]?.connectionStatus
-        })
-      }
+      const id = user.id?.toString() || ''
+      userMap.set(id, user)
+      // Also map by numeric part (e.g., "USR-1025" -> "1025")
+      const numericId = id.match(/\d+$/)?.[0]
+      if (numericId) userMap.set(numericId, user)
     })
     
-    return disconnected
-  }, [users, paymentMethodsByUser])
+    return disconnectedBankUsers.map(disconnected => {
+      const user = userMap.get(disconnected.id) || userMap.get(disconnected.id?.match(/\d+$/)?.[0])
+      
+      return {
+        ...disconnected,
+        email: user?.email || disconnected.email,
+        firstName: user?.firstName || disconnected.firstName,
+        lastName: user?.lastName || disconnected.lastName
+      }
+    })
+  }, [disconnectedBankUsers, users])
 
   /**
    * Process ACHQ payment for a pending payout transaction
@@ -813,11 +868,14 @@ export function useAdminData() {
     monitoredPayouts,
     timeMachineData,
     setTimeMachineData,
-    // Payment methods / ACH status
+    // Payment methods / ACH status (for accounts list filtering)
     paymentMethodsByUser,
     isLoadingPaymentMethods,
-    disconnectedBankUsers,
     loadPaymentMethods,
+    // Disconnected bank users (cannot receive payments)
+    disconnectedBankUsers: enrichedDisconnectedBankUsers,
+    isLoadingDisconnectedBanks,
+    refreshDisconnectedBanks: loadDisconnectedBankUsers,
     // Refresh functions
     refreshUsers: loadUsers,
     refreshWithdrawals: loadWithdrawals,

@@ -54,11 +54,14 @@ function AdminPageContent() {
     monitoredPayouts,
     timeMachineData,
     setTimeMachineData,
-    // Payment methods / ACH status
+    // Payment methods / ACH status (for accounts list)
     paymentMethodsByUser,
     isLoadingPaymentMethods,
-    disconnectedBankUsers,
     loadPaymentMethods,
+    // Disconnected bank users (cannot receive payments)
+    disconnectedBankUsers,
+    isLoadingDisconnectedBanks,
+    refreshDisconnectedBanks,
     // Refresh functions
     refreshUsers,
     refreshWithdrawals,
@@ -852,7 +855,8 @@ function AdminPageContent() {
               onRefreshTransactions={refreshTransactions}
               isLoadingTransactions={isLoadingTransactions}
               disconnectedBankUsers={disconnectedBankUsers}
-              isLoadingPaymentMethods={isLoadingPaymentMethods}
+              isLoadingDisconnectedBanks={isLoadingDisconnectedBanks}
+              onRefreshDisconnectedBanks={refreshDisconnectedBanks}
             />
           )}
 
