@@ -54,8 +54,10 @@ function AdminUserDetailsContent() {
   const fileInputRef = useRef(null)
   const [isUploading, setIsUploading] = useState(false)
 
-
-
+  // TIN Matching state
+  const [tinMatchingRequest, setTinMatchingRequest] = useState(null)
+  const [isLoadingTinStatus, setIsLoadingTinStatus] = useState(false)
+  const [isRefreshingTin, setIsRefreshingTin] = useState(false)
 
   // Memoize processed activity events
   const allActivity = useMemo(() => {
@@ -244,10 +246,11 @@ function AdminUserDetailsContent() {
       try {
         setCurrentUser(userData)
 
-        const [usersData, investmentsData, paymentMethodsData] = await Promise.all([
+        const [usersData, investmentsData, paymentMethodsData, tinMatchingData] = await Promise.all([
           apiClient.getAllUsers(),
           apiClient.getAdminInvestments(),
-          adminService.getUserPaymentMethods(id)
+          adminService.getUserPaymentMethods(id),
+          adminService.getTinMatchingRequests({ user_id: id })
         ])
         
         if (!usersData || !usersData.success) {
@@ -257,6 +260,14 @@ function AdminUserDetailsContent() {
 
         if (paymentMethodsData && paymentMethodsData.success) {
           setPaymentMethods(paymentMethodsData.payment_methods || [])
+        }
+
+        if (tinMatchingData && tinMatchingData.success && tinMatchingData.requests.length > 0) {
+          // Get the most recent TIN matching request
+          const sortedRequests = [...tinMatchingData.requests].sort((a, b) => 
+            new Date(b.createdAt || b.created_at || 0) - new Date(a.createdAt || a.created_at || 0)
+          )
+          setTinMatchingRequest(sortedRequests[0])
         }
 
         const investmentsByUser = {}
@@ -1026,6 +1037,50 @@ function AdminUserDetailsContent() {
     } catch (e) {
       console.error('[AdminUserDetails] Delete failed:', e)
       alert(`An error occurred: ${e.message}`)
+    }
+  }
+
+  const handleRefreshTinMatching = async () => {
+    if (!user) return
+    
+    setIsRefreshingTin(true)
+    try {
+      console.log('[TIN Matching] Initiating refresh for user:', id)
+      const result = await adminService.refreshTinMatching(id)
+      console.log('[TIN Matching] Refresh result:', result)
+      
+      if (result.success) {
+        // Fetch updated TIN matching requests to get the latest status
+        const tinData = await adminService.getTinMatchingRequests({ user_id: id })
+        console.log('[TIN Matching] Fetched updated requests:', tinData)
+        
+        if (tinData.success && tinData.requests.length > 0) {
+          const sortedRequests = [...tinData.requests].sort((a, b) => 
+            new Date(b.createdAt || b.created_at || 0) - new Date(a.createdAt || a.created_at || 0)
+          )
+          console.log('[TIN Matching] Latest request:', sortedRequests[0])
+          setTinMatchingRequest(sortedRequests[0])
+        }
+        
+        // Show success message with status
+        const statusMessage = result.status === 'success' 
+          ? '✅ TIN verified successfully!' 
+          : result.status === 'submitted'
+            ? '📤 TIN verification submitted - awaiting result'
+            : result.status === 'failed'
+              ? '❌ TIN verification failed'
+              : `TIN matching status: ${result.status || 'Request initiated'}`
+        alert(statusMessage)
+      } else {
+        console.error('[TIN Matching] Refresh failed:', result)
+        const errorMsg = result.error || 'Unknown error'
+        alert(`Failed to refresh TIN matching: ${errorMsg}${result.statusCode ? ` (HTTP ${result.statusCode})` : ''}`)
+      }
+    } catch (e) {
+      console.error('[TIN Matching] Exception:', e)
+      alert(`An error occurred while refreshing TIN matching: ${e.message || 'Unknown error'}`)
+    } finally {
+      setIsRefreshingTin(false)
     }
   }
 
@@ -2549,6 +2604,16 @@ function AdminUserDetailsContent() {
                     </button>
                     
                     <button 
+                      onClick={handleRefreshTinMatching} 
+                      className={styles.actionCard}
+                      title="Verify or refresh TIN matching status"
+                      disabled={isRefreshingTin}
+                    >
+                      <span className={styles.actionIcon}>🔍</span>
+                      <span className={styles.actionLabel}>{isRefreshingTin ? 'Verifying...' : 'Verify Tax ID'}</span>
+                    </button>
+                    
+                    <button 
                       onClick={handleDeleteUser} 
                       className={`${styles.actionCard} ${styles.dangerAction}`}
                       title="Permanently delete user"
@@ -2753,6 +2818,159 @@ function AdminUserDetailsContent() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* TIN Matching Status Section */}
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h2 className={styles.sectionTitle}>Tax ID Verification (TIN)</h2>
+                  <button
+                    onClick={handleRefreshTinMatching}
+                    disabled={isRefreshingTin}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      background: 'var(--color-info)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: isRefreshingTin ? 'not-allowed' : 'pointer',
+                      opacity: isRefreshingTin ? 0.6 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {isRefreshingTin ? 'Verifying...' : 'Verify Now'}
+                  </button>
+                </div>
+                
+                {tinMatchingRequest ? (
+                  <div style={{
+                    padding: '20px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    background: 'white'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                          Verification Status
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                          Request ID: {tinMatchingRequest.id || tinMatchingRequest.requestId || 'N/A'}
+                        </div>
+                      </div>
+                      <span className={styles.tinStatusBadge} data-status={tinMatchingRequest.status} style={{
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        background: tinMatchingRequest.status === 'success' ? '#dcfce7' :
+                                   tinMatchingRequest.status === 'failed' ? '#fef2f2' :
+                                   tinMatchingRequest.status === 'submitted' ? '#fef3c7' :
+                                   tinMatchingRequest.status === 'pending' ? '#f3f4f6' : '#f3f4f6',
+                        color: tinMatchingRequest.status === 'success' ? '#166534' :
+                               tinMatchingRequest.status === 'failed' ? '#dc2626' :
+                               tinMatchingRequest.status === 'submitted' ? '#92400e' :
+                               tinMatchingRequest.status === 'pending' ? '#6b7280' : '#6b7280'
+                      }}>
+                        {tinMatchingRequest.status === 'success' ? '✓ Verified' :
+                         tinMatchingRequest.status === 'failed' ? '✗ Failed' :
+                         tinMatchingRequest.status === 'submitted' ? '⏳ In Progress' :
+                         tinMatchingRequest.status === 'pending' ? '○ Pending' :
+                         tinMatchingRequest.status || 'Unknown'}
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+                      <div>
+                        <span style={{ color: '#6b7280' }}>Submitted:</span>{' '}
+                        <span style={{ color: '#1f2937', fontWeight: '500' }}>
+                          {tinMatchingRequest.submittedAt || tinMatchingRequest.submitted_at 
+                            ? new Date(tinMatchingRequest.submittedAt || tinMatchingRequest.submitted_at).toLocaleString()
+                            : tinMatchingRequest.status === 'failed' 
+                              ? 'Failed before submission'
+                              : tinMatchingRequest.status === 'pending'
+                                ? 'Pending submission'
+                                : 'Not yet submitted'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ color: '#6b7280' }}>Last Updated:</span>{' '}
+                        <span style={{ color: '#1f2937', fontWeight: '500' }}>
+                          {tinMatchingRequest.updatedAt || tinMatchingRequest.updated_at
+                            ? new Date(tinMatchingRequest.updatedAt || tinMatchingRequest.updated_at).toLocaleString()
+                            : tinMatchingRequest.createdAt || tinMatchingRequest.created_at
+                              ? new Date(tinMatchingRequest.createdAt || tinMatchingRequest.created_at).toLocaleString()
+                              : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {tinMatchingRequest.status === 'failed' && (
+                      <div style={{ 
+                        marginTop: '12px', 
+                        padding: '10px 12px', 
+                        background: '#fef2f2', 
+                        borderRadius: '6px',
+                        border: '1px solid #fecaca'
+                      }}>
+                        <span style={{ fontSize: '12px', color: '#991b1b', fontWeight: '500' }}>
+                          {tinMatchingRequest.failureReason || tinMatchingRequest.failure_reason
+                            ? `Reason: ${tinMatchingRequest.failureReason || tinMatchingRequest.failure_reason}`
+                            : !(tinMatchingRequest.submittedAt || tinMatchingRequest.submitted_at)
+                              ? 'Validation failed - user may be missing required tax ID or name information'
+                              : 'Verification failed - the tax ID does not match the name on file'}
+                        </span>
+                      </div>
+                    )}
+
+                    {tinMatchingRequest.status === 'success' && (
+                      <div style={{ 
+                        marginTop: '12px', 
+                        padding: '10px 12px', 
+                        background: '#dcfce7', 
+                        borderRadius: '6px',
+                        border: '1px solid #bbf7d0'
+                      }}>
+                        <span style={{ fontSize: '12px', color: '#166534', fontWeight: '500' }}>
+                          ✓ Tax ID verified and matches the name on file
+                        </span>
+                      </div>
+                    )}
+
+                    {tinMatchingRequest.status === 'submitted' && (
+                      <div style={{ 
+                        marginTop: '12px', 
+                        padding: '10px 12px', 
+                        background: '#fef3c7', 
+                        borderRadius: '6px',
+                        border: '1px solid #fde68a'
+                      }}>
+                        <span style={{ fontSize: '12px', color: '#92400e', fontWeight: '500' }}>
+                          ⏳ Verification in progress - results typically arrive within minutes
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '32px 20px',
+                    textAlign: 'center',
+                    border: '1px dashed #e2e8f0',
+                    borderRadius: '8px',
+                    background: '#fafafa'
+                  }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔍</div>
+                    <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>
+                      No TIN verification request found
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                      Click &quot;Verify Now&quot; to initiate Tax ID verification for this user
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
