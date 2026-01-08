@@ -59,6 +59,11 @@ function AdminUserDetailsContent() {
   const [isLoadingTinStatus, setIsLoadingTinStatus] = useState(false)
   const [isRefreshingTin, setIsRefreshingTin] = useState(false)
 
+  // 1099-INT state
+  const [form1099INTSubmissions, setForm1099INTSubmissions] = useState([])
+  const [isLoading1099INT, setIsLoading1099INT] = useState(false)
+  const [isGenerating1099INT, setIsGenerating1099INT] = useState(false)
+
   // Memoize processed activity events
   const allActivity = useMemo(() => {
     if (!activityEvents) return []
@@ -246,11 +251,12 @@ function AdminUserDetailsContent() {
       try {
         setCurrentUser(userData)
 
-        const [usersData, investmentsData, paymentMethodsData, tinMatchingData] = await Promise.all([
+        const [usersData, investmentsData, paymentMethodsData, tinMatchingData, form1099Data] = await Promise.all([
           apiClient.getAllUsers(),
           apiClient.getAdminInvestments(),
           adminService.getUserPaymentMethods(id),
-          adminService.getTinMatchingRequests({ user_id: id })
+          adminService.getTinMatchingRequests({ user_id: id }),
+          adminService.get1099INTSubmissions({ user_id: id })
         ])
         
         if (!usersData || !usersData.success) {
@@ -268,6 +274,16 @@ function AdminUserDetailsContent() {
             new Date(b.createdAt || b.created_at || 0) - new Date(a.createdAt || a.created_at || 0)
           )
           setTinMatchingRequest(sortedRequests[0])
+        }
+
+        if (form1099Data && form1099Data.success && form1099Data.submissions) {
+          // Sort submissions by tax year (newest first), then by updated date
+          const sortedSubmissions = [...form1099Data.submissions].sort((a, b) => {
+            const yearDiff = (b.taxYear || b.tax_year || '0').localeCompare(a.taxYear || a.tax_year || '0')
+            if (yearDiff !== 0) return yearDiff
+            return new Date(b.updatedAt || b.updated_at || 0) - new Date(a.updatedAt || a.updated_at || 0)
+          })
+          setForm1099INTSubmissions(sortedSubmissions)
         }
 
         const investmentsByUser = {}
@@ -1081,6 +1097,103 @@ function AdminUserDetailsContent() {
       alert(`An error occurred while refreshing TIN matching: ${e.message || 'Unknown error'}`)
     } finally {
       setIsRefreshingTin(false)
+    }
+  }
+
+  // Helper to get default tax year
+  const getDefaultTaxYear = () => {
+    const now = new Date()
+    const month = now.getMonth() // 0-11
+    const year = now.getFullYear()
+    // Jan-Apr: use previous year (filing season)
+    // May-Dec: use current year (preparing for next filing)
+    return month <= 3 ? (year - 1).toString() : year.toString()
+  }
+
+  // Handle 1099-INT generation
+  const handleGenerate1099INT = async () => {
+    if (!user) return
+    
+    const taxYear = getDefaultTaxYear()
+    setIsGenerating1099INT(true)
+    
+    try {
+      console.log('[1099-INT] Generating for user:', id, 'tax year:', taxYear)
+      const result = await adminService.generate1099INTForUser(id, taxYear)
+      console.log('[1099-INT] Generation result:', result)
+      
+      if (result.success) {
+        // Fetch updated 1099-INT submissions
+        const form1099Data = await adminService.get1099INTSubmissions({ user_id: id })
+        
+        if (form1099Data.success && form1099Data.submissions) {
+          const sortedSubmissions = [...form1099Data.submissions].sort((a, b) => {
+            const yearDiff = (b.taxYear || b.tax_year || '0').localeCompare(a.taxYear || a.tax_year || '0')
+            if (yearDiff !== 0) return yearDiff
+            return new Date(b.updatedAt || b.updated_at || 0) - new Date(a.updatedAt || a.updated_at || 0)
+          })
+          setForm1099INTSubmissions(sortedSubmissions)
+        }
+        
+        // Show success/skip message
+        if (result.status === 'created') {
+          alert(`✅ 1099-INT form created for tax year ${taxYear}`)
+        } else if (result.status === 'skipped') {
+          alert(`⚠️ 1099-INT generation skipped: ${result.reason || 'Unknown reason'}`)
+        } else {
+          alert(`1099-INT status: ${result.status}`)
+        }
+      } else {
+        console.error('[1099-INT] Generation failed:', result)
+        alert(`Failed to generate 1099-INT: ${result.error || 'Unknown error'}`)
+      }
+    } catch (e) {
+      console.error('[1099-INT] Exception:', e)
+      alert(`An error occurred while generating 1099-INT: ${e.message || 'Unknown error'}`)
+    } finally {
+      setIsGenerating1099INT(false)
+    }
+  }
+
+  // Handle 1099-INT sync status
+  const handleSync1099INTStatus = async (submissionId) => {
+    try {
+      const result = await adminService.sync1099INTStatus(submissionId)
+      
+      if (result.success) {
+        // Refresh the submissions list
+        const form1099Data = await adminService.get1099INTSubmissions({ user_id: id })
+        if (form1099Data.success && form1099Data.submissions) {
+          const sortedSubmissions = [...form1099Data.submissions].sort((a, b) => {
+            const yearDiff = (b.taxYear || b.tax_year || '0').localeCompare(a.taxYear || a.tax_year || '0')
+            if (yearDiff !== 0) return yearDiff
+            return new Date(b.updatedAt || b.updated_at || 0) - new Date(a.updatedAt || a.updated_at || 0)
+          })
+          setForm1099INTSubmissions(sortedSubmissions)
+        }
+        alert('✅ Status synced successfully')
+      } else {
+        alert(`Failed to sync status: ${result.error || 'Unknown error'}`)
+      }
+    } catch (e) {
+      alert(`Error syncing status: ${e.message || 'Unknown error'}`)
+    }
+  }
+
+  // Handle viewing 1099-INT document
+  const handleView1099INTDocument = async (documentId) => {
+    if (!documentId) {
+      alert('No document available yet')
+      return
+    }
+    
+    try {
+      // Open document in new tab using the user documents endpoint
+      const numericUserId = id.toString().replace(/\D/g, '')
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'https://backend-9r5h.onrender.com'}/api/admin/users/${numericUserId}/documents/${documentId}`
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (e) {
+      alert(`Error opening document: ${e.message || 'Unknown error'}`)
     }
   }
 
@@ -2612,6 +2725,16 @@ function AdminUserDetailsContent() {
                       <span className={styles.actionIcon}>🔍</span>
                       <span className={styles.actionLabel}>{isRefreshingTin ? 'Verifying...' : 'Verify Tax ID'}</span>
                     </button>
+
+                    <button 
+                      onClick={handleGenerate1099INT} 
+                      className={styles.actionCard}
+                      title={`Generate 1099-INT form for tax year ${getDefaultTaxYear()}`}
+                      disabled={isGenerating1099INT}
+                    >
+                      <span className={styles.actionIcon}>📋</span>
+                      <span className={styles.actionLabel}>{isGenerating1099INT ? 'Generating...' : 'Generate 1099-INT'}</span>
+                    </button>
                     
                     <button 
                       onClick={handleDeleteUser} 
@@ -2968,6 +3091,203 @@ function AdminUserDetailsContent() {
                     </div>
                     <div style={{ fontSize: '12px', color: '#9ca3af' }}>
                       Click &quot;Verify Now&quot; to initiate Tax ID verification for this user
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 1099-INT Tax Forms Section */}
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h2 className={styles.sectionTitle}>1099-INT Tax Forms</h2>
+                  <button
+                    onClick={handleGenerate1099INT}
+                    disabled={isGenerating1099INT}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      background: 'var(--color-info)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: isGenerating1099INT ? 'not-allowed' : 'pointer',
+                      opacity: isGenerating1099INT ? 0.6 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {isGenerating1099INT ? 'Generating...' : `Generate ${getDefaultTaxYear()}`}
+                  </button>
+                </div>
+                
+                {form1099INTSubmissions.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {form1099INTSubmissions.map(submission => {
+                      const status = submission.status
+                      const taxYear = submission.taxYear || submission.tax_year
+                      const documentId = submission.documentId || submission.document_id
+                      const interestIncome = submission.interestIncome || submission.interest_income
+                      
+                      // Status badge styling
+                      const getStatusBadgeStyle = (status) => {
+                        const baseStyle = {
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          textTransform: 'uppercase',
+                        }
+                        
+                        switch (status) {
+                          case 'finished':
+                          case 'success':
+                            return { ...baseStyle, background: '#dcfce7', color: '#166534' }
+                          case 'transmitted':
+                          case 'submitted':
+                          case 'valid':
+                            return { ...baseStyle, background: '#dbeafe', color: '#1e40af' }
+                          case 'pending':
+                            return { ...baseStyle, background: '#fef3c7', color: '#92400e' }
+                          case 'invalid':
+                          case 'failed':
+                            return { ...baseStyle, background: '#fef2f2', color: '#dc2626' }
+                          default:
+                            return { ...baseStyle, background: '#f3f4f6', color: '#6b7280' }
+                        }
+                      }
+                      
+                      const getStatusLabel = (status) => {
+                        switch (status) {
+                          case 'finished': return '✓ Complete'
+                          case 'success': return '✓ IRS Accepted'
+                          case 'transmitted': return '📤 Transmitted'
+                          case 'submitted': return '📨 Submitted'
+                          case 'valid': return '✓ Valid'
+                          case 'pending': return '○ Pending'
+                          case 'invalid': return '✗ Invalid'
+                          case 'failed': return '✗ Failed'
+                          default: return status || 'Unknown'
+                        }
+                      }
+                      
+                      return (
+                        <div 
+                          key={submission.id}
+                          style={{
+                            padding: '16px 20px',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            background: 'white'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                                Tax Year {taxYear}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                Submission ID: {submission.id}
+                              </div>
+                            </div>
+                            <span style={getStatusBadgeStyle(status)}>
+                              {getStatusLabel(status)}
+                            </span>
+                          </div>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', marginBottom: '12px' }}>
+                            <div>
+                              <span style={{ color: '#6b7280' }}>Interest Income:</span>{' '}
+                              <span style={{ color: '#1f2937', fontWeight: '500' }}>
+                                {interestIncome ? formatCurrency(parseFloat(interestIncome)) : 'N/A'}
+                              </span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#6b7280' }}>Last Updated:</span>{' '}
+                              <span style={{ color: '#1f2937', fontWeight: '500' }}>
+                                {submission.updatedAt || submission.updated_at
+                                  ? new Date(submission.updatedAt || submission.updated_at).toLocaleString()
+                                  : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Action buttons based on status */}
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {(status === 'success' || status === 'transmitted') && (
+                              <button
+                                onClick={() => handleSync1099INTStatus(submission.id)}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  fontWeight: '500',
+                                  background: '#f3f4f6',
+                                  color: '#374151',
+                                  border: '1px solid #d1d5db',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                🔄 Sync Status
+                              </button>
+                            )}
+                            
+                            {(status === 'finished' || documentId) && (
+                              <button
+                                onClick={() => handleView1099INTDocument(documentId)}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12px',
+                                  fontWeight: '500',
+                                  background: '#059669',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                📄 View Document
+                              </button>
+                            )}
+                          </div>
+                          
+                          {/* Error message for failed/invalid */}
+                          {(status === 'failed' || status === 'invalid') && (
+                            <div style={{ 
+                              marginTop: '12px', 
+                              padding: '10px 12px', 
+                              background: '#fef2f2', 
+                              borderRadius: '6px',
+                              border: '1px solid #fecaca'
+                            }}>
+                              <span style={{ fontSize: '12px', color: '#991b1b', fontWeight: '500' }}>
+                                {submission.failureReason || submission.failure_reason
+                                  ? submission.failureReason || submission.failure_reason
+                                  : status === 'invalid'
+                                    ? 'Form validation failed - check recipient information'
+                                    : 'Processing failed - please try again or contact support'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '32px 20px',
+                    textAlign: 'center',
+                    border: '1px dashed #e2e8f0',
+                    borderRadius: '8px',
+                    background: '#fafafa'
+                  }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
+                    <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>
+                      No 1099-INT forms generated yet
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                      Click &quot;Generate {getDefaultTaxYear()}&quot; to create a 1099-INT form for this user
                     </div>
                   </div>
                 )}

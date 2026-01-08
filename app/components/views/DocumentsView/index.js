@@ -10,8 +10,10 @@ export default function DocumentsView() {
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState(null)
   const [investments, setInvestments] = useState([])
+  const [taxDocuments, setTaxDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [agreementLoadingId, setAgreementLoadingId] = useState(null)
+  const [taxDocLoadingId, setTaxDocLoadingId] = useState(null)
   
   useEffect(() => {
     setMounted(true)
@@ -30,11 +32,25 @@ export default function DocumentsView() {
         if (data.success) {
           setUser(data.user)
           
-          // Load investments separately
-          const investmentsData = await apiClient.getInvestments(userId)
+          // Load investments and documents in parallel
+          const [investmentsData, documentsData] = await Promise.all([
+            apiClient.getInvestments(userId),
+            apiClient.request('/api/documents', { method: 'GET' }).catch(() => ({ documents: [] }))
+          ])
+          
           if (investmentsData.success) {
             setInvestments(investmentsData.investments || [])
           }
+          
+          // Filter for 1099-INT documents (tax documents)
+          // These documents typically have filenames containing "1099" or are categorized as tax documents
+          const allDocs = documentsData.documents || []
+          const tax1099Docs = allDocs.filter(doc => {
+            const fileName = (doc.fileName || doc.file_name || '').toLowerCase()
+            const filePath = (doc.filePath || doc.file_path || '').toLowerCase()
+            return fileName.includes('1099') || filePath.includes('1099')
+          })
+          setTaxDocuments(tax1099Docs)
         }
       } catch (error) {
         console.error('Failed to load user data:', error)
@@ -115,6 +131,56 @@ export default function DocumentsView() {
     }
   }
 
+  const viewTaxDocument = async (document) => {
+    if (!document?.id) return
+
+    setTaxDocLoadingId(document.id)
+
+    try {
+      // Fetch the document using the documents API
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://backend-9r5h.onrender.com'}/api/documents/${document.id}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch document')
+      }
+
+      // Get the blob and open it
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const win = window.open(url, '_blank', 'noopener,noreferrer')
+      
+      if (!win) {
+        URL.revokeObjectURL(url)
+        alert('Pop-up was blocked. Please allow pop-ups for this site.')
+        return
+      }
+      
+      // Clean up the URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+      }, 60_000)
+    } catch (error) {
+      console.error('Error retrieving tax document:', error)
+      alert('An error occurred while retrieving the document. Please try again.')
+    } finally {
+      setTaxDocLoadingId(null)
+    }
+  }
+
+  // Extract tax year from filename (e.g., "1099-INT_2024_..." -> "2024")
+  const extractTaxYear = (fileName) => {
+    const match = (fileName || '').match(/1099[_-]?INT[_-]?(\d{4})/i)
+    return match ? match[1] : null
+  }
+
   if (loading) {
     return (
       <div className={styles.documentsContainer}>
@@ -151,6 +217,53 @@ export default function DocumentsView() {
       </div>
 
       <div className={styles.content}>
+        {/* Tax Documents Section */}
+        {taxDocuments.length > 0 && (
+          <div className={styles.documentsList}>
+            <h3 className={styles.sectionTitle}>Tax Documents</h3>
+            <div className={styles.documentsGrid}>
+              {taxDocuments.map(doc => {
+                const fileName = doc.fileName || doc.file_name || 'Tax Document'
+                const taxYear = extractTaxYear(fileName)
+                const createdAt = doc.createdAt || doc.created_at
+                
+                return (
+                  <div key={doc.id} className={styles.documentCard}>
+                    <div className={styles.documentIcon}>📋</div>
+                    <div className={styles.documentInfo}>
+                      <div className={styles.documentTitleWithBadge}>
+                        <h4 className={styles.documentTitle}>
+                          Form 1099-INT {taxYear ? `(${taxYear})` : ''}
+                        </h4>
+                        <span className={`${styles.statusBadge} ${styles.completed}`}>
+                          Available
+                        </span>
+                      </div>
+                      <div className={styles.documentDetails}>
+                        <p><strong>Document Type:</strong> IRS Form 1099-INT</p>
+                        <p><strong>Tax Year:</strong> {taxYear || 'N/A'}</p>
+                        <p><strong>Description:</strong> Interest Income Statement</p>
+                        <p><strong>Generated:</strong> {createdAt ? formatDateLocale(createdAt) : 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className={styles.documentActions}>
+                      <button
+                        className={styles.downloadButton}
+                        onClick={() => viewTaxDocument(doc)}
+                        disabled={taxDocLoadingId === doc.id}
+                      >
+                        {taxDocLoadingId === doc.id
+                          ? '⏳ Preparing...'
+                          : '📋 View Form'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Investment Agreements Section */}
         {finalizedInvestments.length > 0 ? (
           <div className={styles.documentsList}>
@@ -218,7 +331,7 @@ export default function DocumentsView() {
               })}
             </div>
           </div>
-        ) : (
+        ) : taxDocuments.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📄</div>
             <h3 className={styles.emptyTitle}>No Documents Yet</h3>
@@ -227,9 +340,10 @@ export default function DocumentsView() {
             </p>
             <ul className={styles.documentTypes}>
               <li>Investment Agreements</li>
+              <li>Tax Documents (1099-INT)</li>
             </ul>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
