@@ -3006,29 +3006,15 @@ function AdminUserDetailsContent() {
                       </span>
                     </div>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
-                      <div>
-                        <span style={{ color: '#6b7280' }}>Submitted:</span>{' '}
-                        <span style={{ color: '#1f2937', fontWeight: '500' }}>
-                          {tinMatchingRequest.submittedAt || tinMatchingRequest.submitted_at 
-                            ? new Date(tinMatchingRequest.submittedAt || tinMatchingRequest.submitted_at).toLocaleString()
-                            : tinMatchingRequest.status === 'failed' 
-                              ? 'Failed before submission'
-                              : tinMatchingRequest.status === 'pending'
-                                ? 'Pending submission'
-                                : 'Not yet submitted'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ color: '#6b7280' }}>Last Updated:</span>{' '}
-                        <span style={{ color: '#1f2937', fontWeight: '500' }}>
-                          {tinMatchingRequest.updatedAt || tinMatchingRequest.updated_at
-                            ? new Date(tinMatchingRequest.updatedAt || tinMatchingRequest.updated_at).toLocaleString()
-                            : tinMatchingRequest.createdAt || tinMatchingRequest.created_at
-                              ? new Date(tinMatchingRequest.createdAt || tinMatchingRequest.created_at).toLocaleString()
-                              : 'N/A'}
-                        </span>
-                      </div>
+                    <div style={{ fontSize: '13px' }}>
+                      <span style={{ color: '#6b7280' }}>Last Updated:</span>{' '}
+                      <span style={{ color: '#1f2937', fontWeight: '500' }}>
+                        {tinMatchingRequest.updatedAt || tinMatchingRequest.updated_at
+                          ? new Date(tinMatchingRequest.updatedAt || tinMatchingRequest.updated_at).toLocaleString()
+                          : tinMatchingRequest.createdAt || tinMatchingRequest.created_at
+                            ? new Date(tinMatchingRequest.createdAt || tinMatchingRequest.created_at).toLocaleString()
+                            : 'N/A'}
+                      </span>
                     </div>
 
                     {tinMatchingRequest.status === 'failed' && (
